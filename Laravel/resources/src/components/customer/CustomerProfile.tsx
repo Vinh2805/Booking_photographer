@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CustomerEditProfile } from "./CustomerEditProfile";
 import { CustomerBookings } from "./CustomerBookings";
 import { Button } from "../ui/button";
@@ -49,11 +49,12 @@ interface CustomerData {
   favoritePhotographers: number;
 }
 
+
 export interface CustomerProfileProps {
-  onNavigate?: (view: string) => void;
   onNavigateToBookings?: (filter?: string) => void;
   onNavigateToFavorites?: () => void;
   onLogout?: () => void;
+  onNavigate?: (view: string) => void;
 }
 
 // ================== Reusable header ==================
@@ -62,18 +63,20 @@ const HeaderBar: React.FC<{
   onBack?: () => void;
   right?: React.ReactNode;
 }> = ({ title, onBack, right }) => (
-  <div className="sticky top-0 z-10 bg-card/90 backdrop-blur-sm border-b border-border p-4 flex items-center gap-3 shadow-sm">
+  <div className="sticky top-0 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/50 dark:border-slate-700/50 p-4 flex items-center gap-3 shadow-sm">
     {onBack && (
       <Button
         variant="ghost"
         size="icon"
         onClick={onBack}
-        className="shrink-0 hover:bg-accent"
+        className="shrink-0 hover:bg-slate-100 dark:hover:bg-slate-700"
       >
         <ChevronLeft className="w-5 h-5" />
       </Button>
     )}
-    <h1 className="font-semibold text-lg flex-1 text-foreground">{title}</h1>
+    <h1 className="font-semibold text-lg flex-1 text-slate-800 dark:text-slate-100">
+      {title}
+    </h1>
     {right}
   </div>
 );
@@ -147,20 +150,23 @@ const FavoritePhotographersView: React.FC<{
   const bookNow = (p: Photographer) => alert(`Đặt lịch với ${p.name}`);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <HeaderBar title="Nhiếp ảnh gia yêu thích" onBack={onBack} />
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Input
               placeholder="Tìm theo tên, địa điểm, thể loại…"
-              className="pl-3 bg-input-background border-border"
+              className="pl-3 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-xl">
-            <Label htmlFor="topRated" className="text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
+            <Label
+              htmlFor="topRated"
+              className="text-sm text-slate-600 dark:text-slate-300"
+            >
               4.8★+
             </Label>
             <Switch
@@ -175,7 +181,7 @@ const FavoritePhotographersView: React.FC<{
           {filtered.map((p) => (
             <Card
               key={p.id}
-              className="hover:shadow-lg transition-all duration-200 bg-card border-border"
+              className="hover:shadow-lg transition-all duration-200 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
@@ -183,17 +189,17 @@ const FavoritePhotographersView: React.FC<{
                     <img
                       src={p.avatar}
                       alt={p.name}
-                      className="w-16 h-16 rounded-full object-cover border-2 border-border"
+                      className="w-16 h-16 rounded-full object-cover border-2 border-slate-200 dark:border-slate-600"
                     />
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-card rounded-full"></div>
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-semibold truncate text-card-foreground">
+                        <p className="font-semibold truncate text-slate-800 dark:text-slate-100">
                           {p.name}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
                           <span className="flex items-center gap-1">
                             <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                             {p.rating}
@@ -201,7 +207,7 @@ const FavoritePhotographersView: React.FC<{
                           <span>•</span>
                           <span>{p.completed} buổi chụp</span>
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
                           <MapPin className="w-3 h-3" />
                           <span>{p.location}</span>
                         </div>
@@ -210,7 +216,7 @@ const FavoritePhotographersView: React.FC<{
                             <Badge
                               key={s}
                               variant="outline"
-                              className="text-[11px] border-primary/30 text-primary"
+                              className="text-[11px] border-purple-200 text-purple-700 dark:border-purple-700 dark:text-purple-400"
                             >
                               {s}
                             </Badge>
@@ -223,7 +229,7 @@ const FavoritePhotographersView: React.FC<{
                             variant="outline"
                             size="sm"
                             onClick={() => openChat(p)}
-                            className="gap-2 border-border"
+                            className="gap-2 border-slate-300 dark:border-slate-600"
                           >
                             <MessageCircle className="w-4 h-4" />
                             Chat
@@ -232,7 +238,7 @@ const FavoritePhotographersView: React.FC<{
                             variant="outline"
                             size="sm"
                             onClick={() => viewProfile(p)}
-                            className="gap-2 border-border"
+                            className="gap-2 border-slate-300 dark:border-slate-600"
                           >
                             <UserRound className="w-4 h-4" />
                             Xem
@@ -242,7 +248,7 @@ const FavoritePhotographersView: React.FC<{
                           <Button
                             size="sm"
                             onClick={() => bookNow(p)}
-                            className="gap-2 bg-primary hover:bg-primary/90 flex-1"
+                            className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 flex-1"
                           >
                             <CameraIcon className="w-4 h-4" />
                             Đặt lịch
@@ -252,9 +258,9 @@ const FavoritePhotographersView: React.FC<{
                             size="icon"
                             onClick={() => removeFavorite(p)}
                             aria-label="Bỏ yêu thích"
-                            className="hover:bg-destructive/10"
+                            className="hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
-                            <Trash2 className="w-4 h-4 text-destructive" />
+                            <Trash2 className="w-4 h-4 text-red-500" />
                           </Button>
                         </div>
                       </div>
@@ -266,8 +272,8 @@ const FavoritePhotographersView: React.FC<{
           ))}
 
           {filtered.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <Heart className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+              <Heart className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
               <p className="text-lg font-medium mb-2">
                 Chưa có nhiếp ảnh gia yêu thích
               </p>
@@ -307,37 +313,41 @@ const ChangePasswordView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-black dark:text-slate-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <HeaderBar title="Đổi mật khẩu" onBack={onBack} />
       <div className="p-4 max-w-md mx-auto space-y-4">
-        <Card className="bg-card border-border">
+        <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-card-foreground">
-              <KeyRound className="w-5 h-5 text-primary" />
+            <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+              <KeyRound className="w-5 h-5 text-purple-600" />
               Thiết lập mật khẩu mới
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-foreground">Mật khẩu hiện tại</Label>
+              <Label className="text-slate-700 dark:text-slate-300">
+                Mật khẩu hiện tại
+              </Label>
               <Input
                 type="password"
                 value={current}
                 onChange={(e) => setCurrent(e.target.value)}
                 placeholder="••••••••"
-                className="bg-input-background border-border"
+                className="bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-foreground">Mật khẩu mới</Label>
+              <Label className="text-slate-700 dark:text-slate-300">
+                Mật khẩu mới
+              </Label>
               <Input
                 type="password"
                 value={next}
                 onChange={(e) => setNext(e.target.value)}
                 placeholder="Tối thiểu 8 ký tự"
-                className="bg-input-background border-border"
+                className="bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+              <div className="h-2 w-full bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ${
                     strength <= 2
@@ -352,18 +362,20 @@ const ChangePasswordView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   }`}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Gợi ý: dùng chữ hoa, số và ký tự đặc biệt để mạnh hơn.
               </p>
             </div>
             <div className="space-y-2">
-              <Label className="text-foreground">Xác nhận mật khẩu mới</Label>
+              <Label className="text-slate-700 dark:text-slate-300">
+                Xác nhận mật khẩu mới
+              </Label>
               <Input
                 type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Nhập lại mật khẩu mới"
-                className="bg-input-background border-border"
+                className="bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
             </div>
           </CardContent>
@@ -372,7 +384,7 @@ const ChangePasswordView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               Huỷ
             </Button>
             <Button
-              className="flex-1 bg-primary hover:bg-primary/90"
+              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
               onClick={submit}
             >
               Lưu mật khẩu
@@ -405,47 +417,48 @@ const SecuritySettingsView: React.FC<{
     },
   ]);
 
+
   const save = () => alert("Đã lưu cài đặt bảo mật (demo)");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <HeaderBar title="Bảo mật tài khoản" onBack={onBack} />
       <div className="p-4 max-w-2xl mx-auto space-y-4">
-        <Card className="bg-card border-border">
+        <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-card-foreground">
+            <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
               <ShieldCheck className="w-5 h-5 text-green-600" />
               Tổng quan bảo mật
             </CardTitle>
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg border border-border bg-muted/50">
-              <div className="text-sm text-foreground flex items-center justify-between mb-2">
+            <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">
+              <div className="text-sm text-slate-700 dark:text-slate-300 flex items-center justify-between mb-2">
                 <span>Bật xác thực 2 bước</span>
                 <Switch checked={twoFA} onCheckedChange={setTwoFA} />
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Tăng bảo vệ bằng mã OTP qua ứng dụng/SMS.
               </p>
             </div>
-            <div className="p-4 rounded-lg border border-border bg-muted/50">
-              <div className="text-sm text-foreground flex items-center justify-between mb-2">
+            <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">
+              <div className="text-sm text-slate-700 dark:text-slate-300 flex items-center justify-between mb-2">
                 <span>Cảnh báo đăng nhập mới</span>
                 <Switch
                   checked={loginAlerts}
                   onCheckedChange={setLoginAlerts}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Gửi thông báo khi tài khoản đăng nhập trên thiết bị lạ.
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
+        <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-card-foreground">
+            <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
               <Smartphone className="w-5 h-5 text-blue-600" />
               Phiên hoạt động
             </CardTitle>
@@ -454,13 +467,13 @@ const SecuritySettingsView: React.FC<{
             {sessions.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/50"
+                className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50"
               >
                 <div>
-                  <p className="font-medium text-sm text-card-foreground">
+                  <p className="font-medium text-sm text-slate-800 dark:text-slate-100">
                     {s.device}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Hoạt động: {s.lastActive}
                     {s.thisDevice ? " · Thiết bị này" : ""}
                   </p>
@@ -468,14 +481,17 @@ const SecuritySettingsView: React.FC<{
               </div>
             ))}
             {sessions.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <Smartphone className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                <Smartphone className="w-12 h-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
                 <p className="text-sm">Không còn phiên hoạt động nào</p>
               </div>
             )}
           </CardContent>
           <CardFooter className="justify-end">
-            <Button onClick={save} className="bg-primary hover:bg-primary/90">
+            <Button
+              onClick={save}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
               Lưu cài đặt
             </Button>
           </CardFooter>
@@ -498,7 +514,7 @@ export function CustomerProfile({
     | "bookings"
   >("profile");
 
-  // Mock customer data
+  // Mock customer data with better avatar
   const customerData: CustomerData = {
     id: "CUST001",
     name: "Nguyễn Văn A",
@@ -527,6 +543,7 @@ export function CustomerProfile({
   if (currentView === "security") {
     return <SecuritySettingsView onBack={() => setCurrentView("profile")} />;
   }
+  // Wallet view removed - wallet features disabled
   if (currentView === "edit") {
     return <CustomerEditProfile onBack={() => setCurrentView("profile")} />;
   }
@@ -536,32 +553,37 @@ export function CustomerProfile({
 
   // Profile main
   return (
-    <div className="p-4 space-y-6 pb-24 bg-background">
+    <div className="p-4 space-y-6 pb-24 bg-slate-50 dark:bg-slate-900">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          Hồ sơ của tôi
+        </h1>
+      </div>
 
       {/* Profile Card */}
-      <Card className="bg-gradient-to-r from-card to-muted border-border shadow-sm">
+      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-800 dark:to-slate-700 border-slate-200 dark:border-slate-600 shadow-sm">
         <CardContent className="p-6">
           <div className="flex items-center gap-6 mb-6">
             <div className="relative">
               <img
                 src={customerData.avatar}
                 alt={customerData.name}
-                className="w-24 h-24 rounded-full object-cover border-4 border-card shadow-lg"
+                className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-slate-600 shadow-lg"
               />
-              <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-500 border-3 border-card rounded-full flex items-center justify-center">
+              <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-500 border-3 border-white dark:border-slate-700 rounded-full flex items-center justify-center">
                 <div className="w-3 h-3 bg-white rounded-full"></div>
               </div>
             </div>
 
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-card-foreground mb-1">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
                 {customerData.name}
               </h2>
-              <div className="flex items-center gap-2 text-muted-foreground mb-2">
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 mb-2">
                 <MapPin className="w-4 h-4" />
                 <span>{customerData.location}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <Calendar className="w-4 h-4" />
                 <span>
                   Tham gia từ{" "}
@@ -571,8 +593,8 @@ export function CustomerProfile({
             </div>
           </div>
 
-          <div className="border-t border-border pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="border-t border-slate-200 dark:border-slate-600 pt-4">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
               <Mail className="w-4 h-4" />
               <span>{customerData.email}</span>
             </div>
@@ -585,34 +607,36 @@ export function CustomerProfile({
         <Button
           onClick={() => setCurrentView("edit")}
           variant="outline"
-          className="h-20 flex-col gap-3 border-2 border-border hover:bg-accent shadow-lg"
+          className="h-20 flex-col gap-3 border-2 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-lg"
         >
-          <User className="w-7 h-7 text-muted-foreground" />
-          <span className="font-semibold text-muted-foreground">Sửa hồ sơ</span>
+          <User className="w-7 h-7 text-slate-600 dark:text-slate-400" />
+          <span className="font-semibold text-slate-600 dark:text-slate-400">
+            Sửa hồ sơ
+          </span>
         </Button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4">
         <Card
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20"
+          className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-700"
           onClick={() => setCurrentView("bookings")}
         >
           <CardContent className="p-4 text-center">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-              <Camera className="w-6 h-6 text-primary-foreground" />
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+              <Camera className="w-6 h-6 text-white" />
             </div>
-            <p className="text-2xl font-bold text-primary mb-1">
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
               {customerData.totalBookings}
             </p>
-            <p className="text-xs text-muted-foreground font-medium">
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
               Tổng buổi chụp
             </p>
           </CardContent>
         </Card>
 
         <Card
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-pink-500/10 to-rose-500/5 border-pink-500/20"
+          className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20 border-pink-200 dark:border-pink-700"
           onClick={() => {
             if (onNavigateToFavorites) onNavigateToFavorites();
             else setCurrentView("favorites");
@@ -622,10 +646,10 @@ export function CustomerProfile({
             <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
               <Heart className="w-6 h-6 text-white" />
             </div>
-            <p className="text-2xl font-bold text-pink-600 mb-1">
+            <p className="text-2xl font-bold text-pink-600 dark:text-pink-400 mb-1">
               {customerData.favoritePhotographers}
             </p>
-            <p className="text-xs text-muted-foreground font-medium">
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
               Yêu thích
             </p>
           </CardContent>
@@ -633,10 +657,10 @@ export function CustomerProfile({
       </div>
 
       {/* Settings Menu */}
-      <Card className="bg-card border-border shadow-sm">
+      <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-card-foreground">
-            <Settings className="w-5 h-5 text-muted-foreground" />
+          <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
             Cài đặt tài khoản
           </CardTitle>
         </CardHeader>
@@ -647,7 +671,7 @@ export function CustomerProfile({
               label: "Cài đặt thông báo",
               icon: Bell,
               description: "Quản lý thông báo ứng dụng",
-              color: "text-purple-600",
+              color: "text-purple-600 dark:text-purple-400",
               bgColor: "bg-purple-100 dark:bg-purple-900/50",
             },
             {
@@ -655,7 +679,7 @@ export function CustomerProfile({
               label: "Nhiếp ảnh gia yêu thích",
               icon: Heart,
               description: "Danh sách nhiếp ảnh gia đã lưu",
-              color: "text-pink-600",
+              color: "text-pink-600 dark:text-pink-400",
               bgColor: "bg-pink-100 dark:bg-pink-900/50",
             },
             {
@@ -663,7 +687,7 @@ export function CustomerProfile({
               label: "Đổi mật khẩu",
               icon: KeyRound,
               description: "Thay đổi mật khẩu đăng nhập",
-              color: "text-orange-600",
+              color: "text-orange-600 dark:text-orange-400",
               bgColor: "bg-orange-100 dark:bg-orange-900/50",
             },
             {
@@ -671,7 +695,7 @@ export function CustomerProfile({
               label: "Bảo mật tài khoản",
               icon: ShieldCheck,
               description: "2FA, Cảnh báo đăng nhập",
-              color: "text-green-600",
+              color: "text-green-600 dark:text-green-400",
               bgColor: "bg-green-100 dark:bg-green-900/50",
             },
             {
@@ -679,7 +703,7 @@ export function CustomerProfile({
               label: "Hỗ trợ",
               icon: HelpCircle,
               description: "Liên hệ đội ngũ hỗ trợ",
-              color: "text-blue-600",
+              color: "text-blue-600 dark:text-blue-400",
               bgColor: "bg-blue-100 dark:bg-blue-900/50",
             },
           ].map((item) => {
@@ -688,7 +712,7 @@ export function CustomerProfile({
               <Button
                 key={item.id}
                 variant="ghost"
-                className="w-full justify-start h-auto p-4 hover:bg-accent rounded-xl"
+                className="w-full justify-start h-auto p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl"
                 onClick={() => {
                   if (item.id === "favorites") {
                     if (onNavigateToFavorites) onNavigateToFavorites();
@@ -711,15 +735,16 @@ export function CustomerProfile({
                     <Icon className={`w-5 h-5 ${item.color}`} />
                   </div>
                   <div className="text-left flex-1">
-                    <p className="font-medium text-card-foreground">
+                    <p className="font-medium text-slate-800 dark:text-slate-100">
                       {item.label}
                     </p>
                     {item.description && (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
                         {item.description}
                       </p>
                     )}
                   </div>
+                  <ChevronRight className="w-5 h-5 text-slate-400 dark:text-slate-500" />
                 </div>
               </Button>
             );

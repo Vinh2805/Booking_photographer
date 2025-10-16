@@ -10,9 +10,9 @@ import {
 import { Switch } from "../ui/switch";
 import { PhotographerEditProfile } from "./PhotographerEditProfile";
 import { PhotographerChangePassword } from "./PhotographerChangePassword";
-import { ProfileHeader } from "./components/ProfileHeader";
-import { ReviewsSection } from "./components/ReviewsSection";
-import { SettingsMenu } from "./components/SettingsMenu";
+import { ProfileHeader } from "../photographer/photographer components/ProfileHeader";
+import { ReviewsSection } from "../photographer/photographer components/ReviewsSection";
+import { SettingsMenu } from "../photographer/photographer components/SettingsMenu";
 import { ShieldCheck, Smartphone, ArrowLeft } from "lucide-react";
 import {
   PHOTOGRAPHER_DATA,
@@ -24,11 +24,14 @@ import {
 } from "./constants/profileMenuItems";
 
 export interface PhotographerProfileProps {
-  onNavigate?: (view: any) => void;
   onLogout?: () => void;
+  onNavigate?: (view: string) => void;
 }
 
-export function PhotographerProfile({}: PhotographerProfileProps) {
+export function PhotographerProfile({
+  onLogout,
+  onNavigate,
+}: PhotographerProfileProps) {
   const [currentView, setCurrentView] = useState<
     "profile" | "edit" | "password" | "security"
   >("profile");
@@ -52,19 +55,18 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
     onBack?: () => void;
   }> = ({ title, onBack }) => {
     return (
-      <div className="bg-card border-b border-border p-4 sticky top-0 z-10">
+      <div className="bg-white border-b p-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           {onBack && (
             <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
               <ArrowLeft className="w-4 h-4" />
             </Button>
           )}
-          <h1 className="font-semibold text-card-foreground">{title}</h1>
+          <h1 className="font-semibold">{title}</h1>
         </div>
       </div>
     );
   };
-
   const SecuritySettingsView: React.FC<{
     onBack?: () => void;
   }> = ({ onBack }) => {
@@ -85,62 +87,63 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
       },
     ]);
 
+    const revoke = (id: string) => {
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      alert(`Đã đăng xuất phiên ${id}`);
+    };
+
     const save = () => alert("Đã lưu cài đặt bảo mật (demo)");
 
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gray-50">
         <HeaderBar title="Bảo mật tài khoản" onBack={onBack} />
         <div className="p-4 max-w-2xl mx-auto space-y-4">
-          <Card className="bg-card border-border">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-card-foreground">
-                <ShieldCheck className="w-5 h-5 text-green-600" />
-                Tổng quan bảo mật
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5" /> Tổng quan bảo mật
               </CardTitle>
             </CardHeader>
             <CardContent className="grid sm:grid-cols-2 gap-4">
-              <div className="p-3 rounded-lg border border-border bg-muted/50">
-                <div className="text-sm text-foreground flex items-center justify-between mb-1">
+              <div className="p-3 rounded-lg border bg-white">
+                <div className="text-sm text-gray-600 flex items-center justify-between mb-1">
                   <span>Bật xác thực 2 bước</span>
                   <Switch checked={twoFA} onCheckedChange={setTwoFA} />
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   Tăng bảo vệ bằng mã OTP qua ứng dụng/SMS.
                 </p>
               </div>
-              <div className="p-3 rounded-lg border border-border bg-muted/50">
-                <div className="text-sm text-foreground flex items-center justify-between mb-1">
+              <div className="p-3 rounded-lg border bg-white">
+                <div className="text-sm text-gray-600 flex items-center justify-between mb-1">
                   <span>Cảnh báo đăng nhập mới</span>
                   <Switch
                     checked={loginAlerts}
                     onCheckedChange={setLoginAlerts}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   Gửi thông báo khi tài khoản đăng nhập trên thiết bị lạ.
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-card border-border">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-card-foreground">
-                <Smartphone className="w-5 h-5 text-blue-600" />
-                Phiên hoạt động
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="w-5 h-5" /> Phiên hoạt động
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {sessions.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/50"
+                  className="flex items-center justify-between p-3 rounded-lg border bg-white"
                 >
                   <div>
-                    <p className="font-medium text-sm text-card-foreground">
-                      {s.device}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="font-medium text-sm">{s.device}</p>
+                    <p className="text-xs text-gray-500">
                       Hoạt động: {s.lastActive}
                       {s.thisDevice ? " · Thiết bị này" : ""}
                     </p>
@@ -148,16 +151,14 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
                 </div>
               ))}
               {sessions.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Smartphone className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                <div className="text-center py-8 text-gray-500">
+                  <Smartphone className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                   <p className="text-sm">Không còn phiên hoạt động nào</p>
                 </div>
               )}
             </CardContent>
             <CardFooter className="justify-end">
-              <Button onClick={save} className="bg-primary hover:bg-primary/90">
-                Lưu cài đặt
-              </Button>
+              <Button onClick={save}>Lưu cài đặt</Button>
             </CardFooter>
           </Card>
         </div>
@@ -184,8 +185,6 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
     }
   };
 
-  // Wallet view removed - wallet features disabled
-
   if (currentView === "edit") {
     return <PhotographerEditProfile onBack={() => setCurrentView("profile")} />;
   }
@@ -200,7 +199,9 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
   }
 
   return (
-    <div className="p-4 space-y-6 pb-24 bg-background">
+    <div className="p-4 space-y-6 pb-24">
+      <h1 className="text-xl font-bold">Hồ sơ của tôi</h1>
+
       <ProfileHeader
         photographer={PHOTOGRAPHER_DATA}
         onEdit={() => setCurrentView("edit")}
@@ -215,12 +216,10 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
               key={item.id}
               onClick={() => handleMainMenuClick(item.id)}
               variant="outline"
-              className={`h-16 flex-col gap-2 border-border hover:bg-accent ${
-                item.bgColor || ""
-              }`}
+              className={`h-16 flex-col gap-2 ${item.bgColor || ""}`}
             >
-              <Icon className="w-6 h-6 text-muted-foreground" />
-              <span className="text-foreground">{item.title}</span>
+              <Icon className="w-6 h-6" />
+              {item.title}
             </Button>
           );
         })}

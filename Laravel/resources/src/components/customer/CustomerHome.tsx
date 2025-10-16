@@ -254,13 +254,9 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
       // Price range filter
       if (priceRange) {
         const range = priceRanges.find((r) => r.value === priceRange);
-        if (
-          range &&
-          typeof range.min === "number" &&
-          typeof range.max === "number" &&
-          (photographer.priceValue < range.min ||
-            photographer.priceValue > range.max)
-        ) {
+        const min = range?.min ?? 0;
+        const max = range?.max ?? Infinity;
+        if (photographer.priceValue < min || photographer.priceValue > max) {
           return false;
         }
       }
@@ -368,11 +364,12 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
                 <Sparkles className="w-4 h-4" />
                 Nền tảng đặt lịch chụp ảnh #1
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight text-black dark:text-slate-200">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight">
                 Chào mừng trở lại,{" "}
                 <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
                   Hương
-                </span> ! 👋
+                </span>
+                ! 👋
               </h1>
               <p className="text-lg text-muted-foreground mb-6 max-w-lg mx-auto lg:mx-0">
                 Kết nối với những nhiếp ảnh gia tài năng nhất và tạo ra những
@@ -422,7 +419,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
       {/* Enhanced Categories with Search and Filters */}
       <div ref={searchSectionRef} className="space-y-6">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2 text-black dark:text-slate-200">Chọn dịch vụ phù hợp</h2>
+          <h2 className="text-2xl font-bold mb-2">Chọn dịch vụ phù hợp</h2>
           <p className="text-muted-foreground">
             Tìm nhiếp ảnh gia chuyên nghiệp cho từng loại hình chụp ảnh
           </p>
@@ -469,8 +466,8 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
                 key={category.id}
                 className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
                   selectedCategory === category.id
-                    ? "ring-2 ring-primary bg-primary/5 dark:bg-primary/10 border-primary/30"
-                    : "border-border/50 hover:border-primary/30 dark:hover:border-primary/50"
+                    ? "ring-2 ring-primary bg-primary/5 border-primary/30"
+                    : "border-border/50 hover:border-primary/30"
                 }`}
                 onClick={() => setSelectedCategory(category.id)}
               >
@@ -479,7 +476,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
                     className={`w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center transition-all duration-300 ${
                       selectedCategory === category.id
                         ? "bg-primary text-white shadow-lg"
-                        : "bg-primary/10 dark:bg-primary/20 text-primary"
+                        : "bg-primary/10 text-primary"
                     }`}
                   >
                     <category.icon className="w-6 h-6" />
@@ -500,16 +497,13 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
         </div>
 
         {/* Advanced Filters */}
-        <div className="bg-muted/30 dark:bg-muted/20 rounded-2xl p-6 border border-primary/10 dark:border-primary/20">
+        <div className="bg-muted/30 rounded-2xl p-6 border border-primary/10">
           <div className="flex flex-col lg:flex-row items-center gap-4 justify-between">
             <div className="flex flex-wrap items-center gap-4">
               {/* Price Range Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="border-primary/20 dark:border-primary/30"
-                  >
+                  <Button variant="outline" className="border-primary/20">
                     <Filter className="w-4 h-4 mr-2" />
                     {priceRanges.find((r) => r.value === priceRange)?.label ||
                       "Giá"}
@@ -531,10 +525,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
               {/* Location Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="border-primary/20 dark:border-primary/30"
-                  >
+                  <Button variant="outline" className="border-primary/20">
                     <MapPin className="w-4 h-4 mr-2" />
                     {locationFilter || "Địa điểm"}
                     <ChevronDown className="w-4 h-4 ml-2" />
@@ -559,10 +550,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
               {/* Rating Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="border-primary/20 dark:border-primary/30"
-                  >
+                  <Button variant="outline" className="border-primary/20">
                     <Star className="w-4 h-4 mr-2" />
                     {ratingFilters.find((r) => r.value === ratingFilter)
                       ?.label || "Đánh giá"}
@@ -606,10 +594,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
               {/* Sort Options */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="border-primary/20 dark:border-primary/30"
-                  >
+                  <Button variant="outline" className="border-primary/20">
                     <TrendingUp className="w-4 h-4 mr-2" />
                     Sắp xếp
                     <ChevronDown className="w-4 h-4 ml-2" />
@@ -632,7 +617,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
               </DropdownMenu>
 
               {/* View Mode Toggle */}
-              <div className="flex border rounded-lg border-primary/20 dark:border-primary/30 text-black dark:text-slate-200">
+              <div className="flex border rounded-lg border-primary/20">
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
                   size="sm"
@@ -654,7 +639,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
           </div>
 
           {/* Results Counter */}
-          <div className="mt-4 pt-4 border-t border-primary/10 dark:border-primary/20">
+          <div className="mt-4 pt-4 border-t border-primary/10">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 Tìm thấy{" "}
@@ -716,14 +701,14 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold mb-2 text-black dark:text-slate-200">Nhiếp ảnh gia xuất sắc</h2>
+            <h2 className="text-2xl font-bold mb-2">Nhiếp ảnh gia xuất sắc</h2>
             <p className="text-muted-foreground">
               Những tài năng được đánh giá cao nhất trên nền tảng
             </p>
           </div>
           <Button
             variant="outline"
-            className="border-primary/20 dark:border-primary/30 hover:bg-primary/5 dark:hover:bg-primary/10 text-primary"
+            className="border-primary/20 hover:bg-primary/5 text-primary"
           >
             Xem tất cả
             <ChevronRight className="w-4 h-4 ml-1" />
@@ -804,14 +789,14 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
                         <Button
                           size="sm"
                           variant="secondary"
-                          className="w-9 h-9 p-0 backdrop-blur-sm bg-white/20 hover:bg-white/30 border-white/20 dark:bg-black/20 dark:hover:bg-black/30 dark:border-black/20"
+                          className="w-9 h-9 p-0 backdrop-blur-sm bg-white/20 hover:bg-white/30 border-white/20"
                         >
                           <Heart className="w-4 h-4 text-white" />
                         </Button>
                         <Button
                           size="sm"
                           variant="secondary"
-                          className="w-9 h-9 p-0 backdrop-blur-sm bg-white/20 hover:bg-white/30 border-white/20 dark:bg-black/20 dark:hover:bg-black/30 dark:border-black/20"
+                          className="w-9 h-9 p-0 backdrop-blur-sm bg-white/20 hover:bg-white/30 border-white/20"
                         >
                           <Share2 className="w-4 h-4 text-white" />
                         </Button>
@@ -834,7 +819,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
                             className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20"
                           />
                           {photographer.isOnline && (
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-card"></div>
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
                           )}
                         </div>
                         <div className="flex-1">
@@ -905,7 +890,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
                         </Button>
                         <Button
                           variant="outline"
-                          className="px-3 border-primary/20 dark:border-primary/30 hover:bg-primary/5 dark:hover:bg-primary/10 text-primary"
+                          className="px-3 border-primary/20 hover:bg-primary/5 text-primary"
                         >
                           <Heart className="w-4 h-4" />
                         </Button>

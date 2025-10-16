@@ -3,7 +3,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
-import { BookingDetail } from "../BookingDetail";
+import { BookingDetail } from "../other/BookingDetail";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,81 +92,79 @@ interface FilterOption {
 
 const filterOptions: FilterOption[] = [
   {
-    id: "all",
-    label: "Tất cả",
-    status: "all",
+    id: 'all',
+    label: 'Tất cả',
+    status: 'all',
     icon: Calendar,
-    color: "bg-primary",
+    color: 'bg-blue-500'
   },
   {
-    id: "pending-confirmation",
-    label: "Chờ xác nhận",
-    status: "pending_confirmation",
+    id: 'pending-confirmation',
+    label: 'Chờ xác nhận',
+    status: 'pending_confirmation',
     icon: Clock,
-    color: "bg-yellow-500",
+    color: 'bg-yellow-500'
   },
   {
-    id: "pending-deposit",
-    label: "Chờ đặt cọc",
-    status: "pending_deposit",
+    id: 'pending-deposit',
+    label: 'Chờ đặt cọc',
+    status: 'pending_deposit',
     icon: CreditCard,
-    color: "bg-orange-500",
+    color: 'bg-orange-500'
   },
   {
-    id: "upcoming",
-    label: "Sắp diễn ra",
-    status: "upcoming",
+    id: 'upcoming',
+    label: 'Sắp diễn ra',
+    status: 'upcoming',
     icon: AlertCircle,
-    color: "bg-primary",
+    color: 'bg-blue-500'
   },
   {
-    id: "in-progress",
-    label: "Đang diễn ra",
-    status: "ongoing",
+    id: 'in-progress',
+    label: 'Đang diễn ra',
+    status: 'ongoing',
     icon: PlayCircle,
-    color: "bg-green-500",
+    color: 'bg-green-500'
   },
   {
-    id: "pending-payment",
-    label: "Chờ thanh toán",
-    status: "pending_payment",
+    id: 'pending-payment',
+    label: 'Chờ thanh toán',
+    status: 'pending_payment',
     icon: CreditCard,
-    color: "bg-red-500",
+    color: 'bg-red-500'
   },
   {
-    id: "pending-processing",
-    label: "Chờ xử lý ảnh",
-    status: "pending_processing",
+    id: 'pending-processing',
+    label: 'Chờ xử lý ảnh',
+    status: 'pending_processing',
     icon: Camera,
-    color: "bg-purple-500",
+    color: 'bg-purple-500'
   },
   {
-    id: "processed",
-    label: "Đã xử lý ảnh",
-    status: "photos_ready",
+    id: 'processed',
+    label: 'Đã xử lý ảnh',
+    status: 'photos_ready',
     icon: CheckCircle,
-    color: "bg-indigo-500",
+    color: 'bg-indigo-500'
   },
   {
-    id: "completed",
-    label: "Đã hoàn thành",
-    status: "completed",
+    id: 'completed',
+    label: 'Đã hoàn thành',
+    status: 'completed',
     icon: CheckCircle,
-    color: "bg-green-600",
+    color: 'bg-green-600'
   },
   {
-    id: "cancelled",
-    label: "Đã hủy",
-    status: "cancelled",
+    id: 'cancelled',
+    label: 'Đã hủy',
+    status: 'cancelled',
     icon: XCircle,
-    color: "bg-muted-foreground",
-  },
+    color: 'bg-gray-500'
+  }
 ];
 
-export function CustomerBookings({ onBack }: CustomerBookingsProps) {
-  const [selectedStatus, setSelectedStatus] = useState<BookingStatus | "all">(
-    "all"
-  );
+export function CustomerBookings({ onNavigate, onBack }: CustomerBookingsProps) {
+  const [selectedStatus, setSelectedStatus] = useState<BookingStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showChangeDialog, setShowChangeDialog] = useState(false);
@@ -187,6 +185,9 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
   const [payError, setPayError] = useState<string | null>(null);
   const [paySuccess, setPaySuccess] = useState(false);
 
+  const maskedCard = "**** **** **** 1234";
+  const depositPercent = 0.3; // 30%
+
   const bookings: Booking[] = [
     {
       id: "BK001",
@@ -194,8 +195,7 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
       title: "Chụp ảnh cưới pre-wedding",
       photographer: {
         name: "Minh Tuấn",
-        avatar:
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
+        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
         rating: 4.9,
         completedSessions: 127,
       },
@@ -216,8 +216,7 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
       title: "Chụp ảnh gia đình",
       photographer: {
         name: "Đức Anh",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face",
+        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face",
         rating: 4.8,
         completedSessions: 89,
       },
@@ -241,8 +240,7 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
       title: "Chụp ảnh maternity",
       photographer: {
         name: "Lan Hương",
-        avatar:
-          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=50&h=50&fit=crop&crop=face",
+        avatar: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=50&h=50&fit=crop&crop=face",
         rating: 4.7,
         completedSessions: 156,
       },
@@ -262,8 +260,7 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
       title: "Chụp ảnh chân dung",
       photographer: {
         name: "Thu Hà",
-        avatar:
-          "https://images.unsplash.com/photo-1494790108755-2616b85bb44?w=50&h=50&fit=crop&crop=face",
+        avatar: "https://images.unsplash.com/photo-1494790108755-2616b85bb44?w=50&h=50&fit=crop&crop=face",
         rating: 4.9,
         completedSessions: 203,
       },
@@ -283,8 +280,7 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
       title: "Chụp ảnh couple",
       photographer: {
         name: "Ngọc Tuyền",
-        avatar:
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
+        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
         rating: 4.8,
         completedSessions: 98,
       },
@@ -307,8 +303,7 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
       title: "Chụp ảnh sự kiện",
       photographer: {
         name: "Minh Đức",
-        avatar:
-          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&h=50&fit=crop&crop=face",
+        avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&h=50&fit=crop&crop=face",
         rating: 4.6,
         completedSessions: 134,
       },
@@ -332,55 +327,47 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
     const statusMap = {
       pending_confirmation: {
         label: "Chờ xác nhận",
-        color:
-          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+        color: "bg-yellow-100 text-yellow-800",
         icon: AlertCircle,
       },
       pending_deposit: {
         label: "Chờ đặt cọc",
-        color:
-          "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+        color: "bg-orange-100 text-orange-800",
         icon: DollarSign,
       },
       upcoming: {
         label: "Sắp diễn ra",
-        color:
-          "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+        color: "bg-blue-100 text-blue-800",
         icon: Calendar,
       },
       ongoing: {
         label: "Đang diễn ra",
-        color:
-          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+        color: "bg-green-100 text-green-800",
         icon: Camera,
       },
       pending_payment: {
         label: "Chờ thanh toán",
-        color:
-          "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+        color: "bg-purple-100 text-purple-800",
         icon: DollarSign,
       },
       pending_processing: {
         label: "Chờ xử lý ảnh",
-        color:
-          "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+        color: "bg-indigo-100 text-indigo-800",
         icon: Loader,
       },
       photos_ready: {
         label: "Đã xử lý ảnh",
-        color:
-          "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
+        color: "bg-teal-100 text-teal-800",
         icon: ImageIcon,
       },
       completed: {
         label: "Đã hoàn thành",
-        color:
-          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+        color: "bg-green-100 text-green-800",
         icon: CheckCircle,
       },
       cancelled: {
         label: "Đã hủy",
-        color: "bg-muted text-muted-foreground",
+        color: "bg-gray-100 text-gray-800",
         icon: X,
       },
     };
@@ -388,8 +375,7 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
   };
 
   const filteredBookings = bookings.filter((booking) => {
-    const matchesStatus =
-      selectedStatus === "all" || booking.status === selectedStatus;
+    const matchesStatus = selectedStatus === "all" || booking.status === selectedStatus;
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       q === "" ||
@@ -399,50 +385,59 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
     return matchesStatus && matchesSearch;
   });
 
-  const statusCounts: Record<BookingStatus | "all", number> =
-    React.useMemo(() => {
-      const init: Record<BookingStatus | "all", number> = {
-        all: bookings.length,
-        pending_confirmation: 0,
-        pending_deposit: 0,
-        upcoming: 0,
-        ongoing: 0,
-        pending_payment: 0,
-        pending_processing: 0,
-        photos_ready: 0,
-        completed: 0,
-        cancelled: 0,
-      };
-      bookings.forEach((b) => {
-        init[b.status] += 1;
-      });
-      return init;
-    }, [bookings]);
+  const statusCounts: Record<BookingStatus | "all", number> = React.useMemo(() => {
+    const init: Record<BookingStatus | "all", number> = {
+      all: bookings.length,
+      pending_confirmation: 0,
+      pending_deposit: 0,
+      upcoming: 0,
+      ongoing: 0,
+      pending_payment: 0,
+      pending_processing: 0,
+      photos_ready: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+    bookings.forEach((b) => {
+      init[b.status] += 1;
+    });
+    return init;
+  }, [bookings]);
 
   const handleFilterSelect = (status: BookingStatus | "all") => {
     setSelectedStatus(status);
   };
 
-  const selectedFilterOption =
-    filterOptions.find((option) => option.status === selectedStatus) ||
-    filterOptions[0];
+  const selectedFilterOption = filterOptions.find(option => option.status === selectedStatus) || filterOptions[0];
 
   // Show booking detail if selected
   if (selectedBooking) {
-    return <BookingDetail onBack={() => setSelectedBooking(null)} />;
+    return (
+      <BookingDetail 
+        onBack={() => setSelectedBooking(null)}
+      />
+    );
   }
 
   // Main list view
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="bg-white border-b p-4">
+        <div className="flex items-center gap-3">
           {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="p-2"
+            >
               <ArrowLeft className="w-4 h-4" />
             </Button>
           )}
+          <h1 className="font-semibold flex-1">Buổi chụp của tôi</h1>
         </div>
+      </div>
 
       <div className="p-4 space-y-4">
         {/* Filter and Search */}
@@ -452,75 +447,47 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="justify-between bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border-border hover:shadow-md transition-all duration-200"
+                className="justify-between bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100 border-blue-100 hover:shadow-md transition-all duration-200"
               >
                 <div className="flex items-center gap-2">
-                  <div
-                    className={`w-2 h-2 rounded-full ${selectedFilterOption.color}`}
-                  />
+                  <div className={`w-2 h-2 rounded-full ${selectedFilterOption.color}`} />
                   <selectedFilterOption.icon className="h-4 w-4" />
-                  <span className="text-sm text-foreground">
-                    {selectedFilterOption.label}
-                  </span>
-                  <Badge
-                    variant={
-                      statusCounts[selectedStatus] > 0 ? "default" : "secondary"
-                    }
-                    className="text-xs"
-                  >
+                  <span className="text-sm">{selectedFilterOption.label}</span>
+                  <Badge variant={statusCounts[selectedStatus] > 0 ? "default" : "secondary"} className="text-xs">
                     {statusCounts[selectedStatus]}
                   </Badge>
                 </div>
                 <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-
-            <DropdownMenuContent
-              className="w-64 max-h-80 overflow-y-auto bg-card border-border"
-              align="start"
-            >
-              <div className="px-3 py-2 border-b border-border">
-                <p className="font-medium text-sm text-card-foreground">
-                  Chọn trạng thái buổi chụp
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Tất cả: {statusCounts.all} buổi chụp
-                </p>
+            
+            <DropdownMenuContent className="w-64 max-h-80 overflow-y-auto" align="start">
+              <div className="px-3 py-2 border-b">
+                <p className="font-medium text-sm">Chọn trạng thái buổi chụp</p>
+                <p className="text-xs text-muted-foreground">Tất cả: {statusCounts.all} buổi chụp</p>
               </div>
-
+              
               {filterOptions.map((option, index) => (
                 <React.Fragment key={option.id}>
                   <DropdownMenuItem
                     onClick={() => handleFilterSelect(option.status)}
                     className={`flex items-center justify-between px-3 py-2.5 cursor-pointer ${
-                      selectedStatus === option.status ? "bg-accent" : ""
+                      selectedStatus === option.status ? 'bg-accent' : ''
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`w-2.5 h-2.5 rounded-full ${option.color}`}
-                      />
+                      <div className={`w-2.5 h-2.5 rounded-full ${option.color}`} />
                       <option.icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium text-foreground">
-                        {option.label}
-                      </span>
+                      <span className="text-sm font-medium">{option.label}</span>
                     </div>
-                    <Badge
-                      variant={
-                        statusCounts[option.status] > 0
-                          ? "default"
-                          : "secondary"
-                      }
-                      className={`text-xs ${
-                        selectedStatus === option.status
-                          ? "bg-primary text-primary-foreground"
-                          : ""
-                      }`}
+                    <Badge 
+                      variant={statusCounts[option.status] > 0 ? "default" : "secondary"}
+                      className={`text-xs ${selectedStatus === option.status ? 'bg-primary text-primary-foreground' : ''}`}
                     >
                       {statusCounts[option.status]}
                     </Badge>
                   </DropdownMenuItem>
-
+                  
                   {/* Separator after certain groups */}
                   {(index === 0 || index === 3 || index === 6) && (
                     <DropdownMenuSeparator />
@@ -532,12 +499,12 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
 
           {/* Search */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               placeholder="Tìm kiếm buổi chụp..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-input-background border-border"
+              className="pl-10"
             />
           </div>
         </div>
@@ -549,23 +516,7 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
             const StatusIcon = statusInfo.icon;
 
             return (
-              <Card
-                key={booking.id}
-                onClick={() => setSelectedBooking(booking)}
-                className="relative cursor-pointer overflow-hidden
-             bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700
-             group hover-lift glow-on-hover shine-on-hover
-             hover:shadow-xl hover:shadow-sky-500/10 dark:hover:shadow-sky-400/10
-             hover:border-sky-300 dark:hover:border-sky-500
-             transition-all duration-300"
-              >
-                {/* Vệt sáng quét */}
-                <span
-                  aria-hidden
-                  className="shine pointer-events-none absolute inset-y-0 -left-1/3 w-1/3
-                               bg-gradient-to-r from-white/0 via-white/30 to-white/0
-                               dark:via-white/10 -skew-x-12"
-                />
+              <Card key={booking.id} className="hover:shadow-md transition-all duration-200">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <ImageWithFallback
@@ -573,33 +524,27 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
                       alt={booking.photographer.name}
                       className="w-12 h-12 rounded-full object-cover"
                     />
-
+                    
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-medium truncate text-card-foreground">
-                          {booking.title}
-                        </h3>
+                        <h3 className="font-medium truncate">{booking.title}</h3>
                         <Badge className={statusInfo.color}>
                           <StatusIcon className="w-3 h-3 mr-1" />
                           {statusInfo.label}
                         </Badge>
                       </div>
-
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <span className="text-foreground font-medium">
-                          {booking.photographer.name}
-                        </span>
+                      
+                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                        <span>{booking.photographer.name}</span>
                         <span>•</span>
                         <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                         <span>{booking.photographer.rating}</span>
                       </div>
-
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          <span>
-                            {new Date(booking.date).toLocaleDateString("vi-VN")}
-                          </span>
+                          <span>{new Date(booking.date).toLocaleDateString("vi-VN")}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
@@ -607,18 +552,15 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
                         </div>
                         <div className="flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
-                          <span className="truncate max-w-[120px]">
-                            {booking.location}
-                          </span>
+                          <span className="truncate max-w-[120px]">{booking.location}</span>
                         </div>
                       </div>
                     </div>
-
+                    
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setSelectedBooking(booking)}
-                      className="border-border"
                     >
                       Chi tiết
                     </Button>
@@ -629,14 +571,10 @@ export function CustomerBookings({ onBack }: CustomerBookingsProps) {
           })}
 
           {filteredBookings.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="text-lg font-medium mb-2 text-foreground">
-                Không tìm thấy buổi chụp
-              </p>
-              <p className="text-sm">
-                Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
-              </p>
+            <div className="text-center py-12 text-gray-500">
+              <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium mb-2">Không tìm thấy buổi chụp</p>
+              <p className="text-sm">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
             </div>
           )}
         </div>
