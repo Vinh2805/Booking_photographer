@@ -2,16 +2,16 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Route::get('/', function () {
-//     return view('welcome');
-// });
+Route::get('/', function () {
+    return view('welcome');
+});
 
-// Route::get('/', function () {
-//     return view('main');
-// });
-
-// Route API React
-Route::get('/{any}', function () {
+Route::get('/momentia', function () {
     return view('main');
-})->where('any', '.*');
+});
 
+Route::prefix('admin')->group(function () {
+    Route::get('/users', function () {
+        return 'Admin Users Page';
+    });
+});
