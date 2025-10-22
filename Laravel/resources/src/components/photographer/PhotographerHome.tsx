@@ -1,9 +1,31 @@
-import { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { motion } from "motion/react";
+
+/* UI (shadcn/ui) */
 import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "../ui/popover";
+import { Calendar as CalendarUI } from "../ui/calendar";
+
+/* utils */
+import { format } from "date-fns";
+import { vi } from "date-fns/locale";
+
+/* misc */
 import { ImageWithFallback } from "../figma/ImageWithFallback";
+
+/* icons */
 import {
   Calendar,
   DollarSign,
@@ -11,8 +33,6 @@ import {
   Star,
   TrendingUp,
   Clock,
-  Camera,
-  MessageCircle,
   Upload,
   Eye,
   Heart,
@@ -21,39 +41,94 @@ import {
   MapPin,
   ChevronRight,
   Target,
-  Zap,
+  Camera,
+  X,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 interface PhotographerHomeProps {
-  onNavigate: (view: any) => void;
+  onNavigate: (view: string) => void;
 }
 
-export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
-  const [timeframe, setTimeframe] = useState<"week" | "month" | "year">(
-    "month"
+type DateRange = { from?: Date; to?: Date };
+
+export function PhotographerHome({
+  onNavigate,
+}: PhotographerHomeProps) {
+  /* ---------- STATES ---------- */
+  const [timeframe, setTimeframe] = useState<
+    "week" | "month" | "year"
+  >("month");
+
+  // NHIỀU khoảng ngày rảnh
+  const [ranges, setRanges] = useState<DateRange[]>([]);
+  // khoảng ngày tạm thời đang chọn trong popover
+  const [draftRange, setDraftRange] = useState<DateRange>({});
+
+  const canAddDraft = useMemo(
+    () => !!draftRange.from && !!draftRange.to,
+    [draftRange],
   );
 
+  const addDraftToRanges = () => {
+    if (!canAddDraft || !draftRange.from || !draftRange.to)
+      return;
+    // Chuẩn hóa: from <= to
+    const from =
+      draftRange.from.getTime() <= draftRange.to.getTime()
+        ? draftRange.from
+        : draftRange.to;
+    const to =
+      draftRange.to.getTime() >= draftRange.from.getTime()
+        ? draftRange.to
+        : draftRange.from;
+
+    setRanges((prev) => [...prev, { from, to }]);
+    setDraftRange({});
+  };
+
+  const removeRange = (idx: number) => {
+    setRanges((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const clearAllRanges = () => {
+    setRanges([]);
+    setDraftRange({});
+  };
+
+  const handleSaveAvailability = () => {
+    // TODO: gọi API lưu ranges
+    console.log(
+      "Availability ranges:",
+      ranges.map((r) => ({
+        from: r.from?.toISOString().slice(0, 10),
+        to: r.to?.toISOString().slice(0, 10),
+      })),
+    );
+  };
+
+  /* ---------- MOCK DATA ---------- */
   const stats = {
     week: {
       bookings: 12,
-      revenue: 8500000,
+      revenue: 8_500_000,
       rating: 4.9,
       newClients: 8,
     },
     month: {
       bookings: 45,
-      revenue: 32500000,
+      revenue: 32_500_000,
       rating: 4.9,
       newClients: 28,
     },
     year: {
       bookings: 340,
-      revenue: 285000000,
+      revenue: 285_000_000,
       rating: 4.9,
       newClients: 180,
     },
   };
-
   const currentStats = stats[timeframe];
 
   const upcomingBookings = [
@@ -66,7 +141,7 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
       time: "14:00",
       type: "Chụp gia đình",
       location: "Công viên Tao Đàn, Quận 1",
-      price: 1200000,
+      price: 1_200_000,
       status: "confirmed",
     },
     {
@@ -78,7 +153,7 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
       time: "09:00",
       type: "Chụp cưới",
       location: "Nhà thờ Đức Bà, Quận 1",
-      price: 2500000,
+      price: 2_500_000,
       status: "pending",
     },
     {
@@ -90,7 +165,7 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
       time: "16:00",
       type: "Chụp chân dung",
       location: "Studio, Quận 3",
-      price: 800000,
+      price: 800_000,
       status: "confirmed",
     },
   ];
@@ -128,32 +203,6 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
     },
   ];
 
-  const quickActions = [
-    {
-      title: "Tải ảnh mới",
-      description: "Upload ảnh từ buổi chụp gần nhất",
-      icon: Upload,
-      color: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
-      action: () => {},
-    },
-    {
-      title: "Cập nhật lịch",
-      description: "Thêm/chỉnh sửa lịch trống",
-      icon: Calendar,
-      color:
-        "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400",
-      action: () => onNavigate("bookings"),
-    },
-    {
-      title: "Phản hồi tin nhắn",
-      description: "7 tin nhắn chưa đọc",
-      icon: MessageCircle,
-      color:
-        "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400",
-      action: () => onNavigate("messages"),
-    },
-  ];
-
   const achievements = [
     {
       title: "Top Photographer",
@@ -170,23 +219,38 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
     {
       title: "Phản hồi nhanh",
       description: "Thời gian phản hồi trung bình < 30 phút",
-      icon: Zap,
+      icon: Camera,
       color: "text-blue-600",
     },
   ];
 
+  /* ---------- HELPERS ---------- */
+  const fmtRange = (r: DateRange) =>
+    r.from && r.to
+      ? `${format(r.from, "dd/MM/yyyy", { locale: vi })} → ${format(
+          r.to,
+          "dd/MM/yyyy",
+          {
+            locale: vi,
+          },
+        )}`
+      : "Chưa chọn";
+
+  /* ---------- RENDER ---------- */
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-700/50">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold mb-2 text-black dark:text-slate-200">
-              Chào buổi sáng, <span className="text-blue-600">Minh Tuấn</span> !
+            <h1 className="text-2xl font-bold mb-2">
+              Chào buổi sáng,{" "}
+              <span className="text-blue-600">Minh Tuấn</span>!
               ☀️
             </h1>
             <p className="text-muted-foreground mb-4">
-              Bạn có 3 buổi chụp trong tuần này và 7 tin nhắn mới
+              Bạn có 3 buổi chụp trong tuần này và 7 tin nhắn
+              mới
             </p>
             <div className="flex gap-3">
               <Button className="bg-blue-600 hover:bg-blue-700">
@@ -194,7 +258,6 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
                 Xem lịch hôm nay
               </Button>
               <Button variant="outline">
-                <MessageCircle className="w-4 h-4 mr-2" />
                 Phản hồi tin nhắn
               </Button>
             </div>
@@ -207,55 +270,176 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {quickActions.map((action, index) => (
-          <Card
-            key={index}
-            className="cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={action.action}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${action.color}`}
-                >
-                  <action.icon className="w-6 h-6" />
+      {/* CHỌN LỊCH RẢNH: Nhiều khoảng ngày */}
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Card className="border-2 border-dashed border-pink-200 dark:border-pink-700 bg-white dark:bg-slate-800">
+          <CardContent className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-white" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold mb-1">{action.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {action.description}
+                <div>
+                  <p className="font-medium text-slate-800 dark:text-slate-100">
+                    Chọn lịch rảnh
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Thêm <b>nhiều khoảng ngày</b> bạn nhận
+                    booking
                   </p>
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={clearAllRanges}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Xóa tất cả
+                </Button>
+                <Button
+                  onClick={handleSaveAvailability}
+                  className="bg-pink-500 hover:bg-pink-600"
+                >
+                  Lưu cấu hình
+                </Button>
+              </div>
+            </div>
+
+            {/* Trigger + Popover Calendar */}
+            <div className="flex flex-col md:flex-row gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="justify-start w-full md:w-96"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    {canAddDraft
+                      ? fmtRange(draftRange)
+                      : "Chọn khoảng ngày"}
+                  </Button>
+                </PopoverTrigger>
+
+                {/* FIX hiển thị: z-50, sideOffset, align-start */}
+                <PopoverContent
+                  align="start"
+                  side="bottom"
+                  sideOffset={8}
+                  className="z-50 p-2 w-auto"
+                >
+                  <div className="p-2">
+                    <CalendarUI
+                      mode="range"
+                      numberOfMonths={2}
+                      selected={draftRange}
+                      defaultMonth={draftRange.from}
+                      onSelect={(
+                        range: DateRange | undefined,
+                      ) => setDraftRange(range ?? {})}
+                      locale={vi}
+                    />
+                    <div className="flex items-center justify-between mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDraftRange({})}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Xóa chọn
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={addDraftToRanges}
+                        disabled={!canAddDraft}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Thêm khoảng
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Danh sách khoảng ngày đã thêm */}
+              <div className="flex-1 min-h-[44px] flex flex-wrap gap-2 items-center">
+                {ranges.length === 0 ? (
+                  <span className="text-sm text-muted-foreground">
+                    Chưa có khoảng ngày nào. Hãy bấm “Chọn
+                    khoảng ngày” để thêm.
+                  </span>
+                ) : (
+                  ranges.map((r, i) => (
+                    <span
+                      key={`${r.from?.toISOString()}-${r.to?.toISOString()}-${i}`}
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm bg-accent/50"
+                    >
+                      {fmtRange(r)}
+                      <button
+                        aria-label="Xoá khoảng"
+                        className="hover:text-red-600"
+                        onClick={() => removeRange(i)}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Gợi ý trạng thái */}
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-700 p-3 text-sm text-slate-600 dark:text-slate-300">
+              {ranges.length > 0 ? (
+                <span>
+                  Sẽ nhận booking trong <b>{ranges.length}</b>{" "}
+                  khoảng ngày đã chọn.
+                </span>
+              ) : (
+                <span>
+                  Chưa chọn khoảng ngày. Hãy thêm ít nhất một
+                  khoảng.
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Stats Overview */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-black dark:text-slate-200">Tổng quan hoạt động</h2>
+          <h2 className="text-lg font-semibold">
+            Tổng quan hoạt động
+          </h2>
           <div className="flex gap-2">
             <Button
-              variant={timeframe === "week" ? "default" : "outline"}
+              variant={
+                timeframe === "week" ? "default" : "outline"
+              }
               size="sm"
               onClick={() => setTimeframe("week")}
             >
               Tuần
             </Button>
             <Button
-              variant={timeframe === "month" ? "default" : "outline"}
+              variant={
+                timeframe === "month" ? "default" : "outline"
+              }
               size="sm"
               onClick={() => setTimeframe("month")}
             >
               Tháng
             </Button>
             <Button
-              variant={timeframe === "year" ? "default" : "outline"}
+              variant={
+                timeframe === "year" ? "default" : "outline"
+              }
               size="sm"
               onClick={() => setTimeframe("year")}
             >
@@ -272,8 +456,12 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
                   <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{currentStats.bookings}</p>
-                  <p className="text-sm text-muted-foreground">Booking</p>
+                  <p className="text-2xl font-bold">
+                    {currentStats.bookings}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Booking
+                  </p>
                   <div className="flex items-center gap-1 text-green-600 text-sm">
                     <TrendingUp className="w-3 h-3" />
                     +12%
@@ -291,9 +479,14 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {(currentStats.revenue / 1000000).toFixed(1)}M₫
+                    {(currentStats.revenue / 1_000_000).toFixed(
+                      1,
+                    )}
+                    M₫
                   </p>
-                  <p className="text-sm text-muted-foreground">Thu nhập</p>
+                  <p className="text-sm text-muted-foreground">
+                    Thu nhập
+                  </p>
                   <div className="flex items-center gap-1 text-green-600 text-sm">
                     <TrendingUp className="w-3 h-3" />
                     +18%
@@ -310,8 +503,12 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
                   <Star className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{currentStats.rating}</p>
-                  <p className="text-sm text-muted-foreground">Đánh giá</p>
+                  <p className="text-2xl font-bold">
+                    {currentStats.rating}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Đánh giá
+                  </p>
                   <div className="flex items-center gap-1 text-green-600 text-sm">
                     <TrendingUp className="w-3 h-3" />
                     +0.1
@@ -331,7 +528,9 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
                   <p className="text-2xl font-bold">
                     {currentStats.newClients}
                   </p>
-                  <p className="text-sm text-muted-foreground">Khách mới</p>
+                  <p className="text-sm text-muted-foreground">
+                    Khách mới
+                  </p>
                   <div className="flex items-center gap-1 text-green-600 text-sm">
                     <TrendingUp className="w-3 h-3" />
                     +25%
@@ -371,7 +570,9 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
                   className="w-10 h-10 rounded-full object-cover"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{booking.clientName}</p>
+                  <p className="font-medium truncate">
+                    {booking.clientName}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {booking.type}
                   </p>
@@ -385,7 +586,9 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
                 <div className="text-right">
                   <Badge
                     variant={
-                      booking.status === "confirmed" ? "default" : "secondary"
+                      booking.status === "confirmed"
+                        ? "default"
+                        : "secondary"
                     }
                   >
                     {booking.status === "confirmed"
@@ -424,8 +627,12 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
                   className="w-16 h-12 rounded-lg object-cover"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{photo.title}</p>
-                  <p className="text-sm text-muted-foreground">{photo.date}</p>
+                  <p className="font-medium truncate">
+                    {photo.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {photo.date}
+                  </p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Heart className="w-3 h-3" />
@@ -455,14 +662,14 @@ export function PhotographerHome({ onNavigate }: PhotographerHomeProps) {
           <div className="grid md:grid-cols-3 gap-6">
             {achievements.map((achievement, index) => (
               <div key={index} className="text-center">
-                <div
-                  className={`w-16 h-16 mx-auto mb-3 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center`}
-                >
+                <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
                   <achievement.icon
                     className={`w-8 h-8 ${achievement.color}`}
                   />
                 </div>
-                <h3 className="font-semibold mb-2">{achievement.title}</h3>
+                <h3 className="font-semibold mb-2">
+                  {achievement.title}
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   {achievement.description}
                 </p>
