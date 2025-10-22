@@ -6,7 +6,7 @@
     <link rel="icon" href="/logo/Logo_Momentia.png" type="image/png">
     <title>Momentia</title>
     @viteReactRefresh
-    @vite('resources/src/Main.tsx')
+    @vite('resources/src/components/main/main.tsx')
 </head>
 <body>
     <div id="root"></div>

@@ -117,14 +117,14 @@ export function PhotographerEditProfile({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-card border-b border-border p-4 text-black dark:text-slate-200">
+      <div className="bg-white border-b p-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="font-semibold text-card-foreground">Chỉnh sửa hồ sơ</h1>
+          <h1 className="font-semibold">Chỉnh sửa hồ sơ</h1>
         </div>
       </div>
 

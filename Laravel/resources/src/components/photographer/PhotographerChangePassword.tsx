@@ -75,7 +75,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
   };
 
   const getStrengthColor = (isValid: boolean) => {
-    return isValid ? 'text-green-600' : 'text-muted-foreground';
+    return isValid ? 'text-green-600' : 'text-gray-400';
   };
 
   const getStrengthScore = () => {
@@ -94,26 +94,26 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
   const strengthInfo = getStrengthText();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-card border-b border-border p-4 text-black dark:text-slate-200">
+      <div className="bg-white border-b p-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="font-semibold text-card-foreground">Đổi mật khẩu</h1>
+          <h1 className="font-semibold">Đổi mật khẩu</h1>
         </div>
       </div>
 
       <div className="p-4 space-y-6">
         {/* Security Notice */}
-        <Card className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/50">
+        <Card className="border-blue-200 bg-blue-50">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <h3 className="font-medium text-blue-900 dark:text-blue-100">Bảo mật tài khoản</h3>
-                <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                <h3 className="font-medium text-blue-900">Bảo mật tài khoản</h3>
+                <p className="text-sm text-blue-700 mt-1">
                   Để bảo vệ tài khoản của bạn, hãy sử dụng mật khẩu mạnh và không chia sẻ với ai khác.
                 </p>
               </div>
@@ -122,9 +122,9 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
         </Card>
 
         {/* Change Password Form */}
-        <Card className="bg-card border-border">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-card-foreground">
+            <CardTitle className="flex items-center gap-2">
               <Lock className="w-5 h-5" />
               Thay đổi mật khẩu
             </CardTitle>
@@ -132,7 +132,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
           <CardContent className="space-y-4">
             {/* Current Password */}
             <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">
+              <label className="text-sm font-medium mb-2 block">
                 Mật khẩu hiện tại *
               </label>
               <div className="relative">
@@ -141,7 +141,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
                   value={passwords.current}
                   onChange={(e) => updatePassword('current', e.target.value)}
                   placeholder="Nhập mật khẩu hiện tại"
-                  className="pr-10 bg-input-background border-border"
+                  className="pr-10"
                 />
                 <Button
                   type="button"
@@ -161,7 +161,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
 
             {/* New Password */}
             <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">
+              <label className="text-sm font-medium mb-2 block">
                 Mật khẩu mới *
               </label>
               <div className="relative">
@@ -170,7 +170,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
                   value={passwords.new}
                   onChange={(e) => updatePassword('new', e.target.value)}
                   placeholder="Nhập mật khẩu mới"
-                  className="pr-10 bg-input-background border-border"
+                  className="pr-10"
                 />
                 <Button
                   type="button"
@@ -191,7 +191,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
               {passwords.new && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-muted-foreground">Độ mạnh mật khẩu:</span>
+                    <span className="text-xs text-gray-600">Độ mạnh mật khẩu:</span>
                     <span className={`text-xs font-medium ${strengthInfo.color}`}>
                       {strengthInfo.text}
                     </span>
@@ -201,7 +201,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
                       <div
                         key={i}
                         className={`h-1 flex-1 rounded-full ${
-                          i < getStrengthScore() ? 'bg-green-500' : 'bg-muted'
+                          i < getStrengthScore() ? 'bg-green-500' : 'bg-gray-200'
                         }`}
                       />
                     ))}
@@ -212,7 +212,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
 
             {/* Confirm Password */}
             <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">
+              <label className="text-sm font-medium mb-2 block">
                 Xác nhận mật khẩu mới *
               </label>
               <div className="relative">
@@ -221,7 +221,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
                   value={passwords.confirm}
                   onChange={(e) => updatePassword('confirm', e.target.value)}
                   placeholder="Nhập lại mật khẩu mới"
-                  className="pr-10 bg-input-background border-border"
+                  className="pr-10"
                 />
                 <Button
                   type="button"
@@ -257,8 +257,8 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
 
             {/* Error Messages */}
             {errors.length > 0 && (
-              <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                <ul className="text-sm text-red-600 dark:text-red-400 space-y-1">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <ul className="text-sm text-red-600 space-y-1">
                   {errors.map((error, index) => (
                     <li key={index}>• {error}</li>
                   ))}
@@ -269,9 +269,9 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
         </Card>
 
         {/* Password Requirements */}
-        <Card className="bg-card border-border">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base text-card-foreground">Yêu cầu mật khẩu</CardTitle>
+            <CardTitle className="text-base">Yêu cầu mật khẩu</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -300,7 +300,7 @@ export function PhotographerChangePassword({ onBack }: { onBack: () => void }) {
           </Button>
           <Button
             onClick={handleChangePassword}
-            className="flex-1 bg-primary hover:bg-primary/90"
+            className="flex-1 bg-pink-600 hover:bg-pink-700"
             disabled={!passwords.current || !passwords.new || !passwords.confirm}
           >
             Đổi mật khẩu
