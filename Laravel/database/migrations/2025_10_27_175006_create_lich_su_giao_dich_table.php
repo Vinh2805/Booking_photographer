@@ -17,8 +17,13 @@ return new class extends Migration
             $table->enum('Loai_Giao_Dich', [
                 'Dat coc',
                 'Thanh toan',
+                'Upload anh goc',
+                'Upload anh hau ki',
                 'Tai anh goc',
-                'Tai anh hau ky'
+                'Tai anh hau ky',
+                'Da hoan thanh',
+                'Da huy',
+                'Thay doi'
             ]);
             $table->text('Mo_Ta')->nullable();
             $table->string('Ip_Address', 45)->nullable();
