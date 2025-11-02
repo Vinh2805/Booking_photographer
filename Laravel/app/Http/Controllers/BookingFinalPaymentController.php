@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\FinalReceiptMail;
 use App\Models\BuoiChup;
 use App\Models\ThanhToan;
+use App\Models\TransactionLog;
 use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -151,7 +152,7 @@ class BookingFinalPaymentController extends Controller
                 ], JSON_UNESCAPED_UNICODE),
             ]);
             // 🧾 Ghi log giao dịch
-            TransactionLog::record($ma_bc, 'Thanh toan', "Thanh toán {$remainingAmount} qua {$validated['payment_method']}");
+            TransactionLog::record($ma_bc, 'Thanh toan', "Thanh toán {$remaining} qua {$validated['payment_method']}");
 
 
             // Cập nhật trạng thái buổi chụp → Chờ xử lý ảnh
