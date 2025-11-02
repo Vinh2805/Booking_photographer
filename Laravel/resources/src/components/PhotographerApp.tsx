@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PhotographerAuth } from './photographer/PhotographerAuth';
 import { PhotographerHome } from './photographer/PhotographerHome';
 import { PhotographerBookings } from './photographer/PhotographerBookings';
@@ -12,18 +12,51 @@ interface PhotographerAppProps {
   onBack: () => void;
 }
 
-type PhotographerView = 'home' | 'bookings' | 'messages' | 'profile' | 'edit-profile' | 'change-password';
+type PhotographerView =
+  | 'home'
+  | 'bookings'
+  | 'messages'
+  | 'profile'
+  | 'edit-profile'
+  | 'change-password';
 
 export function PhotographerApp({ onBack }: PhotographerAppProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [currentView, setCurrentView] = useState<PhotographerView>('home');
 
+  // ✅ Lấy user từ localStorage nếu đã login
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    const userData = localStorage.getItem('user_info');
+    if (token && userData) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  // ✅ Logout
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_info');
+    setIsAuthenticated(false);
+    onBack();
+  };
+
   if (!isAuthenticated) {
-    return <PhotographerAuth onLogin={() => setIsAuthenticated(true)} onBack={onBack} />;
+    return (
+      <PhotographerAuth
+        onLogin={() => {
+          const userData = localStorage.getItem('user_info');
+          if (userData) setUser(JSON.parse(userData));
+          setIsAuthenticated(true);
+        }}
+        onBack={onBack}
+      />
+    );
   }
 
   const handleNavigate = (section: string) => {
-    console.log('PhotographerApp handleNavigate:', section);
     switch (section) {
       case 'home':
         setCurrentView('home');
@@ -41,7 +74,7 @@ export function PhotographerApp({ onBack }: PhotographerAppProps) {
         setCurrentView('profile');
         break;
       case 'logout':
-        onBack();
+        handleLogout(); // ✅ thực sự logout
         break;
       default:
         break;
@@ -72,12 +105,12 @@ export function PhotographerApp({ onBack }: PhotographerAppProps) {
       case 'edit-profile':
         return [
           { label: 'Hồ sơ', href: '#' },
-          { label: 'Chỉnh sửa' }
+          { label: 'Chỉnh sửa' },
         ];
       case 'change-password':
         return [
           { label: 'Hồ sơ', href: '#' },
-          { label: 'Đổi mật khẩu' }
+          { label: 'Đổi mật khẩu' },
         ];
       default:
         return [];
@@ -87,19 +120,19 @@ export function PhotographerApp({ onBack }: PhotographerAppProps) {
   const renderContent = () => {
     switch (currentView) {
       case 'home':
-        return <PhotographerHome onNavigate={setCurrentView} />;
+        return <PhotographerHome user={user} onNavigate={setCurrentView} />;
       case 'bookings':
-        return <PhotographerBookings onNavigate={setCurrentView} />;
+        return <PhotographerBookings user={user} onNavigate={setCurrentView} />;
       case 'messages':
-        return <PhotographerChat onBack={() => setCurrentView('home')} />;
+        return <PhotographerChat user={user} onBack={() => setCurrentView('home')} />;
       case 'profile':
-        return <PhotographerProfile onNavigate={setCurrentView} />;
+        return <PhotographerProfile user={user} onNavigate={setCurrentView} />;
       case 'edit-profile':
-        return <PhotographerEditProfile onBack={() => setCurrentView('profile')} />;
+        return <PhotographerEditProfile user={user} onBack={() => setCurrentView('profile')} />;
       case 'change-password':
-        return <PhotographerChangePassword onBack={() => setCurrentView('profile')} />;
+        return <PhotographerChangePassword user={user} onBack={() => setCurrentView('profile')} />;
       default:
-        return <PhotographerHome onNavigate={setCurrentView} />;
+        return <PhotographerHome user={user} onNavigate={setCurrentView} />;
     }
   };
 
@@ -111,6 +144,7 @@ export function PhotographerApp({ onBack }: PhotographerAppProps) {
       breadcrumbs={getBreadcrumbs()}
       userRole="photographer"
       currentView={currentView}
+      user={user} // ✅ truyền xuống Sidebar
     >
       {renderContent()}
     </AppLayoutWithSidebar>

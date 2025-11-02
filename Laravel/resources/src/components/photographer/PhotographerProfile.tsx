@@ -26,7 +26,10 @@ import {
 export interface PhotographerProfileProps {
   onNavigate?: (view: any) => void;
   onLogout?: () => void;
+  user?: any; 
 }
+
+
 
 export function PhotographerProfile({}: PhotographerProfileProps) {
   const [currentView, setCurrentView] = useState<
