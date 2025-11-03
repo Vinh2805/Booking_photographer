@@ -10,7 +10,7 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BookingCancelController;
 use App\Http\Controllers\BookingChangeController;
 use App\Http\Controllers\BookingChangeApprovalController;
-use App\Http\Controllers\PaymentCallbackController;
+use App\Http\Controllers\VNPayCallbackController;
 Route::get('/', function () {
     return view('main');
 });
@@ -24,7 +24,7 @@ Route::prefix('api')->middleware('api')->group(function () {
     // Xem báo giá phần còn lại trước khi thanh toán
     Route::get('buoi-chup/{ma_bc}/thanh-toan/quote', [BookingFinalPaymentController::class, 'quote']);
     //route callback vnpay
-    Route::get('payment/vnpay/return', [\App\Http\Controllers\PaymentCallbackController::class, 'vnpayReturn']);
+    Route::get('payment/vnpay/return', [VNPayCallbackController::class, 'handle']);
 
     // Xác nhận thanh toán phần còn lại
     Route::post('buoi-chup/{ma_bc}/thanh-toan', [BookingFinalPaymentController::class, 'store']);

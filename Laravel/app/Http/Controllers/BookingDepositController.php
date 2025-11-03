@@ -53,20 +53,20 @@ class BookingDepositController extends Controller
             default => ['Tiền mặt', 'Ví cá nhân'],
         };
 
-        // 4️⃣ Nếu là VNPay → tạo redirect link, KHÔNG lưu DB ở đây
-        if ($validated['payment_method'] === 'vnpay') {
-            $charge = $payment->charge('vnpay', $totalCharge);
+       // 4️⃣ Nếu là VNPay → tạo redirect link
+if ($validated['payment_method'] === 'vnpay') {
+    $charge = $payment->charge('vnpay', $totalCharge, $ma_bc, ['type' => 'deposit']); // truyền mã buổi chụp vào
 
-            return response()->json([
-                'status'        => 'redirect',
-                'message'       => 'Chuyển hướng đến VNPay để thanh toán',
-                'redirect_url'  => $charge['redirect_url'],
-                'booking_code'  => $ma_bc,
-                'deposit_amount'=> $depositAmt,
-                'service_fee'   => $serviceFee,
-                'total_charge'  => $totalCharge
-            ], 200);
-        }
+    return response()->json([
+        'status'         => 'redirect',
+        'message'        => 'Chuyển hướng đến VNPay để thanh toán',
+        'redirect_url'   => $charge['redirect_url'],
+        'booking_code'   => $ma_bc,
+        'deposit_amount' => $depositAmt,
+        'service_fee'    => $serviceFee,
+        'total_charge'   => $totalCharge
+    ], 200);
+}
 
         // 5️⃣ Nếu là ví cá nhân → xử lý nội bộ và lưu DB
         $charge = $payment->charge('vi_ca_nhan', $totalCharge, $validated['available'] ?? null);
