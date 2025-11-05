@@ -11,7 +11,19 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "../ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Checkbox } from "../ui/checkbox";
+import { Label } from "../ui/label";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
+import { depositBooking } from "../../services/api";
 import {
   Calendar,
   MapPin,
@@ -177,16 +189,78 @@ export function CustomerBookings({ onNavigate, onBack }: CustomerBookingsProps) 
   });
   const [cancelReason, setCancelReason] = useState("");
 
-  // Demo deposit dialog state - removed wallet dependencies
+  // Deposit dialog state
   const [showDepositDialog, setShowDepositDialog] = useState(false);
-  const [depositMethod, setDepositMethod] = useState<"card" | "bank">("card");
+  const [selectedBookingForDeposit, setSelectedBookingForDeposit] = useState<Booking | null>(null);
+  const [depositMethod, setDepositMethod] = useState<"vi_ca_nhan" | "vnpay">("vi_ca_nhan");
   const [agreePolicy, setAgreePolicy] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [paySuccess, setPaySuccess] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number>(5000000); // Mock wallet balance
+  const [email, setEmail] = useState("");
 
-  const maskedCard = "**** **** **** 1234";
   const depositPercent = 0.3; // 30%
+
+  // Handler để mở dialog đặt cọc
+  const handleOpenDepositDialog = (booking: Booking) => {
+    setSelectedBookingForDeposit(booking);
+    setShowDepositDialog(true);
+    setAgreePolicy(false);
+    setPayError(null);
+    setPaySuccess(false);
+    setIsPaying(false);
+  };
+
+  // Handler để đóng dialog
+  const handleCloseDepositDialog = () => {
+    setShowDepositDialog(false);
+    setSelectedBookingForDeposit(null);
+    setAgreePolicy(false);
+    setPayError(null);
+    setPaySuccess(false);
+    setIsPaying(false);
+  };
+
+  // Handler để gọi API đặt cọc
+  const handleDeposit = async () => {
+    if (!selectedBookingForDeposit) return;
+
+    // Validate
+    if (!agreePolicy) {
+      setPayError("Bạn phải đồng ý Điều khoản đặt cọc và Chính sách hoàn tiền.");
+      return;
+    }
+
+    setIsPaying(true);
+    setPayError(null);
+
+    try {
+      const depositAmount = Math.round(selectedBookingForDeposit.price * depositPercent);
+      const response = await depositBooking(selectedBookingForDeposit.id, {
+        payment_method: depositMethod,
+        agree_terms: true,
+        available: depositMethod === "vi_ca_nhan" ? walletBalance : undefined,
+        email: email || undefined,
+      });
+
+      if (response.status === "redirect" && response.redirect_url) {
+        // Chuyển hướng đến VNPay
+        window.location.href = response.redirect_url;
+      } else if (response.status === "success") {
+        // Thanh toán thành công qua ví cá nhân
+        setPaySuccess(true);
+        // Có thể refresh danh sách booking hoặc update state
+        setTimeout(() => {
+          handleCloseDepositDialog();
+          // TODO: Refresh booking list or update booking status
+        }, 2000);
+      }
+    } catch (error: any) {
+      setPayError(error.message || "Đã có lỗi xảy ra khi đặt cọc. Vui lòng thử lại.");
+      setIsPaying(false);
+    }
+  };
 
   const bookings: Booking[] = [
     {
@@ -557,13 +631,26 @@ export function CustomerBookings({ onNavigate, onBack }: CustomerBookingsProps) 
                       </div>
                     </div>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedBooking(booking)}
-                    >
-                      Chi tiết
-                    </Button>
+                    <div className="flex gap-2">
+                      {booking.status === "pending_deposit" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleOpenDepositDialog(booking)}
+                          className="bg-orange-500 hover:bg-orange-600"
+                        >
+                          <CreditCard className="w-4 h-4 mr-1" />
+                          Đặt cọc
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedBooking(booking)}
+                      >
+                        Chi tiết
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -579,6 +666,154 @@ export function CustomerBookings({ onNavigate, onBack }: CustomerBookingsProps) 
           )}
         </div>
       </div>
+
+      {/* Deposit Dialog */}
+      <Dialog 
+        open={showDepositDialog} 
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseDepositDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Đặt cọc buổi chụp</DialogTitle>
+            <DialogDescription>
+              {selectedBookingForDeposit && (
+                <>
+                  Buổi chụp: {selectedBookingForDeposit.title}
+                  <br />
+                  Tổng giá: {selectedBookingForDeposit.price.toLocaleString()} VNĐ
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedBookingForDeposit && (
+            <div className="space-y-4 py-4">
+              {/* Tính toán số tiền */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tổng giá buổi chụp:</span>
+                  <span className="font-medium">{selectedBookingForDeposit.price.toLocaleString()} VNĐ</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tỷ lệ đặt cọc ({depositPercent * 100}%):</span>
+                  <span className="font-medium">
+                    {Math.round(selectedBookingForDeposit.price * depositPercent).toLocaleString()} VNĐ
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold pt-2 border-t">
+                  <span>Số tiền cần thanh toán:</span>
+                  <span className="text-orange-600">
+                    {Math.round(selectedBookingForDeposit.price * depositPercent).toLocaleString()} VNĐ
+                  </span>
+                </div>
+              </div>
+
+              {/* Phương thức thanh toán */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Phương thức thanh toán</Label>
+                <RadioGroup
+                  value={depositMethod}
+                  onValueChange={(value) => setDepositMethod(value as "vi_ca_nhan" | "vnpay")}
+                >
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <RadioGroupItem value="vi_ca_nhan" id="vi_ca_nhan" />
+                    <Label htmlFor="vi_ca_nhan" className="flex-1 cursor-pointer">
+                      <div>
+                        <div className="font-medium">Ví cá nhân</div>
+                        <div className="text-sm text-gray-500">
+                          Số dư: {walletBalance.toLocaleString()} VNĐ
+                        </div>
+                      </div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <RadioGroupItem value="vnpay" id="vnpay" />
+                    <Label htmlFor="vnpay" className="flex-1 cursor-pointer">
+                      <div>
+                        <div className="font-medium">VNPay</div>
+                        <div className="text-sm text-gray-500">Thanh toán qua cổng VNPay</div>
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Email (tùy chọn) */}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email nhận biên nhận (tùy chọn)</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              {/* Điều khoản */}
+              <div className="flex items-start space-x-2 pt-2">
+                <Checkbox
+                  id="agree-terms"
+                  checked={agreePolicy}
+                  onCheckedChange={(checked) => setAgreePolicy(checked === true)}
+                />
+                <Label htmlFor="agree-terms" className="text-sm leading-relaxed cursor-pointer">
+                  Tôi đồng ý với{" "}
+                  <a href="#" className="text-primary hover:underline">
+                    Điều khoản đặt cọc
+                  </a>{" "}
+                  và{" "}
+                  <a href="#" className="text-primary hover:underline">
+                    Chính sách hoàn tiền
+                  </a>
+                </Label>
+              </div>
+
+              {/* Error message */}
+              {payError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  {payError}
+                </div>
+              )}
+
+              {/* Success message */}
+              {paySuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                  Đặt cọc thành công! Đang chuyển hướng...
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCloseDepositDialog}
+              disabled={isPaying}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleDeposit}
+              disabled={isPaying || !agreePolicy}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {isPaying ? (
+                <>
+                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                "Xác nhận đặt cọc"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
