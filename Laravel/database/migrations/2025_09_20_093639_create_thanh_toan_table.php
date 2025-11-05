@@ -10,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('thanh_toan', function (Blueprint $table) {
-            $table->string('Ma_TT', 20)->primary();
+            $table->string('Ma_TT', 40)->primary();
             $table->string('Ma_BC', 20);
             $table->decimal('So_Tien', 12, 2);
             $table->enum('Hinh_Thuc', ['Tiền mặt','Chuyển khoản']);

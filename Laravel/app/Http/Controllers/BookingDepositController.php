@@ -69,7 +69,7 @@ if ($validated['payment_method'] === 'vnpay') {
 }
 
         // 5️⃣ Nếu là ví cá nhân → xử lý nội bộ và lưu DB
-        $charge = $payment->charge('vi_ca_nhan', $totalCharge, $validated['available'] ?? null);
+    $charge = $payment->charge('vi_ca_nhan', $totalCharge, $ma_bc, ['type' => 'deposit'], $validated['available'] ?? null);
 
         if (!$charge['success']) {
             Log::warning('Deposit failed', [

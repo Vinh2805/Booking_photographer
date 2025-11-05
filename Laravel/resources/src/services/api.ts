@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-// Cấu hình axios instance
+/**
+ * ==========================================
+ * CẤU HÌNH AXIOS INSTANCE CHUNG
+ * ==========================================
+ */
 const apiClient = axios.create({
   baseURL: '/api',
   headers: {
@@ -10,29 +14,30 @@ const apiClient = axios.create({
   },
 });
 
-// Interceptor để xử lý lỗi
+// Interceptor xử lý lỗi chung
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
-      // Server trả về lỗi
       const message = error.response.data?.message || 'Đã có lỗi xảy ra';
       return Promise.reject(new Error(message));
     } else if (error.request) {
-      // Request được gửi nhưng không nhận được response
       return Promise.reject(new Error('Không thể kết nối đến server'));
     } else {
-      // Lỗi khi setup request
       return Promise.reject(error);
     }
   }
 );
 
-// Types cho API
+/**
+ * ==========================================
+ * TYPES CHO API THANH TOÁN
+ * ==========================================
+ */
 export interface DepositRequest {
   payment_method: 'vi_ca_nhan' | 'vnpay';
   agree_terms: boolean;
-  available?: number; // Số tiền có sẵn trong ví (cho ví cá nhân)
+  available?: number;
   email?: string;
 }
 
@@ -45,13 +50,13 @@ export interface DepositResponse {
   total_charge: number;
   transaction_id?: string;
   paid_at?: string;
-  redirect_url?: string; // Chỉ có khi payment_method là 'vnpay'
+  redirect_url?: string;
 }
 
 /**
- * API đặt cọc
- * @param ma_bc Mã buổi chụp
- * @param data Dữ liệu đặt cọc
+ * ==========================================
+ * API ĐẶT CỌC
+ * ==========================================
  */
 export async function depositBooking(
   ma_bc: string,
@@ -64,5 +69,76 @@ export async function depositBooking(
   return response.data;
 }
 
-export default apiClient;
+/**
+ * ==========================================
+ * TYPES CHO THANH TOÁN PHẦN CÒN LẠI
+ * ==========================================
+ */
+export interface FinalQuoteResponse {
+  booking: {
+    Ma_BC: string;
+    Trang_Thai: string;
+    Tong_Tien: number;
+    'Ti_Le_Coc(%)': number;
+  };
+  costs: {
+    so_tien_con_lai: number;
+    phi_dich_vu: number;
+    tong_thanh_toan: number;
+  };
+  payment_methods: ('vi_ca_nhan' | 'vnpay')[];
+  must_agree_terms: boolean;
+}
 
+export interface FinalPaymentResponse {
+  status: 'success' | 'redirect';
+  message?: string;
+  booking_code: string;
+  remain_amount: number;
+  service_fee: number;
+  total_charge: number;
+  transaction_id?: string;
+  paid_at?: string;
+  redirect_url?: string;
+}
+
+/**
+ * ==========================================
+ * API LẤY BÁO GIÁ THANH TOÁN PHẦN CÒN LẠI
+ * GET /buoi-chup/{ma_bc}/thanh-toan/bao-gia
+ * ==========================================
+ */
+export async function getFinalQuote(
+  ma_bc: string,
+  method: 'vi_ca_nhan' | 'vnpay' = 'vnpay'
+): Promise<FinalQuoteResponse> {
+  const response = await apiClient.get<FinalQuoteResponse>(
+    `/buoi-chup/${ma_bc}/thanh-toan/quote`,
+    { params: { payment_method: method } }
+  );
+  return response.data;
+}
+
+/**
+ * ==========================================
+ * API THANH TOÁN PHẦN CÒN LẠI
+ * POST /buoi-chup/{ma_bc}/thanh-toan
+ * ==========================================
+ */
+export async function payFinal(
+  ma_bc: string,
+  data: DepositRequest
+): Promise<FinalPaymentResponse> {
+  const response = await apiClient.post<FinalPaymentResponse>(
+    `/buoi-chup/${ma_bc}/thanh-toan`,
+    data
+  );
+  return response.data;
+}
+
+/**
+ * ==========================================
+ * EXPORT MẶC ĐỊNH
+ * ==========================================
+ */
+export default apiClient;

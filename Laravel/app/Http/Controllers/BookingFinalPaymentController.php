@@ -112,7 +112,7 @@ class BookingFinalPaymentController extends Controller
 }
 
         // 5️⃣ Nếu là ví cá nhân → xử lý nội bộ
-        $charge = $payment->charge('vi_ca_nhan', $totalCharge, $validated['available'] ?? null);
+    $charge = $payment->charge('vi_ca_nhan', $totalCharge, $ma_bc, ['type' => 'final'], $validated['available'] ?? null);
         if (!$charge['success']) {
             ThanhToan::create([
                 'Ma_TT'     => 'TT' . now()->format('YmdHis') . rand(100,999),
