@@ -25,13 +25,12 @@ import {
 
 export interface PhotographerProfileProps {
   onLogout?: () => void;
-  onNavigate?: (view: string) => void;
+  user?: any; 
 }
 
-export function PhotographerProfile({
-  onLogout,
-  onNavigate,
-}: PhotographerProfileProps) {
+
+
+export function PhotographerProfile({}: PhotographerProfileProps) {
   const [currentView, setCurrentView] = useState<
     "profile" | "edit" | "password" | "security"
   >("profile");
