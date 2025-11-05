@@ -71,9 +71,21 @@ class AuthController extends Controller
 
     // 🔴 Đăng xuất
     public function logout(Request $request)
-    {
-        $request->user()->currentAccessToken()->delete();
+{
+    $user = $request->user();
 
+    if (!$user) {
+        return response()->json(['message' => 'Token không hợp lệ hoặc đã hết hạn!'], 401);
+    }
+
+    $token = $user->currentAccessToken();
+
+    if ($token) {
+        $token->delete();
         return response()->json(['message' => 'Đăng xuất thành công!']);
     }
+
+    return response()->json(['message' => 'Không tìm thấy token để xóa!'], 404);
+}
+
 }
