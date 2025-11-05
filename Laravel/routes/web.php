@@ -11,6 +11,8 @@ use App\Http\Controllers\BookingCancelController;
 use App\Http\Controllers\BookingChangeController;
 use App\Http\Controllers\BookingChangeApprovalController;
 use App\Http\Controllers\VNPayCallbackController;
+use App\Http\Controllers\AuthController;
+
 Route::get('/', function () {
     return view('main');
 });
@@ -45,8 +47,10 @@ Route::prefix('api')->middleware('api')->group(function () {
     //chấp nhận, từ chối yêu cầu
     Route::put('booking/change/{id}/approve', [BookingChangeApprovalController::class, 'approve']);
     Route::put('booking/change/{id}/reject', [BookingChangeApprovalController::class, 'reject']);
+    // Auth
+Route::post('dang-ky', [AuthController::class, 'register']);
+Route::post('dang-nhap', [AuthController::class, 'login']);
+Route::middleware('auth:sanctum')->post('dang-xuat', [AuthController::class, 'logout']);
 });
 
-Route::get('/test', function() {
-    return response()->json(['ok' => true]);
-});
+
