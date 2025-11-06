@@ -3,7 +3,7 @@
 namespace App\Events;
 
 use App\Models\TinNhan;
-use App\Models\TaiKhoan;
+use App\Models\User;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -17,7 +17,7 @@ class MessageSent implements ShouldBroadcast
     public $user;
     public $message;
 
-    public function __construct(TaiKhoan $user, TinNhan $message)
+    public function __construct(User $user, TinNhan $message)
     {
         $this->user = $user;
         $this->message = $message;

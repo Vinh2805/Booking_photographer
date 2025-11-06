@@ -23,7 +23,7 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
-import { depositBooking, getFinalQuote, payFinal } from "../../services/api";
+import { depositBooking, getFinalQuote, payFinal } from "../../services/PaymentAPI";
 import {
   Calendar,
   MapPin,
@@ -390,7 +390,7 @@ export function CustomerBookings({ onNavigate, onBack }: CustomerBookingsProps) 
       guestCount: "2 người",
     },
     {
-      id: "BC010",
+      id: "BC006",
       status: "pending_deposit",
       title: "Chụp ảnh chân dung",
       photographer: {

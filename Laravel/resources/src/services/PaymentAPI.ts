@@ -1,33 +1,4 @@
-import axios from 'axios';
-
-/**
- * ==========================================
- * CẤU HÌNH AXIOS INSTANCE CHUNG
- * ==========================================
- */
-const apiClient = axios.create({
-  baseURL: '/api',
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
-  },
-});
-
-// Interceptor xử lý lỗi chung
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response) {
-      const message = error.response.data?.message || 'Đã có lỗi xảy ra';
-      return Promise.reject(new Error(message));
-    } else if (error.request) {
-      return Promise.reject(new Error('Không thể kết nối đến server'));
-    } else {
-      return Promise.reject(error);
-    }
-  }
-);
+import axiosClient from "../services/axiosClient";
 
 /**
  * ==========================================
@@ -35,14 +6,14 @@ apiClient.interceptors.response.use(
  * ==========================================
  */
 export interface DepositRequest {
-  payment_method: 'vi_ca_nhan' | 'vnpay';
+  payment_method: "vi_ca_nhan" | "vnpay";
   agree_terms: boolean;
   available?: number;
   email?: string;
 }
 
 export interface DepositResponse {
-  status: 'success' | 'redirect';
+  status: "success" | "redirect";
   message: string;
   booking_code: string;
   deposit_amount: number;
@@ -56,13 +27,14 @@ export interface DepositResponse {
 /**
  * ==========================================
  * API ĐẶT CỌC
+ * POST /buoi-chup/{ma_bc}/dat-coc
  * ==========================================
  */
 export async function depositBooking(
   ma_bc: string,
   data: DepositRequest
 ): Promise<DepositResponse> {
-  const response = await apiClient.post<DepositResponse>(
+  const response = await axiosClient.post<DepositResponse>(
     `/buoi-chup/${ma_bc}/dat-coc`,
     data
   );
@@ -79,19 +51,19 @@ export interface FinalQuoteResponse {
     Ma_BC: string;
     Trang_Thai: string;
     Tong_Tien: number;
-    'Ti_Le_Coc(%)': number;
+    "Ti_Le_Coc(%)": number;
   };
   costs: {
     so_tien_con_lai: number;
     phi_dich_vu: number;
     tong_thanh_toan: number;
   };
-  payment_methods: ('vi_ca_nhan' | 'vnpay')[];
+  payment_methods: ("vi_ca_nhan" | "vnpay")[];
   must_agree_terms: boolean;
 }
 
 export interface FinalPaymentResponse {
-  status: 'success' | 'redirect';
+  status: "success" | "redirect";
   message?: string;
   booking_code: string;
   remain_amount: number;
@@ -105,14 +77,14 @@ export interface FinalPaymentResponse {
 /**
  * ==========================================
  * API LẤY BÁO GIÁ THANH TOÁN PHẦN CÒN LẠI
- * GET /buoi-chup/{ma_bc}/thanh-toan/bao-gia
+ * GET /buoi-chup/{ma_bc}/thanh-toan/quote
  * ==========================================
  */
 export async function getFinalQuote(
   ma_bc: string,
-  method: 'vi_ca_nhan' | 'vnpay' = 'vnpay'
+  method: "vi_ca_nhan" | "vnpay" = "vnpay"
 ): Promise<FinalQuoteResponse> {
-  const response = await apiClient.get<FinalQuoteResponse>(
+  const response = await axiosClient.get<FinalQuoteResponse>(
     `/buoi-chup/${ma_bc}/thanh-toan/quote`,
     { params: { payment_method: method } }
   );
@@ -129,7 +101,7 @@ export async function payFinal(
   ma_bc: string,
   data: DepositRequest
 ): Promise<FinalPaymentResponse> {
-  const response = await apiClient.post<FinalPaymentResponse>(
+  const response = await axiosClient.post<FinalPaymentResponse>(
     `/buoi-chup/${ma_bc}/thanh-toan`,
     data
   );
@@ -141,4 +113,8 @@ export async function payFinal(
  * EXPORT MẶC ĐỊNH
  * ==========================================
  */
-export default apiClient;
+export default {
+  depositBooking,
+  getFinalQuote,
+  payFinal,
+};
