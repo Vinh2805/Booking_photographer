@@ -12,7 +12,7 @@ use App\Http\Controllers\BookingChangeController;
 use App\Http\Controllers\BookingChangeApprovalController;
 use App\Http\Controllers\VNPayCallbackController;
 use App\Http\Controllers\AuthController;
-
+use App\Http\Controllers\ChatController;
 
     //Đặt cọc
     Route::post('/buoi-chup/{ma_bc}/dat-coc', [BookingDepositController::class, 'store']);
@@ -44,6 +44,8 @@ use App\Http\Controllers\AuthController;
     Route::post('/dang-ky', [AuthController::class, 'register']);
     Route::post('/dang-nhap', [AuthController::class, 'login']);
     Route::middleware('auth:sanctum')->post('/dang-xuat', [AuthController::class, 'logout']);
-
-
+    //Get cac doan chat
+    Route::get('/chat/{Ma_BC}', [ChatController::class, 'index']);
+    //Post chat
+    Route::post('/chat', [ChatController::class, 'store']);
 
