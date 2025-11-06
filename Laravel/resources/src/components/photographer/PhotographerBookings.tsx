@@ -1,6 +1,6 @@
 // frontend/src/components/PhotographerBookings.tsx
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // Thêm import
+import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
@@ -12,13 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import {
   Calendar,
@@ -33,6 +26,7 @@ import {
   Star,
   CheckCircle,
   Image as ImageIcon,
+  RefreshCw,
 } from "lucide-react";
 
 type BookingStatus =
@@ -83,7 +77,12 @@ export function PhotographerBookings({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate(); // Thêm navigate
+  const navigate = useNavigate();
+
+  // Lấy token từ localStorage (Sanctum)
+  const getToken = () => {
+    return localStorage.getItem("auth_token") || "";
+  };
 
   // Fetch bookings từ API
   const fetchBookings = async (status: string = selectedStatus, search: string = searchQuery) => {
@@ -94,23 +93,49 @@ export function PhotographerBookings({
       if (status !== "all") params.append("status", status);
       if (search) params.append("search", search);
 
-      const response = await fetch(`/api/buoi-chup?${params}`);
-      const result = await response.json();
+      const token = getToken();
+      const response = await fetch(`http://127.0.0.1:8000/api/buoi-chup?${params}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        credentials: "include",
+      });
+
+      // Kiểm tra nếu server trả về HTML (lỗi 500, 404, v.v.)
+      const text = await response.text();
+      if (text.trim().startsWith("<!DOCTYPE") || text.includes("<html")) {
+        console.error("Server trả về HTML:", text.substring(0, 200));
+        throw new Error("Lỗi server: trả về HTML thay vì JSON. Kiểm tra backend.");
+      }
+
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError);
+        throw new Error("Dữ liệu trả về không phải JSON hợp lệ.");
+      }
 
       if (result.success) {
-        setBookings(result.data);
+        setBookings(result.data || []);
       } else {
         setError(result.message || "Có lỗi xảy ra khi tải danh sách buổi chụp");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi khi tải bookings:", error);
-      setError("Không thể kết nối đến server");
+      const msg = error.message.includes("Failed to fetch")
+        ? "Không thể kết nối đến server. Kiểm tra Laravel có đang chạy không."
+        : error.message || "Lỗi không xác định";
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch bookings khi component mount và khi filter thay đổi
+  // Fetch khi mount hoặc filter thay đổi
   useEffect(() => {
     fetchBookings();
   }, [selectedStatus, searchQuery]);
@@ -190,76 +215,16 @@ export function PhotographerBookings({
   };
 
   const filterOptions = [
-    {
-      id: "all",
-      status: "all" as const,
-      label: "Tất cả buổi chụp",
-      color: "bg-slate-500",
-      icon: Camera,
-    },
-    {
-      id: "pending_confirmation",
-      status: "pending_confirmation" as const,
-      label: "Chờ xác nhận",
-      color: "bg-yellow-500",
-      icon: AlertCircle,
-    },
-    {
-      id: "pending_deposit",
-      status: "pending_deposit" as const,
-      label: "Chờ đặt cọc",
-      color: "bg-orange-500",
-      icon: DollarSign,
-    },
-    {
-      id: "upcoming",
-      status: "upcoming" as const,
-      label: "Sắp diễn ra",
-      color: "bg-blue-500",
-      icon: Calendar,
-    },
-    {
-      id: "ongoing",
-      status: "ongoing" as const,
-      label: "Đang diễn ra",
-      color: "bg-green-500",
-      icon: Camera,
-    },
-    {
-      id: "pending_payment",
-      status: "pending_payment" as const,
-      label: "Chờ thanh toán",
-      color: "bg-red-500",
-      icon: DollarSign,
-    },
-    {
-      id: "pending_processing",
-      status: "pending_processing" as const,
-      label: "Chờ xử lý ảnh",
-      color: "bg-purple-500",
-      icon: ImageIcon,
-    },
-    {
-      id: "processed",
-      status: "processed" as const,
-      label: "Đã xử lý ảnh",
-      color: "bg-indigo-500",
-      icon: Star,
-    },
-    {
-      id: "completed",
-      status: "completed" as const,
-      label: "Đã hoàn thành",
-      color: "bg-emerald-500",
-      icon: CheckCircle,
-    },
-    {
-      id: "cancelled",
-      status: "cancelled" as const,
-      label: "Đã huỷ",
-      color: "bg-slate-500",
-      icon: X,
-    },
+    { id: "all", status: "all" as const, label: "Tất cả buổi chụp", color: "bg-slate-500", icon: Camera },
+    { id: "pending_confirmation", status: "pending_confirmation" as const, label: "Chờ xác nhận", color: "bg-yellow-500", icon: AlertCircle },
+    { id: "pending_deposit", status: "pending_deposit" as const, label: "Chờ đặt cọc", color: "bg-orange-500", icon: DollarSign },
+    { id: "upcoming", status: "upcoming" as const, label: "Sắp diễn ra", color: "bg-blue-500", icon: Calendar },
+    { id: "ongoing", status: "ongoing" as const, label: "Đang diễn ra", color: "bg-green-500", icon: Camera },
+    { id: "pending_payment", status: "pending_payment" as const, label: "Chờ thanh toán", color: "bg-red-500", icon: DollarSign },
+    { id: "pending_processing", status: "pending_processing" as const, label: "Chờ xử lý ảnh", color: "bg-purple-500", icon: ImageIcon },
+    { id: "processed", status: "processed" as const, label: "Đã xử lý ảnh", color: "bg-indigo-500", icon: Star },
+    { id: "completed", status: "completed" as const, label: "Đã hoàn thành", color: "bg-emerald-500", icon: CheckCircle },
+    { id: "cancelled", status: "cancelled" as const, label: "Đã huỷ", color: "bg-slate-500", icon: X },
   ];
 
   const selectedFilterOption = filterOptions.find((option) => option.status === selectedStatus) || filterOptions[0];
@@ -280,10 +245,11 @@ export function PhotographerBookings({
 
   if (error && bookings.length === 0) {
     return (
-      <div className="p-4 text-center text-red-600">
-        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
-        <p>{error}</p>
-        <Button onClick={() => fetchBookings()} className="mt-4">
+      <div className="p-4 text-center text-red-600 space-y-3">
+        <AlertCircle className="w-10 h-10 mx-auto mb-2 text-red-500" />
+        <p className="font-medium">{error}</p>
+        <Button onClick={() => fetchBookings()} variant="default" className="flex items-center gap-2">
+          <RefreshCw className="w-4 h-4" />
           Thử lại
         </Button>
       </div>
@@ -364,7 +330,7 @@ export function PhotographerBookings({
             <Card
               key={booking.id}
               className="cursor-pointer hover:shadow-lg hover-lift transition-all duration-200 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 group"
-              onClick={() => navigate(`/buoi-chup/${booking.id}`)} // Sửa ở đây
+              onClick={() => navigate(`/buoi-chup/${booking.id}`)}
             >
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">

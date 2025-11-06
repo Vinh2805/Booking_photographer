@@ -43,11 +43,6 @@ const PhotographerAuth = lazy(() =>
         default: module.PhotographerAuth,
     }))
 );
-const BookingDetailDemo = lazy(() =>
-    import("./components/BookingDetailDemo").then((module) => ({
-        default: module.BookingDetailDemo,
-    }))
-);
 const SidebarDemo = lazy(() =>
     import("./components/SidebarDemo").then((module) => ({
         default: module.SidebarDemo,
@@ -94,7 +89,6 @@ function AppContent() {
         setPhotographerAuth(true);
         navigate("/photographer");
     };
-
     return (
         <Suspense fallback={<Loading />}>
             <Routes>
@@ -176,10 +170,7 @@ function AppContent() {
                     path="/sidebar-demo"
                     element={<SidebarDemo onBack={() => navigate("/")} />}
                 />
-                <Route
-                    path="/booking-detail-demo"
-                    element={<BookingDetailDemo onBack={() => navigate("/")} />}
-                />
+                
             </Routes>
         </Suspense>
     );

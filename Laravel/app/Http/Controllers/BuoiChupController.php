@@ -1,4 +1,4 @@
-<?php
+<?php 
 namespace App\Http\Controllers;
 
 use App\Models\BuoiChup;
@@ -20,8 +20,17 @@ class BuoiChupController extends Controller
 
             $query = BuoiChup::query();
 
+            // Sửa: Kiểm tra quyền nhiếp ảnh gia chính xác
             if ($onlyMine && auth()->check()) {
-                $query->where('Ma_NAG', auth()->id());
+                $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
+                if ($maNag) {
+                    $query->where('Ma_NAG', $maNag);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Bạn không phải nhiếp ảnh gia'
+                    ], 403);
+                }
             }
 
             if ($request->filled('search')) {
@@ -30,8 +39,9 @@ class BuoiChupController extends Controller
                     $q->where('Ma_BC', 'like', "%{$search}%")
                       ->orWhere('Dia_Diem', 'like', "%{$search}%")
                       ->orWhere('Loai_Chup', 'like', "%{$search}%")
-                      ->orWhereHas('khachHang', function ($cust) use ($search) {
-                          $cust->where('HoTen', 'like', "%{$search}%");
+                      // Sửa: Tìm kiếm tên khách hàng qua tai_khoan
+                      ->orWhereHas('khachHang.taiKhoan', function ($tk) use ($search) {
+                          $tk->where('Ho_Ten', 'like', "%{$search}%");
                       });
                 });
             }
@@ -94,7 +104,7 @@ class BuoiChupController extends Controller
             }
             $query->orderBy($sortBy, $sortOrder);
 
-            $query->with(['khachHang', 'nhaNhiepAnh', 'anh']);
+            $query->with(['khachHang.taiKhoan', 'nhaNhiepAnh', 'anh']);
 
             $paginator = $query->paginate($perPage)->appends($request->query());
 
@@ -146,7 +156,7 @@ class BuoiChupController extends Controller
     public function show(string $id): JsonResponse
     {
         try {
-            $booking = BuoiChup::with(['khachHang', 'nhaNhiepAnh', 'anh'])
+            $booking = BuoiChup::with(['khachHang.taiKhoan', 'nhaNhiepAnh', 'anh'])
                 ->where('Ma_BC', $id)
                 ->firstOrFail();
 
@@ -166,6 +176,11 @@ class BuoiChupController extends Controller
     {
         try {
             $booking = BuoiChup::findOrFail($id);
+            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
+            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
+            }
+
             if ($booking->Trang_Thai !== 'Chờ xác nhận') {
                 return response()->json([
                     'success' => false,
@@ -192,6 +207,11 @@ class BuoiChupController extends Controller
     {
         try {
             $booking = BuoiChup::findOrFail($id);
+            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
+            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
+            }
+
             if ($booking->Trang_Thai !== 'Chờ xác nhận') {
                 return response()->json([
                     'success' => false,
@@ -219,6 +239,11 @@ class BuoiChupController extends Controller
     {
         try {
             $booking = BuoiChup::findOrFail($id);
+            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
+            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
+            }
+
             if (!in_array($booking->Trang_Thai, ['Chờ đặt cọc', 'Sắp diễn ra'])) {
                 return response()->json([
                     'success' => false,
@@ -233,17 +258,17 @@ class BuoiChupController extends Controller
             ]);
 
             $booking->Ly_Do_Thay_Doi = $request->input('reason');
-            $booking->Trang_Thai = 'Chờ xác nhận'; // Quay về trạng thái chờ xác nhận để xem xét thay đổi
+            $booking->Trang_Thai = 'Chờ xác nhận';
             $booking->save();
 
-            // Lưu trữ yêu cầu thay đổi (có thể tạo model riêng nếu cần)
-            DB::table('change_requests')->insert([
-                'Ma_BC' => $id,
-                'Field' => $request->input('field'),
-                'New_Value' => $request->input('newValue'),
-                'Reason' => $request->input('reason'),
-                'Created_At' => now(),
-            ]);
+            // Tạm thời comment nếu chưa có bảng
+            // DB::table('change_requests')->insert([
+            //     'Ma_BC' => $id,
+            //     'Field' => $request->input('field'),
+            //     'New_Value' => $request->input('newValue'),
+            //     'Reason' => $request->input('reason'),
+            //     'Created_At' => now(),
+            // ]);
 
             return response()->json([
                 'success' => true,
@@ -262,6 +287,11 @@ class BuoiChupController extends Controller
     {
         try {
             $booking = BuoiChup::findOrFail($id);
+            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
+            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
+            }
+
             if (!in_array($booking->Trang_Thai, ['Chờ đặt cọc', 'Sắp diễn ra'])) {
                 return response()->json([
                     'success' => false,
@@ -294,6 +324,11 @@ class BuoiChupController extends Controller
     {
         try {
             $booking = BuoiChup::findOrFail($id);
+            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
+            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
+            }
+
             if (!in_array($booking->Trang_Thai, ['Chờ xử lý ảnh', 'Chờ thanh toán'])) {
                 return response()->json([
                     'success' => false,
@@ -335,6 +370,11 @@ class BuoiChupController extends Controller
     {
         try {
             $booking = BuoiChup::findOrFail($id);
+            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
+            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
+            }
+
             if ($booking->Trang_Thai !== 'Sắp diễn ra') {
                 return response()->json([
                     'success' => false,
@@ -361,6 +401,11 @@ class BuoiChupController extends Controller
     {
         try {
             $booking = BuoiChup::findOrFail($id);
+            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
+            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
+            }
+
             if ($booking->Trang_Thai !== 'Đang diễn ra') {
                 return response()->json([
                     'success' => false,
@@ -392,8 +437,8 @@ class BuoiChupController extends Controller
             'status' => $this->mapStatusToFe($booking->Trang_Thai),
             'title' => trim(($booking->Loai_Chup ?: '') . ' - ' . ($booking->Dia_Diem ?: '')),
             'customer' => [
-                'name' => $booking->khachHang->HoTen ?? 'Khách hàng',
-                'avatar' => $booking->khachHang->Anh_Dai_Dien ?? null,
+                'name' => $booking->khachHang->taiKhoan->Ho_Ten ?? 'Khách hàng',
+                'avatar' => $booking->khachHang->taiKhoan->Avatar ?? null,
             ],
             'type' => $booking->Loai_Chup,
             'location' => $booking->Dia_Diem,
@@ -415,10 +460,10 @@ class BuoiChupController extends Controller
             'status' => $this->mapStatusToFe($booking->Trang_Thai),
             'title' => $booking->Loai_Chup,
             'customer' => [
-                'name' => $booking->khachHang->HoTen ?? 'Khách hàng',
-                'avatar' => $booking->khachHang->Anh_Dai_Dien ?? null,
-                'email' => $booking->khachHang->Email ?? null,
-                'phone' => $booking->khachHang->So_Dien_Thoai ?? null,
+                'name' => $booking->khachHang->taiKhoan->Ho_Ten ?? 'Khách hàng',
+                'avatar' => $booking->khachHang->taiKhoan->Avatar ?? null,
+                'email' => $booking->khachHang->taiKhoan->Email ?? null,
+                'phone' => $booking->khachHang->taiKhoan->So_Dien_Thoai ?? null,
             ],
             'type' => $booking->Loai_Chup,
             'location' => $booking->Dia_Diem,
@@ -427,8 +472,8 @@ class BuoiChupController extends Controller
             'price' => (float) $booking->Tong_Tien,
             'description' => $booking->Ghi_Chu,
             'duration' => $this->calculateDuration($booking->Bat_Dau_Chup, $booking->Ket_Thuc_Chup),
-            'guestCount' => (string) $booking->So_Luong_Nguoi,
-            'specialRequests' => $booking->Yeu_Cau_Dac_Biet,
+            'guestCount' => '1', // Sửa: Chưa có cột
+            'specialRequests' => $booking->Ghi_Chu ?? '', // Sửa: Chưa có cột
             'uploadedRaw' => $booking->anh->where('Loai_Anh', 'raw')->isNotEmpty(),
             'uploadedEdited' => $booking->anh->where('Loai_Anh', 'edited')->isNotEmpty(),
             'images' => $booking->anh->map(function ($image) {
@@ -472,7 +517,6 @@ class BuoiChupController extends Controller
             'Đã xử lý ảnh' => 'processed',
             'Đã hoàn thành' => 'completed',
             'Đã hủy' => 'cancelled',
-            'Thay đổi' => 'pending_confirmation'
         ];
         return $statusMap[$dbStatus] ?? 'pending_confirmation';
     }
@@ -480,19 +524,20 @@ class BuoiChupController extends Controller
     private function calculateDuration($start, $end): string
     {
         try {
+            if (!$start || !$end) return '';
+
             $s = $start instanceof Carbon ? $start : Carbon::parse($start);
             $e = $end instanceof Carbon ? $end : Carbon::parse($end);
+
+            if ($s->greaterThan($e)) return '';
+
             $totalMinutes = $s->diffInMinutes($e);
             $hours = intdiv($totalMinutes, 60);
             $minutes = $totalMinutes % 60;
 
-            if ($hours > 0 && $minutes > 0) {
-                return "{$hours} giờ {$minutes} phút";
-            } elseif ($hours > 0) {
-                return "{$hours} giờ";
-            } else {
-                return "{$minutes} phút";
-            }
+            return $hours > 0
+                ? ($minutes > 0 ? "{$hours} giờ {$minutes} phút" : "{$hours} giờ")
+                : "{$minutes} phút";
         } catch (\Throwable $e) {
             return '';
         }
