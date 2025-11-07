@@ -9,18 +9,18 @@ return new class extends Migration {
     {
         Schema::create('anh', function (Blueprint $table) {
             $table->id('Ma_Anh'); // Khóa chính tự tăng
-            $table->string('Ma_BC', 20); // Mã buổi chụp
-            $table->string('Duong_Dan', 255); // Đường dẫn ảnh (URL hoặc path)
-            $table->string('Ten_Anh')->nullable(); // Tên ảnh
-            $table->text('Mo_Ta')->nullable(); // Mô tả ảnh (nếu cần)
-            $table->timestamps(); // created_at, updated_at
+            $table->string('Ma_BC', 20);
+            $table->string('Duong_Dan', 255);
+            $table->string('Ten_Anh')->nullable();
+            $table->text('Mo_Ta')->nullable();
+            $table->enum('Loai', ['raw', 'edited'])->default('raw'); // THIẾU CỘT NÀY
+            $table->timestamps();
 
-            // Khóa ngoại liên kết với bảng buoi_chup
+            // Khóa ngoại
             $table->foreign('Ma_BC')
                   ->references('Ma_BC')
                   ->on('buoi_chup')
-                  ->onDelete('cascade')
-                  ->onUpdate('cascade');
+                  ->onDelete('cascade');
         });
     }
 

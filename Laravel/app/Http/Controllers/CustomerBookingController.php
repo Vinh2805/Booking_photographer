@@ -46,83 +46,81 @@ class CustomerBookingController extends Controller
      * Lấy danh sách buổi chụp của khách hàng
      */
     public function index(Request $request)
-    {
-        $user = Auth::guard('sanctum')->user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
-
-        $khachHang = KhachHang::where('Ma_TK', $user->id)->first();
-        if (!$khachHang) {
-            return response()->json(['message' => 'Khách hàng không tồn tại'], 404);
-        }
-
-        $query = BuoiChup::with(['nhaNhiepAnh', 'dichVu', 'anh'])
-            ->where('Ma_KH', $khachHang->Ma_KH);
-
-        // Lọc theo trạng thái
-        if ($request->status && $request->status !== 'all') {
-            $dbStatus = $this->mapStatusToDb($request->status);
-            if ($dbStatus) {
-                $query->where('Trang_Thai', $dbStatus);
-            }
-        }
-
-        // Tìm kiếm
-        if ($request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('Ma_BC', 'like', "%{$search}%")
-                  ->orWhere('Loai_Chup', 'like', "%{$search}%")
-                  ->orWhere('Dia_Diem', 'like', "%{$search}%")
-                  ->orWhereHas('nhaNhiepAnh', function ($q) use ($search) {
-                      $q->where('Ten_NAG', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        $bookings = $query->latest('Ngay_Tao')->get();
-
-        $data = $bookings->map(function ($bc) {
-            $start = $bc->Bat_Dau_Chup ? \Carbon\Carbon::parse($bc->Bat_Dau_Chup) : null;
-            $end = $bc->Ket_Thuc_Chup ? \Carbon\Carbon::parse($bc->Ket_Thuc_Chup) : null;
-
-            $duration = '';
-            if ($start && $end) {
-                $diff = $start->diff($end);
-                $duration = $diff->h . ' giờ';
-                if ($diff->i > 0) $duration .= " {$diff->i} phút";
-            }
-
-            return [
-                'id' => $bc->Ma_BC,
-                'status' => $this->mapStatusToFrontend($bc->Trang_Thai),
-                'title' => $bc->Loai_Chup . ' - ' . $bc->Dia_Diem,
-                'photographer' => [
-                    'name' => $bc->nhaNhiepAnh?->Ten_NAG ?? 'Chưa chỉ định',
-                    'avatar' => $bc->nhaNhiepAnh?->Avatar ?? '',
-                    'rating' => $bc->nhaNhiepAnh?->Danh_Gia ?? 0,
-                    'completedSessions' => $bc->nhaNhiepAnh?->So_Buoi_Hoan_Thanh ?? 0,
-                ],
-                'type' => $bc->Loai_Chup,
-                'location' => $bc->Dia_Diem,
-                'date' => $start?->format('Y-m-d'),
-                'time' => $start?->format('H:i'),
-                'price' => $bc->Tong_Tien,
-                'description' => $bc->Ghi_Chu ?? '',
-                'services' => $bc->dichVu->pluck('Ten_DV')->toArray(),
-                'duration' => $duration,
-                'guestCount' => $bc->So_Nguoi ?? '—',
-                'specialRequests' => $bc->Yeu_Cau_Dac_Biet ?? '',
-                'photos' => [
-                    'rawPhotos' => $bc->anh()->where('Loai', 'raw')->count(),
-                    'editedPhotos' => $bc->anh()->where('Loai', 'edited')->count(),
-                ],
-            ];
-        });
-
-        return response()->json($data);
+{
+    $user = Auth::guard('sanctum')->user();
+    if (!$user) {
+        return response()->json(['message' => 'Unauthenticated'], 401);
     }
+
+    $khachHang = KhachHang::where('Ma_TK', $user->id)->first();
+    if (!$khachHang) {
+        return response()->json(['message' => 'Khách hàng không tồn tại'], 404);
+    }
+
+    $query = BuoiChup::with(['nhaNhiepAnh', 'dichVu'])
+        ->withCount([
+            'anh as raw_photos_count' => fn($q) => $q->where('Loai', 'raw'),
+            'anh as edited_photos_count' => fn($q) => $q->where('Loai', 'edited'),
+        ])
+        ->where('Ma_KH', $khachHang->Ma_KH);
+
+    if ($request->status && $request->status !== 'all') {
+        $dbStatus = $this->mapStatusToDb($request->status);
+        if ($dbStatus) {
+            $query->where('Trang_Thai', $dbStatus);
+        }
+    }
+
+    if ($request->search) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->where('Ma_BC', 'like', "%{$search}%")
+              ->orWhere('Loai_Chup', 'like', "%{$search}%")
+              ->orWhere('Dia_Diem', 'like', "%{$search}%")
+              ->orWhereHas('nhaNhiepAnh', fn($q) => $q->where('Ten_NAG', 'like', "%{$search}%"));
+        });
+    }
+
+    $bookings = $query->latest('Ngay_Tao')->get();
+
+    return response()->json($bookings->map(function ($bc) {
+        $start = $bc->Bat_Dau_Chup ? \Carbon\Carbon::parse($bc->Bat_Dau_Chup) : null;
+        $end = $bc->Ket_Thuc_Chup ? \Carbon\Carbon::parse($bc->Ket_Thuc_Chup) : null;
+
+        $duration = '';
+        if ($start && $end) {
+            $diff = $start->diff($end);
+            $duration = $diff->h . ' giờ';
+            if ($diff->i > 0) $duration .= " {$diff->i} phút";
+        }
+
+        return [
+            'id' => $bc->Ma_BC,
+            'status' => $this->mapStatusToFrontend($bc->Trang_Thai),
+            'title' => $bc->Loai_Chup . ' - ' . $bc->Dia_Diem,
+            'photographer' => [
+                'name' => $bc->nhaNhiepAnh?->Ten_NAG ?? 'Chưa chỉ định',
+                'avatar' => $bc->nhaNhiepAnh?->Avatar ?? '',
+                'rating' => $bc->nhaNhiepAnh?->Danh_Gia ?? 0,
+                'completedSessions' => $bc->nhaNhiepAnh?->So_Buoi_Hoan_Thanh ?? 0,
+            ],
+            'type' => $bc->Loai_Chup,
+            'location' => $bc->Dia_Diem,
+            'date' => $start?->format('Y-m-d'),
+            'time' => $start?->format('H:i'),
+            'price' => $bc->Tong_Tien,
+            'description' => $bc->Ghi_Chu ?? '',
+            'services' => $bc->dichVu->pluck('Ten_DV')->toArray(),
+            'duration' => $duration,
+            'guestCount' => $bc->So_Nguoi ?: '—',
+            'specialRequests' => $bc->Yeu_Cau_Dac_Biet ?? '',
+            'photos' => [
+                'rawPhotos' => $bc->raw_photos_count ?? 0,
+                'editedPhotos' => $bc->edited_photos_count ?? 0,
+            ],
+        ];
+    }));
+}
 
     /**
      * Chi tiết buổi chụp

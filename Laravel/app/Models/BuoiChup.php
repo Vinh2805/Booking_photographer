@@ -23,7 +23,9 @@ class BuoiChup extends Model
         'Tong_Tien' => 'decimal:2',
         'Ti_Le_Coc' => 'decimal:2',
     ];
-
+    protected $attributes = [
+    'So_Nguoi' => 0,
+];
     protected $fillable = [
         'Ma_BC', 'Ma_NAG', 'Ma_KH', 'Tong_Tien', 'Bat_Dau_Chup', 
         'Ket_Thuc_Chup', 'Dia_Diem', 'Loai_Chup', 'Ghi_Chu', 
