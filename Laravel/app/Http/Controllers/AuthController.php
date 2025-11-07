@@ -142,6 +142,7 @@ class AuthController extends Controller
         $token->delete();
         return response()->json(['message' => 'Đăng xuất thành công!']);
     }
+}
 
     // =============================
     // 🔧 HÀM HỖ TRỢ
@@ -155,5 +156,5 @@ class AuthController extends Controller
             'Loai_TK' => $user->Loai_TK,
         ];
     }
-}
+
 }

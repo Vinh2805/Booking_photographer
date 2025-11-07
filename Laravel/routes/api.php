@@ -14,6 +14,8 @@ use App\Http\Controllers\VNPayCallbackController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\PhotographerController;
+use App\Http\Controllers\CustomerController;
+
 
     //Đặt cọc
     Route::post('/buoi-chup/{ma_bc}/dat-coc', [BookingDepositController::class, 'store']);
@@ -67,7 +69,7 @@ Route::post('/khach-hang/dang-nhap', [AuthController::class, 'loginCustomer']);
 Route::post('/nhiep-anh-gia/dang-ky', [AuthController::class, 'registerPhotographer']);
 Route::post('/nhiep-anh-gia/dang-nhap', [AuthController::class, 'loginPhotographer']);
 
-Route::get('/customer/dashboard/{id}', [DashboardController::class, 'customer']);
+// Route::get('/customer/dashboard/{id}', [DashboardController::class, 'customer']);
 Route::get('/nhiep-anh-gia/noi-bat', [PhotographerController::class, 'featured']);
 
 
