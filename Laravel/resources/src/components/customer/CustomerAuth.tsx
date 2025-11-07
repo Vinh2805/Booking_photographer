@@ -11,6 +11,7 @@ import {
     Heart,
     Star,
 } from "lucide-react";
+import apiClient from "../services/apiClient";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -33,6 +34,8 @@ interface CustomerAuthProps {
 export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
     const navigate = useNavigate();
     const location = useLocation();
+
+    // ✅ xác định tab hiện tại theo URL
     const currentTab = location.pathname.includes("register")
         ? "register"
         : "login";
@@ -41,10 +44,12 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [acceptTerms, setAcceptTerms] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+
     const [loginForm, setLoginForm] = useState({
         email: "",
         password: "",
     });
+
     const [registerForm, setRegisterForm] = useState({
         fullName: "",
         email: "",
@@ -53,32 +58,56 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
         confirmPassword: "",
     });
 
-    const handleLogin = (e: React.FormEvent) => {
+    // 🟢 Đăng nhập khách hàng
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Mock authentication
-        setTimeout(() => {
+        try {
+            const res = await apiClient.post("/khach-hang/dang-nhap", {
+                Email_TK: loginForm.email,
+                Mat_Khau: loginForm.password,
+            });
+
+            const data = res.data;
+            localStorage.setItem("customer_token", data.token);
+            localStorage.setItem("customer_info", JSON.stringify(data.user));
+
+            alert("✅ Đăng nhập thành công!");
             onLogin();
-        }, 1000);
+        } catch (err: any) {
+            alert(err.response?.data?.message || "❌ Sai email hoặc mật khẩu!");
+        }
     };
 
-    const handleRegister = (e: React.FormEvent) => {
+    // 🟡 Đăng ký khách hàng
+    const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+
         if (registerForm.password !== registerForm.confirmPassword) {
-            alert("Mật khẩu xác nhận không khớp!");
+            alert("⚠️ Mật khẩu xác nhận không khớp!");
             return;
         }
         if (!acceptTerms) {
-            alert("Vui lòng đồng ý với điều khoản sử dụng!");
+            alert("⚠️ Vui lòng đồng ý với điều khoản!");
             return;
         }
-        // Mock registration
-        setTimeout(() => {
-            onLogin();
-        }, 1000);
+
+        try {
+            const res = await apiClient.post("/khach-hang/dang-ky", {
+                Ho_Ten: registerForm.fullName,
+                Email_TK: registerForm.email,
+                Mat_Khau: registerForm.password,
+                Mat_Khau_confirmation: registerForm.confirmPassword,
+            });
+
+            alert("✅ Đăng ký thành công!");
+            // ✅ Chuyển về tab Đăng nhập (không reload / không back)
+            navigate("/customer-auth-login");
+        } catch (err: any) {
+            alert(err.response?.data?.message || "❌ Đăng ký thất bại!");
+        }
     };
 
     const handleSocialLogin = (provider: string) => {
-        // Mock social login
         setTimeout(() => {
             onLogin();
         }, 500);
@@ -86,7 +115,7 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-sky-gradient-soft to-accent/30 relative overflow-hidden">
-            {/* Background decorative elements */}
+            {/* Hiệu ứng nền */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary/5 animate-float"></div>
                 <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-primary/3 animate-pulse-glow"></div>
@@ -100,7 +129,7 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
                 ></div>
             </div>
 
-            {/* Header with back button */}
+            {/* Header có nút quay lại */}
             <div className="p-4 relative z-10 text-black dark:text-slate-200">
                 <Button
                     variant="ghost"
@@ -132,7 +161,7 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
                             Nền tảng đặt lịch chụp ảnh hàng đầu Việt Nam
                         </p>
 
-                        {/* Benefits */}
+                        {/* Thống kê nhỏ */}
                         <div className="grid grid-cols-3 gap-4 mt-6 p-4 bg-card/50 backdrop-blur-sm rounded-2xl border border-primary/20">
                             <div className="text-center">
                                 <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
@@ -161,12 +190,14 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
                         </div>
                     </div>
 
+                    {/* Tabs đăng nhập / đăng ký */}
                     <Tabs
                         value={currentTab}
                         onValueChange={(val) => {
-                            val == "login"
-                                ? navigate("/customer-auth-login")
-                                : navigate("/customer-auth-register");
+                            // ✅ chỉ đổi URL nhẹ, không reload
+                            if (val === "login")
+                                navigate("/customer-auth-login");
+                            else navigate("/customer-auth-register");
                         }}
                         className="w-full"
                     >
@@ -184,6 +215,8 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
                                 Đăng ký
                             </TabsTrigger>
                         </TabsList>
+
+                        {/* 🟢 Form Đăng nhập */}
 
                         <TabsContent value="login" className="space-y-4">
                             <Card className="border-primary/20 shadow-xl shadow-primary/5 bg-card/80 backdrop-blur-sm">
@@ -378,6 +411,7 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
                             </Card>
                         </TabsContent>
 
+                        {/* 🟡 Form Đăng ký */}
                         <TabsContent value="register" className="space-y-4">
                             <Card className="border-primary/20 shadow-xl shadow-primary/5 bg-card/80 backdrop-blur-sm">
                                 <CardHeader className="text-center">

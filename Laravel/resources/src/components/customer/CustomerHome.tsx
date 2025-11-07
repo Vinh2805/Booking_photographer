@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -31,21 +31,49 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import apiClient from "../services/apiClient";
 
 interface CustomerHomeProps {
   onNavigate: (view: string) => void;
+  user?: {
+    Ma_TK: string;
+    Ho_Ten: string;
+    Email_TK: string;
+  };
 }
 
-export function CustomerHome({ onNavigate }: CustomerHomeProps) {
+export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [ratingFilter, setRatingFilter] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<
-    "rating" | "price" | "popularity" | "newest"
-  >("rating");
+  const [sortBy, setSortBy] = useState<"rating" | "price" | "popularity" | "newest">("rating");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [allPhotographers, setAllPhotographers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // 📡 Gọi API dashboard + photographer song song
+  useEffect(() => {
+    if (!user?.Ma_TK) return;
+    setLoading(true);
+
+    Promise.all([
+      apiClient.get(`/customer/dashboard/${user.Ma_TK}`),
+      apiClient.get(`/nhiep-anh-gia/noi-bat`)
+    ])
+      .then(([dashRes, photoRes]) => {
+        setDashboard(dashRes.data);
+        setAllPhotographers(photoRes.data || []);
+      })
+      .catch((err) => {
+        console.error("❌ Lỗi tải dữ liệu:", err);
+        setAllPhotographers([]); // tránh vỡ UI
+      })
+      .finally(() => setLoading(false));
+  }, [user]);
 
   const categories = [
     { id: "all", name: "Tất cả", icon: Camera },
@@ -55,140 +83,6 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
     { id: "event", name: "Sự kiện", icon: Calendar },
   ];
 
-  // Extended photographer data for better filtering/search demonstration
-  const allPhotographers = [
-    {
-      id: 1,
-      name: "Trần Thị B",
-      avatar:
-        "https://images.unsplash.com/photo-1494790108755-2616b612b1c5?w=100&h=100&fit=crop&crop=face",
-      rating: 4.9,
-      reviews: 127,
-      price: "800.000₫",
-      priceValue: 800000,
-      location: "Quận 1, TP.HCM",
-      specialties: ["Cưới hỏi", "Gia đình"],
-      isOnline: true,
-      isVerified: true,
-      level: "Expert",
-      coverImage:
-        "https://images.unsplash.com/photo-1519741497674-611481863552?w=400&h=200&fit=crop&crop=center",
-      completedBookings: 250,
-      responseTime: "< 1 giờ",
-      joinedDate: "2023-01-15",
-      description:
-        "Chuyên gia chụp ảnh cưới và gia đình với phong cách tự nhiên lãng mạn",
-    },
-    {
-      id: 2,
-      name: "Thu Hương",
-      avatar:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-      rating: 4.8,
-      reviews: 95,
-      price: "1.200.000₫",
-      priceValue: 1200000,
-      location: "Quận 3, TP.HCM",
-      specialties: ["Chân dung", "Fashion"],
-      isOnline: false,
-      isVerified: true,
-      level: "Professional",
-      coverImage:
-        "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=400&h=200&fit=crop&crop=center",
-      completedBookings: 180,
-      responseTime: "< 2 giờ",
-      joinedDate: "2023-03-20",
-      description:
-        "Nhiếp ảnh gia chân dung và thời trang với phong cách nghệ thuật",
-    },
-    {
-      id: 3,
-      name: "Thu Hà",
-      avatar:
-        "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=100&h=100&fit=crop&crop=face",
-      rating: 5.0,
-      reviews: 203,
-      price: "1.500.000₫",
-      priceValue: 1500000,
-      location: "Quận 7, TP.HCM",
-      specialties: ["Sự kiện", "Doanh nghiệp"],
-      isOnline: true,
-      isVerified: true,
-      level: "Master",
-      coverImage:
-        "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=400&h=200&fit=crop&crop=center",
-      completedBookings: 340,
-      responseTime: "< 30 phút",
-      joinedDate: "2022-08-10",
-      description:
-        "Chuyên gia chụp ảnh sự kiện doanh nghiệp với 8+ năm kinh nghiệm",
-    },
-    {
-      id: 4,
-      name: "Minh Tuấn",
-      avatar:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-      rating: 4.7,
-      reviews: 156,
-      price: "950.000₫",
-      priceValue: 950000,
-      location: "Quận 2, TP.HCM",
-      specialties: ["Gia đình", "Trẻ em"],
-      isOnline: true,
-      isVerified: false,
-      level: "Professional",
-      coverImage:
-        "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=400&h=200&fit=crop&crop=center",
-      completedBookings: 89,
-      responseTime: "< 3 giờ",
-      joinedDate: "2023-06-12",
-      description: "Chuyên chụp ảnh gia đình và trẻ em với không gian ấm cúng",
-    },
-    {
-      id: 5,
-      name: "Hương Giang",
-      avatar:
-        "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop&crop=face",
-      rating: 4.6,
-      reviews: 78,
-      price: "650.000₫",
-      priceValue: 650000,
-      location: "Quận 10, TP.HCM",
-      specialties: ["Chân dung", "Lifestyle"],
-      isOnline: false,
-      isVerified: true,
-      level: "Professional",
-      coverImage:
-        "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=400&h=200&fit=crop&crop=center",
-      completedBookings: 67,
-      responseTime: "< 4 giờ",
-      joinedDate: "2023-09-05",
-      description: "Nhiếp ảnh gia trẻ với phong cách hiện đại và sáng tạo",
-    },
-    {
-      id: 6,
-      name: "Đạt Phạm",
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
-      rating: 4.9,
-      reviews: 234,
-      price: "2.200.000₫",
-      priceValue: 2200000,
-      location: "Quận 1, TP.HCM",
-      specialties: ["Cưới hỏi", "Pre-wedding"],
-      isOnline: true,
-      isVerified: true,
-      level: "Master",
-      coverImage:
-        "https://images.unsplash.com/photo-1465495976277-4387d4b0e4a6?w=400&h=200&fit=crop&crop=center",
-      completedBookings: 456,
-      responseTime: "< 30 phút",
-      joinedDate: "2021-12-20",
-      description: "Studio chụp ảnh cưới cao cấp với đội ngũ chuyên nghiệp",
-    },
-  ];
-
-  // Price ranges for filtering
   const priceRanges = [
     { label: "Tất cả", value: null },
     { label: "Dưới 1 triệu", value: "under-1m", min: 0, max: 1000000 },
@@ -196,7 +90,6 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
     { label: "Trên 2 triệu", value: "over-2m", min: 2000000, max: Infinity },
   ];
 
-  // Location options
   const locations = [
     "Tất cả",
     "Quận 1, TP.HCM",
@@ -206,7 +99,6 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
     "Quận 10, TP.HCM",
   ];
 
-  // Rating filters
   const ratingFilters = [
     { label: "Tất cả", value: null },
     { label: "4.5+ sao", value: "4.5+" },
@@ -214,151 +106,82 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
     { label: "3.5+ sao", value: "3.5+" },
   ];
 
-  // Filter and search logic
+  // 📊 Filter logic
   const filteredPhotographers = useMemo(() => {
-    let filtered = allPhotographers.filter((photographer) => {
-      // Category filter
+    let filtered = allPhotographers.filter((p) => {
       if (selectedCategory !== "all") {
-        const categoryMap = {
+        const map = {
           wedding: ["Cưới hỏi", "Pre-wedding"],
           family: ["Gia đình", "Trẻ em"],
           portrait: ["Chân dung", "Fashion", "Lifestyle"],
           event: ["Sự kiện", "Doanh nghiệp"],
         };
-        const relevantSpecialties =
-          categoryMap[selectedCategory as keyof typeof categoryMap] || [];
-        if (
-          !photographer.specialties.some((spec) =>
-            relevantSpecialties.includes(spec)
-          )
-        ) {
-          return false;
-        }
+        const match = map[selectedCategory as keyof typeof map] || [];
+        if (!p.specialties?.some((s: string) => match.includes(s))) return false;
       }
 
-      // Search query
       if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase();
         if (
-          !photographer.name.toLowerCase().includes(query) &&
-          !photographer.location.toLowerCase().includes(query) &&
-          !photographer.specialties.some((spec) =>
-            spec.toLowerCase().includes(query)
-          ) &&
-          !photographer.description.toLowerCase().includes(query)
-        ) {
+          !p.name?.toLowerCase().includes(q) &&
+          !p.location?.toLowerCase().includes(q) &&
+          !p.description?.toLowerCase().includes(q)
+        )
           return false;
-        }
       }
 
-      // Price range filter
       if (priceRange) {
         const range = priceRanges.find((r) => r.value === priceRange);
-        if (
-          range &&
-          typeof range.min === "number" &&
-          typeof range.max === "number" &&
-          (photographer.priceValue < range.min ||
-            photographer.priceValue > range.max)
-        ) {
+        if (range && (p.priceValue < range.min! || p.priceValue > range.max!))
           return false;
-        }
       }
 
-      // Location filter
       if (locationFilter && locationFilter !== "Tất cả") {
-        if (photographer.location !== locationFilter) {
-          return false;
-        }
+        if (p.location !== locationFilter) return false;
       }
 
-      // Rating filter
       if (ratingFilter) {
-        const minRating = parseFloat(ratingFilter.replace("+", ""));
-        if (photographer.rating < minRating) {
-          return false;
-        }
+        const min = parseFloat(ratingFilter.replace("+", ""));
+        if (p.rating < min) return false;
       }
 
       return true;
     });
 
-    // Sort results
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case "rating":
-          return b.rating - a.rating;
-        case "price":
-          return a.priceValue - b.priceValue;
-        case "popularity":
-          return b.completedBookings - a.completedBookings;
+        case "rating": return b.rating - a.rating;
+        case "price": return a.priceValue - b.priceValue;
+        case "popularity": return b.completedBookings - a.completedBookings;
         case "newest":
-          return (
-            new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime()
-          );
-        default:
-          return 0;
+          return new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime();
+        default: return 0;
       }
     });
 
     return filtered;
-  }, [
-    selectedCategory,
-    searchQuery,
-    priceRange,
-    locationFilter,
-    ratingFilter,
-    sortBy,
-  ]);
+  }, [selectedCategory, searchQuery, priceRange, locationFilter, ratingFilter, sortBy, allPhotographers]);
 
   const getLevelColor = (level: string) => {
     switch (level) {
-      case "Master":
-        return "bg-purple-500 text-white";
-      case "Expert":
-        return "bg-orange-500 text-white";
-      case "Professional":
-        return "bg-blue-500 text-white";
-      default:
-        return "bg-gray-500 text-white";
+      case "Master": return "bg-purple-500 text-white";
+      case "Expert": return "bg-orange-500 text-white";
+      case "Professional": return "bg-blue-500 text-white";
+      default: return "bg-gray-500 text-white";
     }
   };
 
-  // Ref for scroll target
   const searchSectionRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Smooth scroll to search section
   const scrollToSearch = () => {
-    if (searchSectionRef.current) {
-      // Add a slight delay for better UX
-      setTimeout(() => {
-        searchSectionRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-          inline: "nearest",
-        });
-
-        // Focus on search input after scroll completes
-        setTimeout(() => {
-          if (searchInputRef.current) {
-            searchInputRef.current.focus();
-            // Add a subtle pulse effect to highlight the search
-            searchInputRef.current.style.transform = "scale(1.02)";
-            setTimeout(() => {
-              if (searchInputRef.current) {
-                searchInputRef.current.style.transform = "scale(1)";
-              }
-            }, 200);
-          }
-        }, 800);
-      }, 100);
-    }
+    searchSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => searchInputRef.current?.focus(), 700);
   };
 
   return (
     <div className="p-4 sm:p-6 space-y-8">
-      {/* Hero Section */}
+      {/* 🌟 Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent rounded-3xl"></div>
         <div className="relative bg-gradient-to-r from-white/80 to-white/60 dark:from-card/80 dark:to-card/60 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border border-primary/20 shadow-xl">
@@ -371,12 +194,20 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight text-black dark:text-slate-200">
                 Chào mừng trở lại,{" "}
                 <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-                  Hương
-                </span> ! 👋
+                  {user?.Ho_Ten || "Khách hàng"}
+                </span>{" "}
+                👋
               </h1>
               <p className="text-lg text-muted-foreground mb-6 max-w-lg mx-auto lg:mx-0">
-                Kết nối với những nhiếp ảnh gia tài năng nhất và tạo ra những
-                khoảnh khắc đáng nhớ
+                {loading ? (
+                  <>Đang tải dữ liệu của bạn...</>
+                ) : (
+                  <>
+                    Bạn có{" "}
+                    <b>{dashboard?.bookings ?? 0}</b> buổi chụp và{" "}
+                    <b>{dashboard?.unreadMessages ?? 0}</b> tin nhắn mới ✉️
+                  </>
+                )}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                 <Button
@@ -419,8 +250,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
         </div>
       </div>
 
-      {/* Enhanced Categories with Search and Filters */}
-      <div ref={searchSectionRef} className="space-y-6">
+     <div ref={searchSectionRef} className="space-y-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2 text-black dark:text-slate-200">Chọn dịch vụ phù hợp</h2>
           <p className="text-muted-foreground">
@@ -1079,7 +909,7 @@ export function CustomerHome({ onNavigate }: CustomerHomeProps) {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
     </div>
   );
 }

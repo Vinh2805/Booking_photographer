@@ -24,6 +24,7 @@ import { TooltipProvider } from "./ui/tooltip";
 
 interface MomentiaSidebarProps {
     onNavigate: (section: string) => void;
+    onLogout?: () => void; // ✅ thêm callback logout
     userRole?: "customer" | "photographer";
     currentView?: string;
 }
@@ -132,6 +133,7 @@ function SidebarBrand() {
 
 export function MomentiaSidebar({
     onNavigate,
+    onLogout, // ✅ nhận prop logout
     userRole = "customer",
     currentView = "home",
 }: MomentiaSidebarProps) {
@@ -210,7 +212,16 @@ export function MomentiaSidebar({
                                 {settingsItems.map((item) => (
                                     <SidebarMenuItem key={item.id}>
                                         <div
-                                            onClick={() => onNavigate(item.id)}
+                                            onClick={() => {
+                                                if (item.id === "logout") {
+                                                    if (onLogout)
+                                                        onLogout(); // ✅ gọi callback thật sự
+                                                    else
+                                                        onNavigate("logout"); // fallback
+                                                } else {
+                                                    onNavigate(item.id);
+                                                }
+                                            }}
                                             className="cursor-pointer relative z-10"
                                         >
                                             <SidebarMenuButton
