@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom"; 
+import React, { useState } from "react";
 import { Button } from "../ui/button";
 import apiClient from "../services/apiClient";
 import { Input } from "../ui/input";
@@ -12,6 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from "../ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
     Select,
     SelectContent,
@@ -36,6 +36,7 @@ import {
     CheckCircle,
     TrendingUp,
 } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface PhotographerAuthProps {
     onLogin: () => void;

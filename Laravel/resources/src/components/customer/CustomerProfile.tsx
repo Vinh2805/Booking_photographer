@@ -55,6 +55,7 @@ export interface CustomerProfileProps {
   onNavigateToFavorites?: () => void;
   onLogout?: () => void;
   onNavigate?: (view: string) => void;
+  
 }
 
 // ================== Reusable header ==================
