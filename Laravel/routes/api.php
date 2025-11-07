@@ -48,4 +48,8 @@ use App\Http\Controllers\ChatController;
     Route::get('/chat/{Ma_BC}', [ChatController::class, 'index']);
     //Post chat
     Route::post('/chat', [ChatController::class, 'store']);
+    //Get unread
+    Route::get('/chat/unread', [ChatController::class, 'unread']); 
+    //post mark read
+    Route::post('/chat/mark-read', [ChatController::class, 'markAsRead']); 
 

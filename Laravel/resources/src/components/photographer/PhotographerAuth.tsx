@@ -1,8 +1,16 @@
 import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom"; 
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
+} from "../ui/tabs";
+
 import {
   Card,
   CardContent,

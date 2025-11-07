@@ -69,4 +69,49 @@ class ChatController extends Controller
 
     return response()->json($message);
     }
+    // 🟡 API: Lấy tin nhắn chưa đọc của người dùng
+    public function unread(Request $request)
+    {
+        $userId = $request->input('Ma_TK');
+        if (!$userId) {
+            return response()->json(['error' => 'Thiếu mã tài khoản'], 400);
+        }
+
+        $messages = TinNhan::where(function ($q) use ($userId) {
+                $q->where('Ma_KH', $userId)
+                  ->orWhere('Ma_NAG', $userId);
+            })
+            ->where('Trang_Thai', 'Chưa đọc')
+            ->orderBy('Gui_Luc', 'asc')
+            ->get();
+
+        return response()->json($messages);
+    }
+
+    // 🟢 API: Đánh dấu tin nhắn đã đọc theo mã cuộc trò chuyện hoặc danh sách id
+    public function markAsRead(Request $request)
+    {
+        $data = $request->validate([
+            'Ma_BC' => 'nullable|string',
+            'ids' => 'nullable|array',
+        ]);
+
+        $query = TinNhan::query();
+
+        if (!empty($data['Ma_BC'])) {
+            $query->where('Ma_BC', $data['Ma_BC']);
+        } elseif (!empty($data['ids'])) {
+            $query->whereIn('Ma_TN', $data['ids']);
+        } else {
+            return response()->json(['error' => 'Thiếu thông tin để xác định tin nhắn'], 400);
+        }
+
+        $count = $query->where('Trang_Thai', '!=', 'Đã đọc')
+            ->update(['Trang_Thai' => 'Đã đọc']);
+
+        return response()->json([
+            'message' => "Đã đánh dấu {$count} tin nhắn là đã đọc.",
+            'updated' => $count,
+        ]);
+    }
 }

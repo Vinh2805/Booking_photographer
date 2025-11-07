@@ -26,6 +26,7 @@ import {
 export interface PhotographerProfileProps {
   onLogout?: () => void;
   user?: any; 
+  onNavigate?: (view: string) => void;
 }
 
 
