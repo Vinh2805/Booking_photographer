@@ -141,7 +141,6 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
                     Quay lại
                 </Button>
             </div>
-          </div>
 
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-muted/50 backdrop-blur-sm mb-6">

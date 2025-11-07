@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { CustomerAuth } from "./customer/CustomerAuth";
-import { CustomerHome } from "./customer/CustomerHome";
-import { CustomerBookings } from "./customer/CustomerBookings";
-import { CustomerChat } from "./customer/CustomerChat";
-import { CustomerProfile } from "./customer/CustomerProfile";
-import { CustomerEditProfile } from "./customer/CustomerEditProfile";
-import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
+import { CustomerAuth } from "./CustomerAuth";
+import { CustomerHome } from "./CustomerHome";
+import { CustomerBookings } from "./CustomerBookings";
+import { CustomerChat } from "./CustomerChat";
+import { CustomerProfile } from "./CustomerProfile";
+import { CustomerEditProfile } from "./CustomerEditProfile";
+import { AppLayoutWithSidebar } from "../other/AppLayoutWithSidebar";
 
 interface CustomerAppProps {
     onLogout: () => void; // ✅ đổi tên prop để khớp với App.tsx
