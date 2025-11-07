@@ -1,210 +1,187 @@
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, Suspense, lazy } from "react";
 import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  useNavigate,
-  useLocation,
-  Navigate,
+    BrowserRouter as Router,
+    Routes,
+    Route,
+    useNavigate,
 } from "react-router-dom";
 import { ThemeProvider } from "./components/ui/theme-provider";
 
-// ✅ Lazy load các component
+// ✅ Lazy load tất cả component
 const CustomerApp = lazy(() =>
-  import("./components/customer/CustomerApp").then((m) => ({ default: m.CustomerApp }))
+    import("./components/customer/CustomerApp").then((module) => ({
+        default: module.CustomerApp,
+    }))
 );
 const PhotographerApp = lazy(() =>
-  import("./components/PhotographerApp").then((m) => ({
-    default: m.PhotographerApp,
-  }))
+    import("./components/photographer/PhotographerApp").then((module) => ({
+        default: module.PhotographerApp,
+    }))
 );
 const LandingPage = lazy(() =>
-  import("./components/other/LandingPage").then((m) => ({ default: m.LandingPage }))
+    import("./components/other/LandingPage").then((module) => ({
+        default: module.LandingPage,
+    }))
 );
 const PhotographerDiscovery = lazy(() =>
-  import("./components/photographer/PhotographerDiscovery").then((m) => ({
-    default: m.PhotographerDiscovery,
-  }))
+    import("./components/photographer/PhotographerDiscovery").then((module) => ({
+        default: module.PhotographerDiscovery,
+    }))
 );
 const AllPhotographers = lazy(() =>
-  import("./components/other/AllPhotographers").then((m) => ({
-    default: m.AllPhotographers,
-  }))
+    import("./components/other/AllPhotographers").then((module) => ({
+        default: module.AllPhotographers,
+    }))
 );
 const CustomerAuth = lazy(() =>
-  import("./components/customer/CustomerAuth").then((m) => ({
-    default: m.CustomerAuth,
-  }))
+    import("./components/customer/CustomerAuth").then((module) => ({
+        default: module.CustomerAuth,
+    }))
 );
 const PhotographerAuth = lazy(() =>
-  import("./components/photographer/PhotographerAuth").then((m) => ({
-    default: m.PhotographerAuth,
-  }))
-);
-const BookingDetailDemo = lazy(() =>
-  import("./components/other/BookingDetailDemo").then((m) => ({
-    default: m.BookingDetailDemo,
-  }))
+    import("./components/photographer/PhotographerAuth").then((module) => ({
+        default: module.PhotographerAuth,
+    }))
 );
 const SidebarDemo = lazy(() =>
-  import("./components/other/SidebarDemo").then((m) => ({
-    default: m.SidebarDemo,
-  }))
+    import("./components/other/SidebarDemo").then((module) => ({
+        default: module.SidebarDemo,
+    }))
 );
 
-// ✅ Loading UI
+// Loading component
 function Loading() {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Đang tải...</p>
-      </div>
-    </div>
-  );
+    return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Đang tải...</p>
+            </div>
+        </div>
+    );
 }
 
-// ✅ AppContent chính (chỉ 1)
 function AppContent() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [role, setRole] = useState<string | null>(null);
+    const navigate = useNavigate();
 
-  // ✅ Điều hướng sau khi đăng nhập
-  useEffect(() => {
-    if (role === "photographer") navigate("/photographer");
-    else if (role === "customer") navigate("/customer");
-  }, [role]);
+    const handleDiscoverPhotographers = () => {
+        navigate("/discovery");
+    };
 
-  // ✅ Logout toàn cục
-  const handleLogout = () => {
-    localStorage.clear();
-    setRole(null);
-    navigate("/", { replace: true });
-  };
+    const handleViewAllPhotographers = () => {
+        navigate("/all-photographers");
+    };
 
-  // ✅ Handlers
-  const handleDiscoverPhotographers = () => navigate("/discovery");
-  const handleViewAllPhotographers = () => navigate("/all-photographers");
-  const handleBookPhotographer = (id: string) => navigate("/customer");
+    const handleBookPhotographer = (photographerId: string) => {
+        console.log("Booking photographer:", photographerId);
+        navigate("/customer");
+    };
 
-  const handleCustomerLogin = () => {
-    setRole("customer");
-    navigate("/customer");
-  };
+    const [customerAuth, setCustomerAuth] = useState(false);
+    const [photographerAuth, setPhotographerAuth] = useState(false);
 
-  const handlePhotographerLogin = () => {
-    setRole("photographer");
-    navigate("/photographer");
-  };
+    const handleCustomerLogin = () => {
+        setCustomerAuth(true);
+        navigate("/customer");
+    };
 
-  return (
-    <Suspense fallback={<Loading />}>
-      <Routes>
-        {/* Trang landing */}
-        <Route
-          path="/"
-          element={
-            <LandingPage
-              onBookPhotographer={handleBookPhotographer}
-              onDiscoverPhotographers={handleDiscoverPhotographers}
-              onViewAllPhotographers={handleViewAllPhotographers}
-            />
-          }
-        />
-
-        {/* Auth - Khách hàng */}
-        <Route
-          path="/customer-auth-login"
-          element={
-            <CustomerAuth
-              onLogin={handleCustomerLogin}
-              onBack={() => navigate("/")}
-            />
-          }
-        />
-        <Route
-          path="/customer-auth-register"
-          element={
-            <CustomerAuth
-              onLogin={handleCustomerLogin}
-              onBack={() => navigate("/")}
-            />
-          }
-        />
-
-        {/* Auth - Nhiếp ảnh gia */}
-        <Route
-          path="/photographer-auth-login"
-          element={
-            <PhotographerAuth
-              onLogin={handlePhotographerLogin}
-              onBack={() => navigate("/")}
-            />
-          }
-        />
-        <Route
-          path="/photographer-auth-register"
-          element={
-            <PhotographerAuth
-              onLogin={handlePhotographerLogin}
-              onBack={() => navigate("/")}
-            />
-          }
-        />
-
-        {/* Ứng dụng chính */}
-        <Route
-          path="/customer"
-          element={<CustomerApp onLogout={handleLogout} />}
-        />
-        <Route
-          path="/photographer"
-          element={<PhotographerApp onLogout={handleLogout} />}
-        />
-
-        {/* Trang phụ */}
-        <Route
-          path="/discovery"
-          element={
-            <PhotographerDiscovery
-              onBookPhotographer={handleBookPhotographer}
-              onBack={() => navigate("/")}
-            />
-          }
-        />
-        <Route
-          path="/all-photographers"
-          element={
-            <AllPhotographers
-              onBookPhotographer={handleBookPhotographer}
-              onBack={() => navigate("/")}
-            />
-          }
-        />
-        <Route
-          path="/booking-detail-demo"
-          element={<BookingDetailDemo onBack={() => navigate("/")} />}
-        />
-        <Route
-          path="/sidebar-demo"
-          element={<SidebarDemo onBack={() => navigate("/")} />}
-        />
-
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </Suspense>
-  );
+    const handlePhotographerLogin = () => {
+        setPhotographerAuth(true);
+        navigate("/photographer");
+    };
+    return (
+        <Suspense fallback={<Loading />}>
+            <Routes>
+                <Route
+                    path="/"
+                    element={
+                        <LandingPage
+                            onBookPhotographer={handleBookPhotographer}
+                            onDiscoverPhotographers={
+                                handleDiscoverPhotographers
+                            }
+                            onViewAllPhotographers={handleViewAllPhotographers}
+                        />
+                    }
+                />
+                <Route
+                    path="/customer"
+                    element={<CustomerApp onBack={() => navigate("/")} />}
+                />
+                <Route
+                    path="/customer-auth-login"
+                    element={
+                        <CustomerAuth
+                            onLogin={handleCustomerLogin}
+                            onBack={() => navigate("/")}
+                        />
+                    }
+                />
+                <Route
+                    path="/customer-auth-register"
+                    element={
+                        <CustomerAuth
+                            onLogin={() => navigate("/customer-auth-login")}
+                            onBack={() => navigate("/")}
+                        />
+                    }
+                />
+                <Route
+                    path="/photographer"
+                    element={<PhotographerApp onBack={() => navigate("/")} />}
+                />
+                <Route
+                    path="/photographer-auth-login"
+                    element={
+                        <PhotographerAuth
+                            onLogin={handlePhotographerLogin}
+                            onBack={() => navigate("/")}
+                        />
+                    }
+                />
+                <Route
+                    path="/photographer-auth-register"
+                    element={
+                        <PhotographerAuth
+                            onLogin={() => navigate("/photographer-auth-login")}
+                            onBack={() => navigate("/")}
+                        />
+                    }
+                />
+                <Route
+                    path="/discovery"
+                    element={
+                        <PhotographerDiscovery
+                            onBookPhotographer={handleBookPhotographer}
+                            onBack={() => navigate("/")}
+                        />
+                    }
+                />
+                <Route
+                    path="/all-photographers"
+                    element={
+                        <AllPhotographers
+                            onBookPhotographer={handleBookPhotographer}
+                            onBack={() => navigate("/")}
+                        />
+                    }
+                />
+                <Route
+                    path="/sidebar-demo"
+                    element={<SidebarDemo onBack={() => navigate("/")} />}
+                />
+                
+            </Routes>
+        </Suspense>
+    );
 }
 
-// ✅ App root
 export default function App() {
-  return (
-    <ThemeProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </ThemeProvider>
-  );
+    return (
+        <ThemeProvider>
+            <Router>
+                <AppContent />
+            </Router>
+        </ThemeProvider>
+    );
 }
