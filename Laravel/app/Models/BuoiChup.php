@@ -12,6 +12,17 @@ class BuoiChup extends Model
     protected $keyType = 'string';
     public $timestamps = false;
 
+
+    protected $casts = [
+        'Ngay_Tao' => 'datetime',
+        'Bat_Dau_Chup' => 'datetime',
+        'Ket_Thuc_Chup' => 'datetime',
+        'Tong_Tien' => 'decimal:2',
+        'Ti_Le_Coc' => 'decimal:2',
+    ];
+    protected $attributes = [
+    'So_Nguoi' => 0,
+];
     protected $fillable = [
         'Ma_BC','Ma_NAG','Ma_KH','Ngay_Tao','Tong_Tien','Bat_Dau_Chup',
         'Ket_Thuc_Chup','Dia_Diem','Loai_Chup','Ghi_Chu','Trang_Thai',
