@@ -9,27 +9,27 @@ import { ThemeProvider } from "./components/ui/theme-provider";
 
 // ✅ Lazy load tất cả component
 const CustomerApp = lazy(() =>
-    import("./components/customer/CustomerApp").then((module) => ({
+    import("./components/CustomerApp").then((module) => ({
         default: module.CustomerApp,
     }))
 );
 const PhotographerApp = lazy(() =>
-    import("./components/photographer/PhotographerApp").then((module) => ({
+    import("./components/PhotographerApp").then((module) => ({
         default: module.PhotographerApp,
     }))
 );
 const LandingPage = lazy(() =>
-    import("./components/other/LandingPage").then((module) => ({
+    import("./components/LandingPage").then((module) => ({
         default: module.LandingPage,
     }))
 );
 const PhotographerDiscovery = lazy(() =>
-    import("./components/photographer/PhotographerDiscovery").then((module) => ({
+    import("./components/PhotographerDiscovery").then((module) => ({
         default: module.PhotographerDiscovery,
     }))
 );
 const AllPhotographers = lazy(() =>
-    import("./components/other/AllPhotographers").then((module) => ({
+    import("./components/AllPhotographers").then((module) => ({
         default: module.AllPhotographers,
     }))
 );
@@ -44,7 +44,7 @@ const PhotographerAuth = lazy(() =>
     }))
 );
 const SidebarDemo = lazy(() =>
-    import("./components/other/SidebarDemo").then((module) => ({
+    import("./components/SidebarDemo").then((module) => ({
         default: module.SidebarDemo,
     }))
 );
