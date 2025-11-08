@@ -15,7 +15,7 @@ import {
   Shield,
   MessageCircle,
 } from "lucide-react";
-import chatApi, { ChatMessage } from "../../services/chatApi";
+import chatApi, { ChatMessage } from "../services/chatApi";
 
 
 interface ChatRoom {

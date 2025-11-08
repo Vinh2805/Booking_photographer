@@ -1,4 +1,4 @@
-import axiosClient from "../services/axiosClient";
+import apiClient from "./apiClient";
 
 /**
  * ==========================================
@@ -34,7 +34,7 @@ export async function depositBooking(
   ma_bc: string,
   data: DepositRequest
 ): Promise<DepositResponse> {
-  const response = await axiosClient.post<DepositResponse>(
+  const response = await apiClient.post<DepositResponse>(
     `/buoi-chup/${ma_bc}/dat-coc`,
     data
   );
@@ -84,7 +84,7 @@ export async function getFinalQuote(
   ma_bc: string,
   method: "vi_ca_nhan" | "vnpay" = "vnpay"
 ): Promise<FinalQuoteResponse> {
-  const response = await axiosClient.get<FinalQuoteResponse>(
+  const response = await apiClient.get<FinalQuoteResponse>(
     `/buoi-chup/${ma_bc}/thanh-toan/quote`,
     { params: { payment_method: method } }
   );
@@ -101,7 +101,7 @@ export async function payFinal(
   ma_bc: string,
   data: DepositRequest
 ): Promise<FinalPaymentResponse> {
-  const response = await axiosClient.post<FinalPaymentResponse>(
+  const response = await apiClient.post<FinalPaymentResponse>(
     `/buoi-chup/${ma_bc}/thanh-toan`,
     data
   );

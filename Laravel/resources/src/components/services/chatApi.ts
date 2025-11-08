@@ -1,4 +1,4 @@
-import axiosClient from "./axiosClient";
+import apiClient from "./apiClient";
 
 export interface ChatMessage {
   Ma_TN: string;
@@ -21,22 +21,22 @@ export interface SendMessagePayload {
 
 const chatApi = {
   async sendMessage(payload: SendMessagePayload): Promise<ChatMessage> {
-    const res = await axiosClient.post<ChatMessage>("/chat", payload);
+    const res = await apiClient.post<ChatMessage>("/chat", payload);
     return res.data;
   },
 
   async getMessagesByBooking(Ma_BC: string): Promise<ChatMessage[]> {
-    const res = await axiosClient.get<ChatMessage[]>(`/chat/${Ma_BC}`);
+    const res = await apiClient.get<ChatMessage[]>(`/chat/${Ma_BC}`);
     return res.data;
   },
 
   async getUnreadMessages(Ma_TK: string): Promise<ChatMessage[]> {
-    const res = await axiosClient.get<ChatMessage[]>(`/chat/unread/${Ma_TK}`);
+    const res = await apiClient.get<ChatMessage[]>(`/chat/unread/${Ma_TK}`);
     return res.data;
   },
 
   async markAsRead(Ma_BC: string): Promise<void> {
-    await axiosClient.post(`/chat/mark-as-read`, { Ma_BC });
+    await apiClient.post(`/chat/mark-as-read`, { Ma_BC });
   },
 };
 
