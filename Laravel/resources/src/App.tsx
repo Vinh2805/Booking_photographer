@@ -11,7 +11,9 @@ import { ThemeProvider } from "./components/ui/theme-provider";
 
 // ✅ Lazy load các component
 const CustomerApp = lazy(() =>
-  import("./components/CustomerApp").then((m) => ({ default: m.CustomerApp }))
+  import("./components/CustomerApp").then((m) => ({
+    default: m.CustomerApp,
+  }))
 );
 const PhotographerApp = lazy(() =>
   import("./components/PhotographerApp").then((m) => ({
@@ -19,7 +21,9 @@ const PhotographerApp = lazy(() =>
   }))
 );
 const LandingPage = lazy(() =>
-  import("./components/LandingPage").then((m) => ({ default: m.LandingPage }))
+  import("./components/LandingPage").then((m) => ({
+    default: m.LandingPage,
+  }))
 );
 const PhotographerDiscovery = lazy(() =>
   import("./components/PhotographerDiscovery").then((m) => ({
@@ -41,11 +45,11 @@ const PhotographerAuth = lazy(() =>
     default: m.PhotographerAuth,
   }))
 );
-const BookingDetailDemo = lazy(() =>
-  import("./components/BookingDetailDemo").then((m) => ({
-    default: m.BookingDetailDemo,
-  }))
-);
+// const BookingDetailDemo = lazy(() =>
+//   import("./components/other/BookingDetailDemo").then((m) => ({
+//     default: m.BookingDetailDemo,
+//   }))
+// );
 const SidebarDemo = lazy(() =>
   import("./components/SidebarDemo").then((m) => ({
     default: m.SidebarDemo,
@@ -69,29 +73,24 @@ function AppContent() {
   const location = useLocation();
   const [role, setRole] = useState<string | null>(null);
 
-  // ✅ Điều hướng sau khi đăng nhập
   useEffect(() => {
     if (role === "photographer") navigate("/photographer");
     else if (role === "customer") navigate("/customer");
   }, [role]);
 
-  // ✅ Logout toàn cục
   const handleLogout = () => {
     localStorage.clear();
     setRole(null);
     navigate("/", { replace: true });
   };
 
-  // ✅ Các handler khác
   const handleDiscoverPhotographers = () => navigate("/discovery");
   const handleViewAllPhotographers = () => navigate("/all-photographers");
   const handleBookPhotographer = (id: string) => navigate("/customer");
-
   const handleCustomerLogin = () => {
     setRole("customer");
     navigate("/customer");
   };
-
   const handlePhotographerLogin = () => {
     setRole("photographer");
     navigate("/photographer");
@@ -100,7 +99,6 @@ function AppContent() {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
-        {/* Trang landing */}
         <Route
           path="/"
           element={
@@ -111,8 +109,6 @@ function AppContent() {
             />
           }
         />
-
-        {/* ✅ Auth - Khách hàng */}
         <Route
           path="/customer-auth-login"
           element={
@@ -131,8 +127,6 @@ function AppContent() {
             />
           }
         />
-
-        {/* ✅ Auth - Nhiếp ảnh gia */}
         <Route
           path="/photographer-auth-login"
           element={
@@ -143,7 +137,7 @@ function AppContent() {
           }
         />
         <Route
-          path="/photographer-auth-register" // 🟢 THÊM ROUTE ĐĂNG KÝ CHO PHOTOGRAPHER
+          path="/photographer-auth-register"
           element={
             <PhotographerAuth
               onLogin={handlePhotographerLogin}
@@ -151,8 +145,6 @@ function AppContent() {
             />
           }
         />
-
-        {/* ✅ Ứng dụng chính */}
         <Route
           path="/customer"
           element={<CustomerApp onLogout={handleLogout} />}
@@ -161,8 +153,6 @@ function AppContent() {
           path="/photographer"
           element={<PhotographerApp onLogout={handleLogout} />}
         />
-
-        {/* ✅ Trang phụ */}
         <Route
           path="/discovery"
           element={
@@ -181,16 +171,14 @@ function AppContent() {
             />
           }
         />
-        <Route
+        {/* <Route
           path="/booking-detail-demo"
           element={<BookingDetailDemo onBack={() => navigate("/")} />}
-        />
+        /> */}
         <Route
           path="/sidebar-demo"
           element={<SidebarDemo onBack={() => navigate("/")} />}
         />
-
-        {/* ✅ Fallback */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Suspense>
