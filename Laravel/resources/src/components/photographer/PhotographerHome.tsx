@@ -1,25 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "../ui/popover";
-import { Calendar as CalendarUI } from "../ui/calendar";
-
-/* utils */
-import { format } from "date-fns";
-import { vi } from "date-fns/locale";
-
-/* misc */
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import apiClient from "../services/apiClient";
 

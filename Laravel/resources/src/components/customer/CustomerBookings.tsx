@@ -12,19 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "../ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Checkbox } from "../ui/checkbox";
-import { Label } from "../ui/label";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
-import { depositBooking, getFinalQuote, payFinal } from "../../services/PaymentAPI";
 import {
   Calendar,
   MapPin,
@@ -36,13 +24,13 @@ import {
   DollarSign,
   ArrowLeft,
   Search,
+  X,
+  Image as ImageIcon,
   CreditCard,
   Loader,
   ChevronDown,
   PlayCircle,
   XCircle,
-  X,
-  Image as ImageIcon,
 } from "lucide-react";
 import axios from "axios";
 
@@ -83,6 +71,13 @@ interface Booking {
   };
 }
 
+interface ChangeRequest {
+  field: "time" | "location" | "date" | "other";
+  currentValue: string;
+  newValue: string;
+  reason: string;
+}
+
 interface FilterOption {
   id: string;
   label: string;
@@ -112,141 +107,33 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   // Dialog states
+  const [showChangeDialog, setShowChangeDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDepositDialog, setShowDepositDialog] = useState(false);
-  const [selectedBookingForDeposit, setSelectedBookingForDeposit] = useState<Booking | null>(null);
-  const [depositMethod, setDepositMethod] = useState<"vi_ca_nhan" | "vnpay">("vi_ca_nhan");
-  const [agreeDepositPolicy, setAgreeDepositPolicy] = useState(false);
+  const [changeRequest, setChangeRequest] = useState<ChangeRequest>({
+    field: "time",
+    currentValue: "",
+    newValue: "",
+    reason: "",
+  });
+  const [cancelReason, setCancelReason] = useState("");
+  const [depositMethod, setDepositMethod] = useState<"card" | "bank">("card");
+  const [agreePolicy, setAgreePolicy] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [paySuccess, setPaySuccess] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number>(5000000);
-  const [email, setEmail] = useState("");
 
-  const [showFinalDialog, setShowFinalDialog] = useState(false);
-  const [selectedBookingForFinal, setSelectedBookingForFinal] = useState<Booking | null>(null);
-  const [finalMethod, setFinalMethod] = useState<"vi_ca_nhan" | "vnpay">("vi_ca_nhan");
-  const [finalQuote, setFinalQuote] = useState<any>(null);
-  const [isFinalPaying, setIsFinalPaying] = useState(false);
-  const [finalError, setFinalError] = useState<string | null>(null);
-  const [finalSuccess, setFinalSuccess] = useState(false);
-  const [agreeFinalPolicy, setAgreeFinalPolicy] = useState(false);
-
-  const depositPercent = 0.3;
-
-  // --- Deposit dialog ---
-  const handleOpenDepositDialog = (booking: Booking) => {
-    setSelectedBookingForDeposit(booking);
-    setShowDepositDialog(true);
-    setAgreeDepositPolicy(false);
-    setPayError(null);
-    setPaySuccess(false);
-    setIsPaying(false);
-  };
-
-  const handleCloseDepositDialog = () => {
-    setShowDepositDialog(false);
-    setSelectedBookingForDeposit(null);
-    setAgreeDepositPolicy(false);
-    setPayError(null);
-    setPaySuccess(false);
-    setIsPaying(false);
-  };
-
-  const handleDeposit = async () => {
-    if (!selectedBookingForDeposit) return;
-    if (!agreeDepositPolicy) {
-      setPayError("Bạn phải đồng ý Điều khoản đặt cọc và Chính sách hoàn tiền.");
-      return;
-    }
-
-    setIsPaying(true);
-    setPayError(null);
-    try {
-      const response = await depositBooking(selectedBookingForDeposit.id, {
-        payment_method: depositMethod,
-        agree_terms: true,
-        available: depositMethod === "vi_ca_nhan" ? walletBalance : undefined,
-        email: email || undefined,
-      });
-
-      if (response.status === "redirect") {
-        window.location.href = response.redirect_url!;
-      } else if (response.status === "success") {
-        setPaySuccess(true);
-        setTimeout(() => handleCloseDepositDialog(), 2000);
-      }
-    } catch (err: any) {
-      setPayError(err.message || "Đã có lỗi xảy ra khi đặt cọc.");
-    } finally {
-      setIsPaying(false);
-    }
-  };
-
-  // --- Final payment dialog ---
-  const handleOpenFinalDialog = async (booking: Booking) => {
-    setSelectedBookingForFinal(booking);
-    setShowFinalDialog(true);
-    setFinalError(null);
-    setFinalSuccess(false);
-    setIsFinalPaying(false);
-    try {
-      const quote = await getFinalQuote(booking.id, finalMethod);
-      setFinalQuote(quote);
-    } catch {
-      setFinalError("Không thể lấy báo giá. Vui lòng thử lại.");
-    }
-  };
-
-  const handleCloseFinalDialog = () => {
-    setShowFinalDialog(false);
-    setSelectedBookingForFinal(null);
-    setFinalQuote(null);
-    setFinalError(null);
-    setFinalSuccess(false);
-    setIsFinalPaying(false);
-  };
-
-  const handleFinalPayment = async () => {
-    if (!selectedBookingForFinal) return;
-    if (!agreeFinalPolicy) {
-      setFinalError("Bạn phải đồng ý Điều khoản thanh toán và Chính sách hoàn tiền.");
-      return;
-    }
-
-    setIsFinalPaying(true);
-    setFinalError(null);
-    try {
-      const response = await payFinal(selectedBookingForFinal.id, {
-        payment_method: finalMethod,
-        agree_terms: true,
-        available: finalMethod === "vi_ca_nhan" ? walletBalance : undefined,
-        email: email || undefined,
-      });
-
-      if (response.status === "redirect") {
-        window.location.href = response.redirect_url!;
-      } else if (response.status === "success") {
-        setFinalSuccess(true);
-        setTimeout(() => handleCloseFinalDialog(), 2000);
-      }
-    } catch (err: any) {
-      setFinalError(err.message || "Đã có lỗi xảy ra khi thanh toán.");
-    } finally {
-      setIsFinalPaying(false);
-    }
-  };
-
-  // --- Fetch bookings ---
   const fetchBookings = async () => {
     setLoading(true);
     try {
       const params: any = {};
       if (selectedStatus !== "all") params.status = selectedStatus;
       if (searchQuery) params.search = searchQuery;
+
       const response = await axios.get("/api/customer/bookings", { params });
       setBookings(response.data);
-    } catch (err: any) {
-      console.error("Lỗi tải buổi chụp:", err.response?.data || err.message);
+    } catch (error: any) {
+      console.error("Lỗi tải buổi chụp:", error.response?.data || error.message);
     } finally {
       setLoading(false);
     }
@@ -257,141 +144,269 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
   }, [selectedStatus, searchQuery]);
 
   const getStatusInfo = (status: BookingStatus) => {
-    const map: Record<BookingStatus, { label: string; color: string; icon: any }> = {
-      pending_confirmation: { label: "Chờ xác nhận", color: "bg-yellow-100 text-yellow-800", icon: AlertCircle },
-      pending_deposit: { label: "Chờ đặt cọc", color: "bg-orange-100 text-orange-800", icon: DollarSign },
-      upcoming: { label: "Sắp diễn ra", color: "bg-blue-100 text-blue-800", icon: Calendar },
-      ongoing: { label: "Đang diễn ra", color: "bg-green-100 text-green-800", icon: Camera },
-      pending_payment: { label: "Chờ thanh toán", color: "bg-purple-100 text-purple-800", icon: DollarSign },
-      pending_processing: { label: "Chờ xử lý ảnh", color: "bg-indigo-100 text-indigo-800", icon: Loader },
-      photos_ready: { label: "Đã xử lý ảnh", color: "bg-teal-100 text-teal-800", icon: ImageIcon },
-      completed: { label: "Đã hoàn thành", color: "bg-green-100 text-green-800", icon: CheckCircle },
+    const statusMap: Record<BookingStatus, { label: string; color: string; icon: any }> = {
+      pending_confirmation: { label: "Chờ xác nhận", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300", icon: AlertCircle },
+      pending_deposit: { label: "Chờ đặt cọc", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300", icon: DollarSign },
+      upcoming: { label: "Sắp diễn ra", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: Calendar },
+      ongoing: { label: "Đang diễn ra", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", icon: Camera },
+      pending_payment: { label: "Chờ thanh toán", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300", icon: DollarSign },
+      pending_processing: { label: "Chờ xử lý ảnh", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300", icon: Loader },
+      photos_ready: { label: "Đã xử lý ảnh", color: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300", icon: ImageIcon },
+      completed: { label: "Đã hoàn thành", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", icon: CheckCircle },
       cancelled: { label: "Đã hủy", color: "bg-muted text-muted-foreground", icon: X },
     };
-    return map[status];
+    return statusMap[status];
   };
 
   const filteredBookings = useMemo(() => {
-    return bookings.filter((b) => {
-      const matchesStatus = selectedStatus === "all" || b.status === selectedStatus;
+    return bookings.filter((booking) => {
+      const matchesStatus = selectedStatus === "all" || booking.status === selectedStatus;
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         q === "" ||
-        b.title.toLowerCase().includes(q) ||
-        b.photographer.name.toLowerCase().includes(q) ||
-        b.id.toLowerCase().includes(q);
+        booking.title.toLowerCase().includes(q) ||
+        booking.photographer.name.toLowerCase().includes(q) ||
+        booking.id.toLowerCase().includes(q);
       return matchesStatus && matchesSearch;
     });
   }, [bookings, selectedStatus, searchQuery]);
 
-  const selectedFilterOption = filterOptions.find((o) => o.status === selectedStatus) || filterOptions[0];
+  const statusCounts = useMemo(() => {
+    const init: Record<BookingStatus | "all", number> = {
+      all: bookings.length,
+      pending_confirmation: 0, pending_deposit: 0, upcoming: 0,
+      ongoing: 0, pending_payment: 0, pending_processing: 0, photos_ready: 0,
+      completed: 0, cancelled: 0,
+    };
+    bookings.forEach((b) => {
+      if (init[b.status] !== undefined) init[b.status]++;
+    });
+    return init;
+  }, [bookings]);
+
+  const selectedFilterOption = filterOptions.find(o => o.status === selectedStatus) || filterOptions[0];
+
+  // Chi tiết buổi chụp (thay thế BookingDetail)
+  if (selectedBooking) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Button variant="ghost" size="sm" onClick={() => setSelectedBooking(null)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />Quay lại
+          </Button>
+
+          <Card>
+            <CardContent className="p-6 space-y-6">
+              <div className="flex items-start gap-4">
+                <ImageWithFallback
+                  src={selectedBooking.photographer.avatar}
+                  alt={selectedBooking.photographer.name}
+                  className="w-20 h-20 rounded-full object-cover"
+                />
+                <div className="flex-1">
+                  <h1 className="text-2xl font-bold mb-2">{selectedBooking.title}</h1>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{selectedBooking.photographer.name}</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      <span>{selectedBooking.photographer.rating}</span>
+                    </div>
+                    <span>• {selectedBooking.photographer.completedSessions} buổi hoàn thành</span>
+                  </div>
+                </div>
+                {(() => {
+                  const info = getStatusInfo(selectedBooking.status);
+                  const Icon = info.icon;
+                  return <Badge className={info.color}><Icon className="w-4 h-4 mr-1" />{info.label}</Badge>;
+                })()}
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Thông tin buổi chụp</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /><span>{new Date(selectedBooking.date).toLocaleDateString("vi-VN")}</span></div>
+                      <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-muted-foreground" /><span>{selectedBooking.time}</span></div>
+                      <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><span>{selectedBooking.location}</span></div>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Chi tiết</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Loại:</span><span className="font-medium">{selectedBooking.type}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Thời lượng:</span><span className="font-medium">{selectedBooking.duration}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Số người:</span><span className="font-medium">{selectedBooking.guestCount}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Giá:</span><span className="font-medium text-primary">{selectedBooking.price.toLocaleString("vi-VN")}₫</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Dịch vụ</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedBooking.services.map((s, i) => <Badge key={i} variant="secondary">{s}</Badge>)}
+                    </div>
+                  </div>
+                  {selectedBooking.specialRequests && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Yêu cầu đặc biệt</h3>
+                      <p className="text-sm text-muted-foreground">{selectedBooking.specialRequests}</p>
+                    </div>
+                  )}
+                  {selectedBooking.photos && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Ảnh</h3>
+                      <div className="space-y-1 text-sm">
+                        {selectedBooking.photos.rawPhotos !== undefined && <div className="flex justify-between"><span className="text-muted-foreground">Thô:</span><span className="font-medium">{selectedBooking.photos.rawPhotos} ảnh</span></div>}
+                        {selectedBooking.photos.editedPhotos !== undefined && <div className="flex justify-between"><span className="text-muted-foreground">Đã chỉnh:</span><span className="font-medium">{selectedBooking.photos.editedPhotos} ảnh</span></div>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {selectedBooking.description && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">{selectedBooking.description}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       {onBack && (
         <div className="p-4">
-          <Button variant="ghost" size="sm" onClick={onBack}>
+          <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         </div>
       )}
 
       <div className="p-4 space-y-4">
-        {/* --- Filter & Search --- */}
         <div className="flex items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="justify-between">
+              <Button variant="outline" className="justify-between bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border-border hover:shadow-md transition-all duration-200">
                 <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${selectedFilterOption.color}`} />
                   <selectedFilterOption.icon className="h-4 w-4" />
-                  <span>{selectedFilterOption.label}</span>
+                  <span className="text-sm text-foreground">{selectedFilterOption.label}</span>
+                  <Badge variant={statusCounts[selectedStatus] > 0 ? "default" : "secondary"} className="text-xs">
+                    {statusCounts[selectedStatus]}
+                  </Badge>
                 </div>
                 <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {filterOptions.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.id}
-                  onClick={() => setSelectedStatus(opt.status)}
-                  className={selectedStatus === opt.status ? "bg-accent" : ""}
-                >
-                  <opt.icon className="w-4 h-4 mr-2" /> {opt.label}
-                </DropdownMenuItem>
+            <DropdownMenuContent className="w-64 max-h-80 overflow-y-auto bg-card border-border" align="start">
+              <div className="px-3 py-2 border-b border-border">
+                <p className="font-medium text-sm text-card-foreground">Chọn trạng thái buổi chụp</p>
+                <p className="text-xs text-muted-foreground">Tất cả: {statusCounts.all} buổi chụp</p>
+              </div>
+              {filterOptions.map((option, index) => (
+                <React.Fragment key={option.id}>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedStatus(option.status)}
+                    className={`flex items-center justify-between px-3 py-2.5 cursor-pointer ${selectedStatus === option.status ? "bg-accent" : ""}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${option.color}`} />
+                      <option.icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">{option.label}</span>
+                    </div>
+                    <Badge variant={statusCounts[option.status] > 0 ? "default" : "secondary"} className={`text-xs ${selectedStatus === option.status ? "bg-primary text-primary-foreground" : ""}`}>
+                      {statusCounts[option.status]}
+                    </Badge>
+                  </DropdownMenuItem>
+                  {(index === 0 || index === 3 || index === 6) && <DropdownMenuSeparator />}
+                </React.Fragment>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Tìm kiếm buổi chụp..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-input-background border-border"
             />
           </div>
         </div>
 
-        {/* --- Booking List --- */}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : filteredBookings.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-            <p className="text-lg font-medium mb-2">Không tìm thấy buổi chụp</p>
-            <p className="text-sm">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
-          </div>
-        ) : (
-          filteredBookings.map((b) => {
-            const s = getStatusInfo(b.status);
-            const Icon = s.icon;
-            return (
-              <Card key={b.id} className="hover:shadow-md transition-all duration-200">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <ImageWithFallback
-                    src={b.photographer.avatar}
-                    alt={b.photographer.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between mb-1">
-                      <h3 className="font-medium truncate">{b.title}</h3>
-                      <Badge className={s.color}>
-                        <Icon className="w-3 h-3 mr-1" /> {s.label}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                      <span>{b.photographer.name}</span>•<Star className="w-3 h-3 fill-yellow-400" />
-                      <span>{b.photographer.rating}</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <Calendar className="w-3 h-3" /> {new Date(b.date).toLocaleDateString("vi-VN")}
-                      <Clock className="w-3 h-3" /> {b.time}
-                      <MapPin className="w-3 h-3" /> {b.location}
-                    </div>
-                  </div>
-                  {b.status === "pending_deposit" && (
-                    <Button onClick={() => handleOpenDepositDialog(b)} className="bg-orange-500 hover:bg-orange-600">
-                      <CreditCard className="w-4 h-4 mr-1" /> Đặt cọc
-                    </Button>
-                  )}
-                  {b.status === "pending_payment" && (
-                    <Button onClick={() => handleOpenFinalDialog(b)} className="bg-red-500 hover:bg-red-600">
-                      <CreditCard className="w-4 h-4 mr-1" /> Thanh toán
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
+        <div className="space-y-3">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : filteredBookings.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+              <p className="text-lg font-medium mb-2 text-foreground">Không tìm thấy buổi chụp</p>
+              <p className="text-sm">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+            </div>
+          ) : (
+            filteredBookings.map((booking) => {
+              const statusInfo = getStatusInfo(booking.status);
+              const StatusIcon = statusInfo.icon;
 
-      {/* Dialogs giữ nguyên từ bản bạn gửi (deposit + final) */}
-      {/* ... */}
+              return (
+                <Card
+                  key={booking.id}
+                  onClick={() => setSelectedBooking(booking)}
+                  className="relative cursor-pointer overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 group hover:shadow-xl hover:shadow-sky-500/10 dark:hover:shadow-sky-400/10 hover:border-sky-300 dark:hover:border-sky-500 transition-all duration-300"
+                >
+                  <span aria-hidden className="shine pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-white/0 via-white/30 to-white/0 dark:via-white/10 -skew-x-12" />
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <ImageWithFallback
+                        src={booking.photographer.avatar}
+                        alt={booking.photographer.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-medium truncate text-card-foreground">{booking.title}</h3>
+                          <Badge className={statusInfo.color}>
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {statusInfo.label}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                          <span className="text-foreground font-medium">{booking.photographer.name}</span>
+                          <span>•</span>
+                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          <span>{booking.photographer.rating}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /><span>{new Date(booking.date).toLocaleDateString("vi-VN")}</span></div>
+                          <div className="flex items-center gap-1"><Clock className="w-3 h-3" /><span>{booking.time}</span></div>
+                          <div className="flex items-center gap-1"><MapPin className="w-3 h-3" /><span className="truncate max-w-[120px]">{booking.location}</span></div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); setSelectedBooking(booking); }}
+                        className="border-border"
+                      >
+                        Chi tiết
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }

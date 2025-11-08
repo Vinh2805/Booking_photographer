@@ -11,7 +11,9 @@ import { ThemeProvider } from "./components/ui/theme-provider";
 
 // ✅ Lazy load các component
 const CustomerApp = lazy(() =>
-  import("./components/customer/CustomerApp").then((m) => ({ default: m.CustomerApp }))
+  import("./components/CustomerApp").then((m) => ({
+    default: m.CustomerApp,
+  }))
 );
 const PhotographerApp = lazy(() =>
   import("./components/PhotographerApp").then((m) => ({
@@ -19,15 +21,17 @@ const PhotographerApp = lazy(() =>
   }))
 );
 const LandingPage = lazy(() =>
-  import("./components/other/LandingPage").then((m) => ({ default: m.LandingPage }))
+  import("./components/LandingPage").then((m) => ({
+    default: m.LandingPage,
+  }))
 );
 const PhotographerDiscovery = lazy(() =>
-  import("./components/photographer/PhotographerDiscovery").then((m) => ({
+  import("./components/PhotographerDiscovery").then((m) => ({
     default: m.PhotographerDiscovery,
   }))
 );
 const AllPhotographers = lazy(() =>
-  import("./components/other/AllPhotographers").then((m) => ({
+  import("./components/AllPhotographers").then((m) => ({
     default: m.AllPhotographers,
   }))
 );
@@ -42,12 +46,12 @@ const PhotographerAuth = lazy(() =>
   }))
 );
 // const BookingDetailDemo = lazy(() =>
-//   import("./components/BookingDetailDemo").then((m) => ({
+//   import("./components/other/BookingDetailDemo").then((m) => ({
 //     default: m.BookingDetailDemo,
 //   }))
 // );
 const SidebarDemo = lazy(() =>
-  import("./components/other/SidebarDemo").then((m) => ({
+  import("./components/SidebarDemo").then((m) => ({
     default: m.SidebarDemo,
   }))
 );
@@ -69,29 +73,24 @@ function AppContent() {
   const location = useLocation();
   const [role, setRole] = useState<string | null>(null);
 
-  // ✅ Điều hướng sau khi đăng nhập
   useEffect(() => {
     if (role === "photographer") navigate("/photographer");
     else if (role === "customer") navigate("/customer");
   }, [role]);
 
-  // ✅ Logout toàn cục
   const handleLogout = () => {
     localStorage.clear();
     setRole(null);
     navigate("/", { replace: true });
   };
 
-  // ✅ Các handler khác
   const handleDiscoverPhotographers = () => navigate("/discovery");
   const handleViewAllPhotographers = () => navigate("/all-photographers");
   const handleBookPhotographer = (id: string) => navigate("/customer");
-
   const handleCustomerLogin = () => {
     setRole("customer");
     navigate("/customer");
   };
-
   const handlePhotographerLogin = () => {
     setRole("photographer");
     navigate("/photographer");
@@ -100,7 +99,6 @@ function AppContent() {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
-        {/* Trang landing */}
         <Route
           path="/"
           element={
@@ -108,16 +106,9 @@ function AppContent() {
               onBookPhotographer={handleBookPhotographer}
               onDiscoverPhotographers={handleDiscoverPhotographers}
               onViewAllPhotographers={handleViewAllPhotographers}
-              onNavigate={(role) => {
-                setRole(role);
-                if (role === "photographer") navigate("/photographer");
-                else if (role === "customer") navigate("/customer");
-              }}
             />
           }
         />
-
-        {/* ✅ Auth - Khách hàng */}
         <Route
           path="/customer-auth-login"
           element={
@@ -136,8 +127,6 @@ function AppContent() {
             />
           }
         />
-
-        {/* ✅ Auth - Nhiếp ảnh gia */}
         <Route
           path="/photographer-auth-login"
           element={
@@ -148,7 +137,7 @@ function AppContent() {
           }
         />
         <Route
-          path="/photographer-auth-register" // 🟢 THÊM ROUTE ĐĂNG KÝ CHO PHOTOGRAPHER
+          path="/photographer-auth-register"
           element={
             <PhotographerAuth
               onLogin={handlePhotographerLogin}
@@ -156,8 +145,6 @@ function AppContent() {
             />
           }
         />
-
-        {/* ✅ Ứng dụng chính */}
         <Route
           path="/customer"
           element={<CustomerApp onLogout={handleLogout} />}
@@ -166,8 +153,6 @@ function AppContent() {
           path="/photographer"
           element={<PhotographerApp onLogout={handleLogout} />}
         />
-
-        {/* ✅ Trang phụ */}
         <Route
           path="/discovery"
           element={
@@ -194,8 +179,6 @@ function AppContent() {
           path="/sidebar-demo"
           element={<SidebarDemo onBack={() => navigate("/")} />}
         />
-
-        {/* ✅ Fallback */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Suspense>

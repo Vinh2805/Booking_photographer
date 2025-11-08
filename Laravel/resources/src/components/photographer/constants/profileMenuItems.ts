@@ -1,4 +1,5 @@
 import {
+  Edit,
   Lock,
   Bell,
   ShieldCheck,
@@ -6,6 +7,7 @@ import {
   User,
 } from "lucide-react";
 
+// Các mục menu chính - removed wallet section
 export const MAIN_MENU_ITEMS = [
   {
     id: "edit",
