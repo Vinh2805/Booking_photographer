@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Card, CardContent } from "../ui/card";
@@ -15,7 +15,12 @@ import {
   Users,
   Shield,
   MessageCircle,
+  Loader,
 } from "lucide-react";
+import chatApi, { ChatMessage } from "../services/chatApi";
+import apiClient from "../services/apiClient";
+import Echo from "../../echo";
+import { toast } from "sonner";
 
 interface ChatRoom {
   id: string;
@@ -41,6 +46,9 @@ interface Message {
   timestamp: string;
   type: "text" | "image" | "booking";
   bookingInfo?: any;
+  Ma_TN?: string;
+  Ma_BC?: string;
+  Trang_Thai?: string;
 }
 
 export function PhotographerChat(_onBack: { onBack: () => void }) {
@@ -49,139 +57,321 @@ export function PhotographerChat(_onBack: { onBack: () => void }) {
   const [messageInput, setMessageInput] = useState("");
   const [showThreeWayChat, setShowThreeWayChat] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState("");
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      sender: "customer",
-      content: "Chào anh! Em có vài câu hỏi về buổi chụp ngày mai",
-      timestamp: "10:00",
-      type: "text",
-    },
-    {
-      id: "2",
-      sender: "photographer",
-      content: "Chào em! Cứ hỏi thoải mái, anh sẽ trả lời ngay",
-      timestamp: "10:02",
-      type: "text",
-    },
-    {
-      id: "3",
-      sender: "customer",
-      content: "Em nên mặc trang phục gì cho phù hợp ạ?",
-      timestamp: "10:03",
-      type: "text",
-    },
-    {
-      id: "4",
-      sender: "photographer",
-      content:
-        "Em nên mặc trang phục màu sáng, tránh màu quá sặc sỡ. Anh sẽ gửi em vài gợi ý nữa",
-      timestamp: "10:05",
-      type: "text",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const echoChannelRef = useRef<any>(null);
 
-  // Mock chat rooms data with support and 3-way chats
-  const chatRooms: ChatRoom[] = [
-    // Support chat - always at top
-    {
-      id: "support",
-      type: "support",
-      participants: [
-        {
-          name: "Hỗ trợ Momentia",
-          avatar:
-            "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
-          role: "Hỗ trợ nhiếp ảnh gia",
-        },
-      ],
-      title: "Hỗ trợ nhiếp ảnh gia",
-      lastMessage: "Chào anh! Tôi có thể giúp gì cho anh không?",
-      lastMessageTime: "11:30",
-      unreadCount: 0,
-      isOnline: true,
-    },
-    // Three-way chat for booking changes
-    {
-      id: "3way_1",
-      bookingId: "BK001",
-      type: "three_way",
-      participants: [
-        {
-          name: "Nguyễn Văn A",
-          avatar:
-            "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=50&h=50&fit=crop&crop=face",
-          role: "Khách hàng",
-        },
-        {
-          name: "Thu Hương",
-          avatar:
-            "https://images.unsplash.com/photo-1494790108755-2616b85bb44f?w=50&h=50&fit=crop&crop=face",
-          role: "Điều phối viên",
-        },
-      ],
-      title: "Thảo luận thay đổi BK001",
-      lastMessage: "Điều phối viên: Đã xác nhận thay đổi địa điểm",
-      lastMessageTime: "10:40",
-      unreadCount: 1,
-      hasBookingChanges: true,
-    },
-    // Direct chats with customers
-    {
-      id: "1",
-      bookingId: "BK002",
-      type: "direct",
-      participants: [
-        {
-          name: "Trần Thị B",
-          avatar:
-            "https://images.unsplash.com/photo-1494790108755-2616b85bb44f?w=50&h=50&fit=crop&crop=face",
-          role: "Khách hàng",
-        },
-      ],
-      title: "Trần Thị B",
-      lastMessage: "Em đã chuẩn bị trang phục theo yêu cầu ạ",
-      lastMessageTime: "09:15",
-      unreadCount: 2,
-      isOnline: true,
-    },
-    {
-      id: "2",
-      bookingId: "BK003",
-      type: "direct",
-      participants: [
-        {
-          name: "Hoàng Thị C",
-          avatar:
-            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
-          role: "Khách hàng",
-        },
-      ],
-      title: "Hoàng Thị C",
-      lastMessage: "Cảm ơn anh đã chụp rất đẹp!",
-      lastMessageTime: "Hôm qua",
-      unreadCount: 0,
-      isOnline: false,
-    },
-    {
-      id: "3",
-      bookingId: "BK005",
-      type: "direct",
-      participants: [
-        {
-          name: "Lê Văn D",
-          avatar:
-            "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face",
-          role: "Khách hàng",
-        },
-      ],
-      title: "Lê Văn D",
-      lastMessage: "Buổi chụp mai anh có thể đến sớm 30 phút không?",
-      lastMessageTime: "2 ngày trước",
-      unreadCount: 0,
-      isOnline: true,
-    },
-  ];
+  // Fetch bookings để tạo chat rooms
+  useEffect(() => {
+    fetchChatRooms();
+  }, []);
+
+  // Fetch tin nhắn khi chọn chat
+  useEffect(() => {
+    if (selectedChat && selectedChat.bookingId && selectedChat.type !== "support") {
+      fetchMessages(selectedChat.bookingId);
+      // Subscribe WebSocket
+      subscribeToChat(selectedChat.bookingId);
+      // Đánh dấu đã đọc
+      markAsRead(selectedChat.bookingId);
+    }
+    
+    return () => {
+      // Unsubscribe khi unmount hoặc đổi chat
+      if (echoChannelRef.current && selectedChat?.bookingId) {
+        Echo.leave(`chat.booking.${selectedChat.bookingId}`);
+        echoChannelRef.current = null;
+      }
+    };
+  }, [selectedChat]);
+
+  // Scroll to bottom khi có tin nhắn mới
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const fetchChatRooms = async () => {
+    try {
+      setLoading(true);
+      // Lấy danh sách bookings
+      const response = await apiClient.get("/buoi-chup", {
+        params: { only_mine: "true" },
+      });
+
+      console.log("📥 Photographer bookings response:", response.data);
+
+      if (response.data.success && response.data.data && Array.isArray(response.data.data)) {
+        const bookings = response.data.data;
+        
+        // Nếu không có bookings, chỉ hiển thị support chat
+        if (bookings.length === 0) {
+          const supportRoom: ChatRoom = {
+            id: "support",
+            type: "support" as const,
+            participants: [
+              {
+                name: "Hỗ trợ Momentia",
+                avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
+                role: "Hỗ trợ nhiếp ảnh gia",
+              },
+            ],
+            title: "Hỗ trợ nhiếp ảnh gia",
+            lastMessage: "Chào anh! Tôi có thể giúp gì cho anh không?",
+            lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            unreadCount: 0,
+            isOnline: true,
+          };
+          setChatRooms([supportRoom]);
+          return;
+        }
+        
+        // Lấy tin nhắn chưa đọc để tính unread count
+        let unreadMap = new Map<string, number>();
+        try {
+          const unreadMessages = await chatApi.getUnreadMessages();
+          unreadMessages.forEach((msg) => {
+            if (msg.Ma_BC) {
+              unreadMap.set(msg.Ma_BC, (unreadMap.get(msg.Ma_BC) || 0) + 1);
+            }
+          });
+        } catch (error) {
+          console.error("⚠️ Lỗi khi lấy tin nhắn chưa đọc:", error);
+          // Tiếp tục với unreadMap rỗng
+        }
+
+        // Tạo chat rooms từ bookings và lấy tin nhắn cuối cùng cho mỗi booking
+        const roomsPromises = bookings.map(async (booking: any) => {
+          try {
+            // Lấy tin nhắn của booking này
+            const bookingMessages = await chatApi.getMessagesByBooking(booking.id);
+            const lastMsg = bookingMessages[bookingMessages.length - 1];
+            
+            return {
+              id: booking.id,
+              bookingId: booking.id,
+              type: "direct" as const,
+              participants: [
+                {
+                  name: booking.customer?.name || "Khách hàng",
+                  avatar: booking.customer?.avatar || "",
+                  role: "Khách hàng",
+                },
+              ],
+              title: booking.customer?.name || "Khách hàng",
+              lastMessage: lastMsg?.Noi_Dung || "Chưa có tin nhắn",
+              lastMessageTime: lastMsg?.Gui_Luc
+                ? new Date(lastMsg.Gui_Luc).toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "",
+              unreadCount: unreadMap.get(booking.id) || 0,
+              isOnline: false, // Có thể thêm logic check online sau
+            };
+          } catch (error) {
+            // Nếu lỗi, vẫn tạo room nhưng không có last message
+            return {
+              id: booking.id,
+              bookingId: booking.id,
+              type: "direct" as const,
+              participants: [
+                {
+                  name: booking.customer?.name || "Khách hàng",
+                  avatar: booking.customer?.avatar || "",
+                  role: "Khách hàng",
+                },
+              ],
+              title: booking.customer?.name || "Khách hàng",
+              lastMessage: "Chưa có tin nhắn",
+              lastMessageTime: "",
+              unreadCount: unreadMap.get(booking.id) || 0,
+              isOnline: false,
+            };
+          }
+        });
+
+        const rooms: ChatRoom[] = await Promise.all(roomsPromises);
+
+        // Thêm support chat ở đầu
+        rooms.unshift({
+          id: "support",
+          type: "support" as const,
+          participants: [
+            {
+              name: "Hỗ trợ Momentia",
+              avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
+              role: "Hỗ trợ nhiếp ảnh gia",
+            },
+          ],
+          title: "Hỗ trợ nhiếp ảnh gia",
+          lastMessage: "Chào anh! Tôi có thể giúp gì cho anh không?",
+          lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          unreadCount: 0,
+          isOnline: true,
+        });
+
+        setChatRooms(rooms);
+      } else {
+        console.error("❌ Response structure không đúng:", response.data);
+        // Vẫn hiển thị support chat nếu có lỗi
+        const supportRoom: ChatRoom = {
+          id: "support",
+          type: "support" as const,
+          participants: [
+            {
+              name: "Hỗ trợ Momentia",
+              avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
+              role: "Hỗ trợ nhiếp ảnh gia",
+            },
+          ],
+          title: "Hỗ trợ nhiếp ảnh gia",
+          lastMessage: "Chào anh! Tôi có thể giúp gì cho anh không?",
+          lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          unreadCount: 0,
+          isOnline: true,
+        };
+        setChatRooms([supportRoom]);
+        toast.error("Không thể tải danh sách buổi chụp. Vui lòng thử lại sau.");
+      }
+    } catch (error: any) {
+      console.error("❌ Lỗi khi tải chat rooms:", error);
+      console.error("❌ Error details:", error.response?.data || error.message);
+      
+      // Hiển thị support chat ngay cả khi có lỗi
+      const supportRoom: ChatRoom = {
+        id: "support",
+        type: "support" as const,
+        participants: [
+          {
+            name: "Hỗ trợ Momentia",
+            avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
+            role: "Hỗ trợ nhiếp ảnh gia",
+          },
+        ],
+        title: "Hỗ trợ nhiếp ảnh gia",
+        lastMessage: "Chào anh! Tôi có thể giúp gì cho anh không?",
+        lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        unreadCount: 0,
+        isOnline: true,
+      };
+      setChatRooms([supportRoom]);
+      
+      const errorMessage = error.response?.data?.message || error.message || "Không thể tải danh sách cuộc trò chuyện";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMessages = async (Ma_BC: string) => {
+    try {
+      const chatMessages = await chatApi.getMessagesByBooking(Ma_BC);
+      
+      // Convert ChatMessage sang Message format
+      const formattedMessages: Message[] = chatMessages.map((msg) => {
+        // Xác định sender dựa trên Ma_KH và Ma_NAG
+        const sender: "customer" | "photographer" = msg.Ma_KH ? "customer" : "photographer";
+        
+        return {
+          id: msg.Ma_TN,
+          Ma_TN: msg.Ma_TN,
+          Ma_BC: msg.Ma_BC,
+          sender,
+          content: msg.Noi_Dung,
+          timestamp: msg.Gui_Luc 
+            ? new Date(msg.Gui_Luc).toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "",
+          type: "text" as const,
+          Trang_Thai: msg.Trang_Thai,
+        };
+      });
+
+      setMessages(formattedMessages);
+    } catch (error: any) {
+      console.error("Lỗi khi tải tin nhắn:", error);
+      toast.error("Không thể tải tin nhắn");
+    }
+  };
+
+  const subscribeToChat = (Ma_BC: string) => {
+    // Unsubscribe channel cũ nếu có
+    if (echoChannelRef.current) {
+      Echo.leave(echoChannelRef.current);
+    }
+
+    // Subscribe channel mới
+    const channel = Echo.private(`chat.booking.${Ma_BC}`);
+    echoChannelRef.current = channel;
+
+    channel.listen(".message.sent", (data: any) => {
+      const msg = data.message;
+      const sender: "customer" | "photographer" = msg.Ma_KH ? "customer" : "photographer";
+      
+      const newMessage: Message = {
+        id: msg.Ma_TN,
+        Ma_TN: msg.Ma_TN,
+        Ma_BC: msg.Ma_BC,
+        sender,
+        content: msg.Noi_Dung,
+        timestamp: msg.Gui_Luc 
+          ? new Date(msg.Gui_Luc).toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : new Date().toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+        type: "text" as const,
+        Trang_Thai: msg.Trang_Thai,
+      };
+
+      setMessages((prev) => [...prev, newMessage]);
+      
+      // Cập nhật unread count trong chat rooms
+      if (sender === "customer") {
+        setChatRooms((prev) =>
+          prev.map((room) =>
+            room.bookingId === Ma_BC
+              ? { ...room, unreadCount: room.unreadCount + 1 }
+              : room
+          )
+        );
+      }
+    });
+  };
+
+  const markAsRead = async (Ma_BC: string) => {
+    try {
+      await chatApi.markAsRead({ Ma_BC });
+      // Cập nhật unread count
+      setChatRooms((prev) =>
+        prev.map((room) =>
+          room.bookingId === Ma_BC ? { ...room, unreadCount: 0 } : room
+        )
+      );
+    } catch (error) {
+      console.error("Lỗi khi đánh dấu đã đọc:", error);
+    }
+  };
 
   const filteredChatRooms = chatRooms.filter(
     (room) =>
@@ -193,21 +383,61 @@ export function PhotographerChat(_onBack: { onBack: () => void }) {
         room.bookingId.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const sendMessage = () => {
-    if (messageInput.trim()) {
-      const newMessage: Message = {
-        id: Date.now().toString(),
+  const sendMessage = async () => {
+    if (!messageInput.trim() || !selectedChat?.bookingId || sending) return;
+
+    try {
+      setSending(true);
+      
+      // Gửi tin nhắn qua API
+      const newMessage = await chatApi.sendMessage({
+        Ma_BC: selectedChat.bookingId,
+        Noi_Dung: messageInput.trim(),
+      });
+
+      // Thêm tin nhắn vào danh sách (WebSocket sẽ nhận được và cập nhật, nhưng thêm ngay để UX tốt hơn)
+      const formattedMessage: Message = {
+        id: newMessage.Ma_TN,
+        Ma_TN: newMessage.Ma_TN,
+        Ma_BC: newMessage.Ma_BC,
         sender: "photographer",
-        content: messageInput.trim(),
-        timestamp: new Date().toLocaleTimeString("vi-VN", {
+        content: newMessage.Noi_Dung,
+        timestamp: newMessage.Gui_Luc
+          ? new Date(newMessage.Gui_Luc).toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : new Date().toLocaleTimeString("vi-VN", {
           hour: "2-digit",
           minute: "2-digit",
         }),
         type: "text",
+        Trang_Thai: newMessage.Trang_Thai,
       };
 
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
+      setMessages((prevMessages) => [...prevMessages, formattedMessage]);
       setMessageInput("");
+
+      // Cập nhật last message trong chat rooms
+      setChatRooms((prev) =>
+        prev.map((room) =>
+          room.bookingId === selectedChat.bookingId
+            ? {
+                ...room,
+                lastMessage: messageInput.trim(),
+                lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              }
+            : room
+        )
+      );
+    } catch (error: any) {
+      console.error("Lỗi khi gửi tin nhắn:", error);
+      toast.error(error.response?.data?.message || "Không thể gửi tin nhắn");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -315,7 +545,16 @@ export function PhotographerChat(_onBack: { onBack: () => void }) {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) => (
+          {loading && messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p>Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!</p>
+            </div>
+          ) : (
+            messages.map((message) => (
             <div
               key={message.id}
               className={`flex ${
@@ -345,7 +584,9 @@ export function PhotographerChat(_onBack: { onBack: () => void }) {
                 </p>
               </div>
             </div>
-          ))}
+          ))
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Message Input */}
@@ -368,10 +609,14 @@ export function PhotographerChat(_onBack: { onBack: () => void }) {
             </div>
             <Button
               onClick={sendMessage}
-              disabled={!messageInput.trim()}
+              disabled={!messageInput.trim() || sending}
               className="bg-primary hover:bg-primary/90 p-3"
             >
-              <Send className="w-4 h-4" />
+              {sending ? (
+                <Loader className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -394,7 +639,12 @@ export function PhotographerChat(_onBack: { onBack: () => void }) {
 
       {/* Chat Rooms List */}
       <div className="space-y-2">
-        {filteredChatRooms.map((room) => (
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          filteredChatRooms.map((room) => (
           <Card
             key={room.id}
             className="cursor-pointer hover:shadow-lg hover:bg-accent/50 transition-allcursor-pointer hover:shadow-lg hover-lift transition-all duration-200 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 group"
@@ -492,9 +742,10 @@ export function PhotographerChat(_onBack: { onBack: () => void }) {
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
 
-        {filteredChatRooms.length === 0 && (
+        {!loading && filteredChatRooms.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <MessageCircle className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
             <p>Không tìm thấy cuộc trò chuyện nào</p>

@@ -14,9 +14,8 @@ export interface ChatMessage {
 export interface SendMessagePayload {
   Ma_BC: string;
   Noi_Dung: string;
-  Ma_KH?: string;
-  Ma_NAG?: string;
   Loai_Tin?: string;
+  // Không cần Ma_KH và Ma_NAG nữa, backend tự động xác định từ token
 }
 
 const chatApi = {
@@ -30,13 +29,14 @@ const chatApi = {
     return res.data;
   },
 
-  async getUnreadMessages(Ma_TK: string): Promise<ChatMessage[]> {
-    const res = await apiClient.get<ChatMessage[]>(`/chat/unread/${Ma_TK}`);
+  async getUnreadMessages(): Promise<ChatMessage[]> {
+    const res = await apiClient.get<ChatMessage[]>(`/chat/unread`);
     return res.data;
   },
 
-  async markAsRead(Ma_BC: string): Promise<void> {
-    await apiClient.post(`/chat/mark-as-read`, { Ma_BC });
+  async markAsRead(payload: { Ma_BC?: string; ids?: string[] }): Promise<{ message: string; updated: number }> {
+    const res = await apiClient.post<{ message: string; updated: number }>(`/chat/mark-read`, payload);
+    return res.data;
   },
 };
 

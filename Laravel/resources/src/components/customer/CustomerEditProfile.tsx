@@ -15,6 +15,7 @@ import {
     MapPin,
     Calendar,
 } from "lucide-react";
+import React from "react";
 
 interface CustomerEditProfileProps {
     onBack?: () => void;

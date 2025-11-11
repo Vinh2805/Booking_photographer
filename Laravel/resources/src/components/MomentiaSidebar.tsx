@@ -21,6 +21,9 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { TooltipProvider } from "./ui/tooltip";
+import { useState, useEffect } from "react";
+import apiClient from "./services/apiClient";
+import chatApi from "./services/chatApi";
 
 interface MomentiaSidebarProps {
     onNavigate: (section: string) => void;
@@ -29,31 +32,7 @@ interface MomentiaSidebarProps {
     currentView?: string;
 }
 
-const customerMenuItems = [
-    { id: "home", title: "Trang chủ", icon: Home },
-    { id: "bookings", title: "Buổi chụp", icon: Calendar, badge: "3" },
-    {
-        id: "messages",
-        title: "Tin nhắn",
-        icon: MessageCircle,
-        badge: "5",
-        badgeColor: "bg-red-500",
-    },
-    { id: "profile", title: "Hồ sơ", icon: User },
-];
-
-const photographerMenuItems = [
-    { id: "home", title: "Trang chủ", icon: Home },
-    { id: "bookings", title: "Buổi chụp", icon: Calendar, badge: "8" },
-    {
-        id: "messages",
-        title: "Tin nhắn",
-        icon: MessageCircle,
-        badge: "12",
-        badgeColor: "bg-red-500",
-    },
-    { id: "profile", title: "Hồ sơ", icon: User },
-];
+// Menu items sẽ được tạo động với badges từ API
 
 const settingsItems = [
     {
@@ -70,21 +49,58 @@ function SidebarUserInfo({
     userRole?: "customer" | "photographer";
 }) {
     const { state } = useSidebar();
+    const [userData, setUserData] = useState<{
+        name: string;
+        role: string;
+        avatar: string;
+        fallback: string;
+    } | null>(null);
 
-    const userData =
-        userRole === "photographer"
-            ? {
-                  name: "Minh Tuấn",
-                  role: "Nhiếp ảnh gia",
-                  avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face",
-                  fallback: "MT",
-              }
-            : {
-                  name: "Nguyễn Thị Hương",
-                  role: "Khách hàng",
-                  avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face",
-                  fallback: "NTH",
-              };
+    useEffect(() => {
+        try {
+            const infoKey = userRole === "photographer" ? "photographer_info" : "customer_info";
+            const storedInfo = localStorage.getItem(infoKey);
+            
+            if (storedInfo) {
+                const info = JSON.parse(storedInfo);
+                const name = info.Ho_Ten || info.name || (userRole === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng");
+                const role = userRole === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng";
+                
+                // Tạo fallback từ tên
+                const nameParts = name.split(" ");
+                const fallback = nameParts.length >= 2 
+                    ? (nameParts[nameParts.length - 2][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+                    : name.substring(0, 2).toUpperCase();
+                
+                setUserData({
+                    name,
+                    role,
+                    avatar: info.avatar || "",
+                    fallback,
+                });
+            } else {
+                // Fallback nếu không có thông tin
+                setUserData({
+                    name: userRole === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng",
+                    role: userRole === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng",
+                    avatar: "",
+                    fallback: userRole === "photographer" ? "NAG" : "KH",
+                });
+            }
+        } catch (error) {
+            console.error("Lỗi khi lấy thông tin user:", error);
+            setUserData({
+                name: userRole === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng",
+                role: userRole === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng",
+                avatar: "",
+                fallback: userRole === "photographer" ? "NAG" : "KH",
+            });
+        }
+    }, [userRole]);
+
+    if (!userData) {
+        return null;
+    }
 
     return (
         <div className="px-2 py-3 border-b">
@@ -138,8 +154,66 @@ export function MomentiaSidebar({
     currentView = "home",
 }: MomentiaSidebarProps) {
     const { state } = useSidebar();
-    const menuItems =
-        userRole === "photographer" ? photographerMenuItems : customerMenuItems;
+    const [bookingsCount, setBookingsCount] = useState<number>(0);
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
+
+    // Fetch số lượng bookings và tin nhắn chưa đọc
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Lấy số lượng bookings
+                if (userRole === "photographer") {
+                    const bookingsRes = await apiClient.get("/buoi-chup", {
+                        params: { only_mine: "true" },
+                    });
+                    if (bookingsRes.data.success && bookingsRes.data.data) {
+                        setBookingsCount(Array.isArray(bookingsRes.data.data) ? bookingsRes.data.data.length : 0);
+                    }
+                } else {
+                    const bookingsRes = await apiClient.get("/customer/bookings");
+                    if (Array.isArray(bookingsRes.data)) {
+                        setBookingsCount(bookingsRes.data.length);
+                    }
+                }
+
+                // Lấy số tin nhắn chưa đọc
+                try {
+                    const unreadMessages = await chatApi.getUnreadMessages();
+                    setUnreadMessagesCount(unreadMessages.length);
+                } catch (error) {
+                    console.error("Lỗi khi lấy tin nhắn chưa đọc:", error);
+                    setUnreadMessagesCount(0);
+                }
+            } catch (error) {
+                console.error("Lỗi khi tải dữ liệu sidebar:", error);
+            }
+        };
+
+        fetchData();
+        
+        // Refresh mỗi 30 giây
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
+    }, [userRole]);
+
+    // Tạo menu items động với badges
+    const menuItems = [
+        { id: "home", title: "Trang chủ", icon: Home },
+        { 
+            id: "bookings", 
+            title: "Buổi chụp", 
+            icon: Calendar, 
+            badge: bookingsCount > 0 ? bookingsCount.toString() : undefined 
+        },
+        {
+            id: "messages",
+            title: "Tin nhắn",
+            icon: MessageCircle,
+            badge: unreadMessagesCount > 0 ? unreadMessagesCount.toString() : undefined,
+            badgeColor: "bg-red-500",
+        },
+        { id: "profile", title: "Hồ sơ", icon: User },
+    ];
 
     return (
         <TooltipProvider>

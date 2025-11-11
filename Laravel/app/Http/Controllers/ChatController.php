@@ -84,7 +84,7 @@ class ChatController extends Controller
 
         // Tạo bản ghi tin nhắn
         $data['Ma_TN'] = 'TN' . now()->format('YmdHis') . rand(100, 999);
-        $data['Trang_Thai'] = 'Chưa đọc';
+        $data['Trang_Thai'] = 'Đã gửi'; // Enum chỉ có 'Đã gửi' và 'Đã đọc'
         $data['Gui_Luc'] = now();
 
         $message = \App\Models\TinNhan::create($data);
