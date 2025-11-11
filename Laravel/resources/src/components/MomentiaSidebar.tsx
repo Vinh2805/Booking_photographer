@@ -24,12 +24,14 @@ import { TooltipProvider } from "./ui/tooltip";
 import { useState, useEffect } from "react";
 import apiClient from "./services/apiClient";
 import chatApi from "./services/chatApi";
+import { ChangeRequestSidebar } from "./shared/ChangeRequestSidebar";
 
 interface MomentiaSidebarProps {
     onNavigate: (section: string) => void;
     onLogout?: () => void; // ✅ thêm callback logout
     userRole?: "customer" | "photographer";
     currentView?: string;
+    onRefresh?: () => void; // Callback để refresh dữ liệu khi cần
 }
 
 // Menu items sẽ được tạo động với badges từ API
@@ -152,6 +154,7 @@ export function MomentiaSidebar({
     onLogout, // ✅ nhận prop logout
     userRole = "customer",
     currentView = "home",
+    onRefresh, // Callback để refresh dữ liệu
 }: MomentiaSidebarProps) {
     const { state } = useSidebar();
     const [bookingsCount, setBookingsCount] = useState<number>(0);
@@ -278,6 +281,15 @@ export function MomentiaSidebar({
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>
+
+                    {/* Change Requests Section */}
+                    {state === "expanded" && (
+                        <SidebarGroup>
+                            <SidebarGroupContent>
+                                <ChangeRequestSidebar onRefresh={onRefresh} />
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    )}
 
                     {/* Settings Section */}
                     <SidebarGroup className="mt-auto">

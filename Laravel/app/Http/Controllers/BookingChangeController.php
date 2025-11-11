@@ -106,18 +106,12 @@ class BookingChangeController extends Controller
             return response()->json(['message' => 'Không tìm thấy buổi chụp.'], 404);
         }
 
-        // Kiểm tra trạng thái: không cho phép thay đổi ở các trạng thái sau
-        $cannotChangeStatuses = [
-            'Đang diễn ra',
-            'Chờ xử lý ảnh',
-            'Đã xử lý ảnh',
-            'Đã hoàn thành',
-            'Đã hủy'
-        ];
+        // Kiểm tra trạng thái: chỉ cho phép thay đổi khi buổi chụp ở trạng thái "Chờ xác nhận" hoặc "Chờ đặt cọc"
+        $allowedStatuses = ['Chờ xác nhận', 'Chờ đặt cọc'];
         
-        if (in_array($booking->Trang_Thai, $cannotChangeStatuses)) {
+        if (!in_array($booking->Trang_Thai, $allowedStatuses)) {
             return response()->json([
-                'message' => 'Buổi chụp ở trạng thái này không thể thay đổi. Chỉ có thể thay đổi khi buổi chụp ở trạng thái: Chờ xác nhận, Chờ đặt cọc, Chờ thanh toán.'
+                'message' => 'Buổi chụp chỉ có thể thay đổi khi ở trạng thái "Chờ xác nhận" hoặc "Chờ đặt cọc". Trạng thái hiện tại: ' . $booking->Trang_Thai
             ], 400);
         }
 

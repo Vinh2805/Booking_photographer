@@ -100,7 +100,8 @@ class BookingController extends Controller
                 'Ghi_Chu' => $validated['Ghi_Chu'] ?? null,
                 'Anh_Minh_Hoa' => $anhMinhHoa,
                 'Trang_Thai' => 'Chờ xác nhận',
-                'Tong_Tien' => $validated['Tong_Tien']
+                'Tong_Tien' => $validated['Tong_Tien'],
+                'Ti_Le_Coc' => 30.00 // Tỉ lệ đặt cọc mặc định 30%
             ]);
 
             // Attach services

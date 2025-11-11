@@ -50,7 +50,6 @@ import apiClient from "../services/apiClient";
 import { confirmBooking, rejectBooking, startBooking, endBooking, completeProcessing, requestChange, cancelBooking } from "../services/BookingAPI";
 import { uploadPhoto } from "../services/PhotoAPI";
 import { toast } from "sonner";
-import { ChangeRequestList } from "../shared/ChangeRequestList";
 
     interface BookingDetailProps {
         bookingId: string;
@@ -466,19 +465,6 @@ export interface BookingDetailData {
                                 </div>
                             </div>
                         </div>
-                    </Card>
-
-                    {/* Yêu cầu thay đổi chờ duyệt */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <AlertCircle className="w-5 h-5 text-yellow-500" />
-                                Yêu cầu thay đổi chờ duyệt
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ChangeRequestList onRefresh={refreshBooking} />
-                        </CardContent>
                     </Card>
 
                     {/* Thông tin cơ bản */}
@@ -1138,18 +1124,12 @@ export interface BookingDetailData {
 
                         {/* Nút Yêu cầu thay đổi và Hủy - Chỉ hiển thị ở các trạng thái cho phép */}
                         {(() => {
-                            // Các trạng thái không cho phép thay đổi
-                            const cannotChangeStatuses = [
-                                "ongoing",
-                                "pending_processing",
-                                "processed",
-                                "completed",
-                                "cancelled"
-                            ];
+                            // Chỉ cho phép thay đổi khi buổi chụp ở trạng thái "Chờ xác nhận" hoặc "Chờ đặt cọc"
+                            const allowedChangeStatuses = ["pending_confirmation", "pending_deposit"];
                             
                             // Kiểm tra trạng thái và sessionEnded flag
                             // Nếu buổi chụp đã từng được bắt đầu (sessionEnded = true), không cho phép thay đổi
-                            const canChange = !cannotChangeStatuses.includes(booking.status) 
+                            const canChange = allowedChangeStatuses.includes(booking.status) 
                                 && !booking.sessionEnded;
                             
                             // Các trạng thái cho phép hủy: "Chờ đặt cọc" (cả 2 bên đều có thể hủy)

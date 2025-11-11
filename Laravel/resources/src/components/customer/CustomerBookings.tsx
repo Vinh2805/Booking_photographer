@@ -36,7 +36,6 @@ import apiClient from "../services/apiClient";
 import { depositBooking, getFinalQuote, payFinal } from "../services/PaymentAPI";
 import { cancelBooking, requestChange, createReview, getReview } from "../services/BookingAPI";
 import { downloadPhoto } from "../services/PhotoAPI";
-import { ChangeRequestList } from "../shared/ChangeRequestList";
 import {
   Dialog,
   DialogContent,
@@ -400,17 +399,6 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
             <ArrowLeft className="w-4 h-4 mr-2" />Quay lại
           </Button>
 
-          {/* Yêu cầu thay đổi chờ duyệt */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-yellow-500" />
-                Yêu cầu thay đổi chờ duyệt
-              </h3>
-              <ChangeRequestList onRefresh={fetchBookings} />
-            </CardContent>
-          </Card>
-
           <Card>
             <CardContent className="p-6 space-y-6">
               <div className="flex items-start gap-4">
@@ -586,18 +574,12 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                   </div>
                 )}
                 {(() => {
-                  // Các trạng thái không cho phép thay đổi
-                  const cannotChangeStatuses = [
-                    "ongoing",
-                    "pending_processing",
-                    "photos_ready",
-                    "completed",
-                    "cancelled"
-                  ];
+                  // Chỉ cho phép thay đổi khi buổi chụp ở trạng thái "Chờ xác nhận" hoặc "Chờ đặt cọc"
+                  const allowedChangeStatuses = ["pending_confirmation", "pending_deposit"];
                   
                   // Kiểm tra trạng thái và sessionEnded flag
                   // Nếu buổi chụp đã từng được bắt đầu (sessionEnded = true), không cho phép thay đổi
-                  const canChange = !cannotChangeStatuses.includes(selectedBooking.status) 
+                  const canChange = allowedChangeStatuses.includes(selectedBooking.status) 
                     && !(selectedBooking as any).sessionEnded;
                   
                   return canChange && (
