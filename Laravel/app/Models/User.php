@@ -15,6 +15,8 @@ class User extends Authenticatable
     public $incrementing = false;
     protected $keyType = 'string';
 
+    public $timestamps = false;
+
     // ⚙️ Cho phép mass assignment toàn bộ trường (tránh bị chặn khi create)
     protected $guarded = [];
 
