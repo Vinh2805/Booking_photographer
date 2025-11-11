@@ -6,6 +6,7 @@ use App\Models\BuoiChup;
 use App\Models\KhachHang;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CustomerBookingController extends Controller
 {
@@ -13,15 +14,15 @@ class CustomerBookingController extends Controller
     private function mapStatusToDb($status)
     {
         return match ($status) {
-            'pending_confirmation' => 'cho_xac_nhan',
-            'pending_deposit' => 'cho_dat_coc',
-            'upcoming' => 'sap_dien_ra',
-            'ongoing' => 'dang_dien_ra',
-            'pending_payment' => 'cho_thanh_toan',
-            'pending_processing' => 'cho_xu_ly_anh',
-            'photos_ready' => 'da_xu_ly_anh',
-            'completed' => 'hoan_thanh',
-            'cancelled' => 'da_huy',
+            'pending_confirmation' => 'Chờ xác nhận',
+            'pending_deposit' => 'Chờ đặt cọc',
+            'upcoming' => 'Sắp diễn ra',
+            'ongoing' => 'Đang diễn ra',
+            'pending_payment' => 'Chờ thanh toán',
+            'pending_processing' => 'Chờ xử lý ảnh',
+            'photos_ready' => 'Đã xử lý ảnh',
+            'completed' => 'Đã hoàn thành',
+            'cancelled' => 'Đã hủy',
             default => null,
         };
     }
@@ -29,15 +30,16 @@ class CustomerBookingController extends Controller
     private function mapStatusToFrontend($status)
     {
         return match ($status) {
-            'cho_xac_nhan' => 'pending_confirmation',
-            'cho_dat_coc' => 'pending_deposit',
-            'sap_dien_ra' => 'upcoming',
-            'dang_dien_ra' => 'ongoing',
-            'cho_thanh_toan' => 'pending_payment',
-            'cho_xu_ly_anh' => 'pending_processing',
-            'da_xu_ly_anh' => 'photos_ready',
-            'hoan_thanh' => 'completed',
-            'da_huy' => 'cancelled',
+            'Chờ xác nhận' => 'pending_confirmation',
+            'Chờ đặt cọc' => 'pending_deposit',
+            'Sắp diễn ra' => 'upcoming',
+            'Đang diễn ra' => 'ongoing',
+            'Chờ thanh toán' => 'pending_payment',
+            'Chờ xử lý ảnh' => 'pending_processing',
+            'Đã xử lý ảnh' => 'photos_ready',
+            'Đã hoàn thành' => 'completed',
+            'Đã hủy' => 'cancelled',
+            'Thay đổi' => 'pending_confirmation',
             default => 'pending_confirmation',
         };
     }
@@ -47,17 +49,18 @@ class CustomerBookingController extends Controller
      */
     public function index(Request $request)
 {
-    $user = Auth::guard('sanctum')->user();
+    // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+    $user = $request->user();
     if (!$user) {
         return response()->json(['message' => 'Unauthenticated'], 401);
     }
 
-    $khachHang = KhachHang::where('Ma_TK', $user->id)->first();
+    $khachHang = KhachHang::where('Ma_TK', $user->Ma_TK)->first();
     if (!$khachHang) {
         return response()->json(['message' => 'Khách hàng không tồn tại'], 404);
     }
 
-    $query = BuoiChup::with(['nhaNhiepAnh', 'dichVu'])
+    $query = BuoiChup::with(['nhaNhiepAnh.taiKhoan'])
         ->withCount([
             'anh as raw_photos_count' => fn($q) => $q->where('Loai', 'raw'),
             'anh as edited_photos_count' => fn($q) => $q->where('Loai', 'edited'),
@@ -77,7 +80,7 @@ class CustomerBookingController extends Controller
             $q->where('Ma_BC', 'like', "%{$search}%")
               ->orWhere('Loai_Chup', 'like', "%{$search}%")
               ->orWhere('Dia_Diem', 'like', "%{$search}%")
-              ->orWhereHas('nhaNhiepAnh', fn($q) => $q->where('Ten_NAG', 'like', "%{$search}%"));
+              ->orWhereHas('nhaNhiepAnh.taiKhoan', fn($q) => $q->where('Ho_Ten', 'like', "%{$search}%"));
         });
     }
 
@@ -94,15 +97,27 @@ class CustomerBookingController extends Controller
             if ($diff->i > 0) $duration .= " {$diff->i} phút";
         }
 
+        // Tính rating và completedSessions nếu có nhiếp ảnh gia
+        $rating = 0;
+        $completedSessions = 0;
+        if ($bc->nhaNhiepAnh) {
+            $rating = (float)DB::table('danh_gia')
+                ->where('Ma_NAG', $bc->nhaNhiepAnh->Ma_NAG)
+                ->avg('So_Sao') ?? 0;
+            $completedSessions = BuoiChup::where('Ma_NAG', $bc->nhaNhiepAnh->Ma_NAG)
+                ->where('Trang_Thai', 'Đã hoàn thành')
+                ->count();
+        }
+
         return [
             'id' => $bc->Ma_BC,
             'status' => $this->mapStatusToFrontend($bc->Trang_Thai),
             'title' => $bc->Loai_Chup . ' - ' . $bc->Dia_Diem,
             'photographer' => [
-                'name' => $bc->nhaNhiepAnh?->Ten_NAG ?? 'Chưa chỉ định',
-                'avatar' => $bc->nhaNhiepAnh?->Avatar ?? '',
-                'rating' => $bc->nhaNhiepAnh?->Danh_Gia ?? 0,
-                'completedSessions' => $bc->nhaNhiepAnh?->So_Buoi_Hoan_Thanh ?? 0,
+                'name' => $bc->nhaNhiepAnh?->taiKhoan?->Ho_Ten ?? 'Chưa chỉ định',
+                'avatar' => '', // Chưa có trong database
+                'rating' => $rating,
+                'completedSessions' => $completedSessions,
             ],
             'type' => $bc->Loai_Chup,
             'location' => $bc->Dia_Diem,
@@ -110,7 +125,7 @@ class CustomerBookingController extends Controller
             'time' => $start?->format('H:i'),
             'price' => $bc->Tong_Tien,
             'description' => $bc->Ghi_Chu ?? '',
-            'services' => $bc->dichVu->pluck('Ten_DV')->toArray(),
+            'services' => [], // TODO: Load từ bảng buoi_chup_dich_vu khi bảng được tạo
             'duration' => $duration,
             'guestCount' => $bc->So_Nguoi ?: '—',
             'specialRequests' => $bc->Yeu_Cau_Dac_Biet ?? '',
@@ -125,15 +140,16 @@ class CustomerBookingController extends Controller
     /**
      * Chi tiết buổi chụp
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $user = Auth::guard('sanctum')->user();
+        // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+        $user = $request->user();
         if (!$user) return response()->json(['message' => 'Unauthenticated'], 401);
 
-        $khachHang = KhachHang::where('Ma_TK', $user->id)->first();
+        $khachHang = KhachHang::where('Ma_TK', $user->Ma_TK)->first();
         if (!$khachHang) return response()->json(['message' => 'Khách hàng không tồn tại'], 404);
 
-        $bc = BuoiChup::with(['nhaNhiepAnh', 'dichVu', 'anh'])
+        $bc = BuoiChup::with(['nhaNhiepAnh.taiKhoan', 'anh'])
             ->where('Ma_KH', $khachHang->Ma_KH)
             ->where('Ma_BC', $id)
             ->first();
@@ -157,10 +173,14 @@ class CustomerBookingController extends Controller
             'status' => $this->mapStatusToFrontend($bc->Trang_Thai),
             'title' => $bc->Loai_Chup . ' - ' . $bc->Dia_Diem,
             'photographer' => [
-                'name' => $bc->nhaNhiepAnh?->Ten_NAG ?? 'Chưa chỉ định',
-                'avatar' => $bc->nhaNhiepAnh?->Avatar ?? '',
-                'rating' => $bc->nhaNhiepAnh?->Danh_Gia ?? 0,
-                'completedSessions' => $bc->nhaNhiepAnh?->So_Buoi_Hoan_Thanh ?? 0,
+                'name' => $bc->nhaNhiepAnh?->taiKhoan?->Ho_Ten ?? 'Chưa chỉ định',
+                'avatar' => '', // Chưa có trong database
+                'rating' => $bc->nhaNhiepAnh ? (float)DB::table('danh_gia')
+                    ->where('Ma_NAG', $bc->nhaNhiepAnh->Ma_NAG)
+                    ->avg('So_Sao') ?? 0 : 0,
+                'completedSessions' => $bc->nhaNhiepAnh ? BuoiChup::where('Ma_NAG', $bc->nhaNhiepAnh->Ma_NAG)
+                    ->where('Trang_Thai', 'Đã hoàn thành')
+                    ->count() : 0,
             ],
             'type' => $bc->Loai_Chup,
             'location' => $bc->Dia_Diem,
@@ -168,7 +188,7 @@ class CustomerBookingController extends Controller
             'time' => $start?->format('H:i'),
             'price' => $bc->Tong_Tien,
             'description' => $bc->Ghi_Chu ?? '',
-            'services' => $bc->dichVu->pluck('Ten_DV')->toArray(),
+            'services' => [], // TODO: Load từ bảng buoi_chup_dich_vu khi bảng được tạo
             'duration' => $duration,
             'guestCount' => $bc->So_Nguoi ?? '—',
             'specialRequests' => $bc->Yeu_Cau_Dac_Biet ?? '',

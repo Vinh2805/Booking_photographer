@@ -1,6 +1,5 @@
 // frontend/src/components/PhotographerBookings.tsx
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
@@ -28,6 +27,8 @@ import {
   Image as ImageIcon,
   RefreshCw,
 } from "lucide-react";
+import apiClient from "../services/apiClient";
+import { toast } from "sonner";
 
 type BookingStatus =
   | "pending_confirmation"
@@ -63,13 +64,18 @@ interface Booking {
 }
 
 interface PhotographerBookingsProps {
+  user?: any;
   selectedBookingId?: string;
   onNavigate?: (view: any) => void;
+  onSelectBooking?: (bookingId: string) => void;
   onClearSelection?: () => void;
 }
 
 export function PhotographerBookings({
+  user,
   selectedBookingId,
+  onNavigate,
+  onSelectBooking,
   onClearSelection,
 }: PhotographerBookingsProps) {
   const [selectedStatus, setSelectedStatus] = useState<BookingStatus | "all">("all");
@@ -77,59 +83,45 @@ export function PhotographerBookings({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-
-  // Lấy token từ localStorage (Sanctum)
-  const getToken = () => {
-    return localStorage.getItem("auth_token") || "";
-  };
 
   // Fetch bookings từ API
   const fetchBookings = async (status: string = selectedStatus, search: string = searchQuery) => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (status !== "all") params.append("status", status);
-      if (search) params.append("search", search);
+      const params: any = {
+        only_mine: "true",
+      };
+      if (status !== "all") params.status = status;
+      if (search) params.search = search;
 
-      const token = getToken();
-      const response = await fetch(`http://127.0.0.1:8000/api/buoi-chup?${params}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        credentials: "include",
-      });
+      console.log("🔵 Fetching photographer bookings with params:", params);
+      const response = await apiClient.get("/buoi-chup", { params });
+      console.log("✅ Photographer bookings response:", response.data);
 
-      // Kiểm tra nếu server trả về HTML (lỗi 500, 404, v.v.)
-      const text = await response.text();
-      if (text.trim().startsWith("<!DOCTYPE") || text.includes("<html")) {
-        console.error("Server trả về HTML:", text.substring(0, 200));
-        throw new Error("Lỗi server: trả về HTML thay vì JSON. Kiểm tra backend.");
-      }
-
-      let result;
-      try {
-        result = JSON.parse(text);
-      } catch (parseError) {
-        console.error("JSON parse error:", parseError);
-        throw new Error("Dữ liệu trả về không phải JSON hợp lệ.");
-      }
-
-      if (result.success) {
-        setBookings(result.data || []);
+      if (response.data.success) {
+        setBookings(response.data.data || []);
       } else {
-        setError(result.message || "Có lỗi xảy ra khi tải danh sách buổi chụp");
+        const errorMsg = response.data.message || "Có lỗi xảy ra khi tải danh sách buổi chụp";
+        setError(errorMsg);
+        toast.error(errorMsg, {
+          duration: 5000,
+        });
       }
     } catch (error: any) {
-      console.error("Lỗi khi tải bookings:", error);
-      const msg = error.message.includes("Failed to fetch")
-        ? "Không thể kết nối đến server. Kiểm tra Laravel có đang chạy không."
-        : error.message || "Lỗi không xác định";
+      console.error("❌ Lỗi khi tải bookings:", error);
+      const msg = error.response?.data?.message || error.message || "Lỗi không xác định";
       setError(msg);
+      
+      if (error.response?.status === 401) {
+        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", {
+          duration: 5000,
+        });
+      } else {
+        toast.error(msg, {
+          duration: 5000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -137,7 +129,8 @@ export function PhotographerBookings({
 
   // Fetch khi mount hoặc filter thay đổi
   useEffect(() => {
-    fetchBookings();
+    fetchBookings(selectedStatus, searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, searchQuery]);
 
   const getStatusInfo = (status: BookingStatus) => {
@@ -248,7 +241,14 @@ export function PhotographerBookings({
       <div className="p-4 text-center text-red-600 space-y-3">
         <AlertCircle className="w-10 h-10 mx-auto mb-2 text-red-500" />
         <p className="font-medium">{error}</p>
-        <Button onClick={() => fetchBookings()} variant="default" className="flex items-center gap-2">
+        <Button 
+          onClick={() => {
+            console.log("🔄 Retrying fetch bookings...");
+            fetchBookings(selectedStatus, searchQuery);
+          }} 
+          variant="default" 
+          className="flex items-center gap-2"
+        >
           <RefreshCw className="w-4 h-4" />
           Thử lại
         </Button>
@@ -330,7 +330,12 @@ export function PhotographerBookings({
             <Card
               key={booking.id}
               className="cursor-pointer hover:shadow-lg hover-lift transition-all duration-200 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 group"
-              onClick={() => navigate(`/buoi-chup/${booking.id}`)}
+              onClick={() => {
+                console.log("🔵 Clicked on booking:", booking.id);
+                if (onSelectBooking) {
+                  onSelectBooking(booking.id);
+                }
+              }}
             >
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">

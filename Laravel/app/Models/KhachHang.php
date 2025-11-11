@@ -17,4 +17,8 @@ class KhachHang extends Model
     protected $fillable = [
         'Ma_KH', 'Ma_TK', 'Dia_Chi', 'Ngay_Sinh', 'Gioi_Tinh'
     ];
+    public function taiKhoan()
+    {
+        return $this->belongsTo(User::class, 'Ma_TK', 'Ma_TK');
+    }
 }

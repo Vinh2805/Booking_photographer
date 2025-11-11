@@ -5,15 +5,35 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use App\Models\BuoiChup;
+use App\Models\NhiepAnhGia;
 
 class BookingConfirmationController extends Controller
 {
     // ✅ Xác nhận buổi chụp
-    public function confirm(string $ma_bc)
+    public function confirm(Request $request, string $ma_bc)
     {
+        // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Kiểm tra user là nhiếp ảnh gia
+        $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+        if (!$nag) {
+            return response()->json(['message' => 'Bạn không phải nhiếp ảnh gia'], 403);
+        }
+
         $booking = BuoiChup::find($ma_bc);
         if (!$booking) return response()->json(['message' => 'Không tìm thấy buổi chụp.'], 404);
+        
+        // Kiểm tra buổi chụp thuộc về nhiếp ảnh gia này
+        if ($booking->Ma_NAG !== $nag->Ma_NAG) {
+            return response()->json(['message' => 'Bạn không có quyền xác nhận buổi chụp này'], 403);
+        }
+        
         if ($booking->Trang_Thai !== 'Chờ xác nhận')
             return response()->json(['message' => 'Buổi chụp không thể xác nhận ở trạng thái hiện tại.'], 400);
 
@@ -38,10 +58,28 @@ class BookingConfirmationController extends Controller
     // ❌ Từ chối buổi chụp
     public function reject(Request $request, string $ma_bc)
     {
+        // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Kiểm tra user là nhiếp ảnh gia
+        $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+        if (!$nag) {
+            return response()->json(['message' => 'Bạn không phải nhiếp ảnh gia'], 403);
+        }
+
         $request->validate(['ly_do' => 'required|string|max:255']);
 
         $booking = BuoiChup::find($ma_bc);
         if (!$booking) return response()->json(['message' => 'Không tìm thấy buổi chụp.'], 404);
+        
+        // Kiểm tra buổi chụp thuộc về nhiếp ảnh gia này
+        if ($booking->Ma_NAG !== $nag->Ma_NAG) {
+            return response()->json(['message' => 'Bạn không có quyền từ chối buổi chụp này'], 403);
+        }
+        
         if ($booking->Trang_Thai !== 'Chờ xác nhận')
             return response()->json(['message' => 'Buổi chụp không thể từ chối ở trạng thái hiện tại.'], 400);
 

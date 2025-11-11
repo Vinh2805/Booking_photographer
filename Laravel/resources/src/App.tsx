@@ -8,6 +8,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { ThemeProvider } from "./components/ui/theme-provider";
+import { Toaster } from "./components/ui/sonner";
 
 // ✅ Lazy load các component
 const CustomerApp = lazy(() =>
@@ -190,6 +191,7 @@ export default function App() {
     <ThemeProvider>
       <Router>
         <AppContent />
+        <Toaster />
       </Router>
     </ThemeProvider>
   );

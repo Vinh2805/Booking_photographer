@@ -4,19 +4,38 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use App\Models\BuoiChup;
+use App\Models\NhiepAnhGia;
 
 class BookingChangeApprovalController extends Controller
 {
     // ✅ Duyệt yêu cầu thay đổi
-    public function approve(int $id)
+    public function approve(Request $request, int $id)
     {
+        // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Kiểm tra user là nhiếp ảnh gia
+        $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+        if (!$nag) {
+            return response()->json(['message' => 'Bạn không phải nhiếp ảnh gia'], 403);
+        }
+
         $yeuCau = DB::table('yeu_cau_thay_doi')->where('id', $id)->first();
         if (!$yeuCau) return response()->json(['message' => 'Không tìm thấy yêu cầu thay đổi.'], 404);
 
         $changes = json_decode($yeuCau->Danh_Sach_Thay_Doi, true);
         $booking = BuoiChup::find($yeuCau->Ma_BC);
         if (!$booking) return response()->json(['message' => 'Không tìm thấy buổi chụp.'], 404);
+
+        // Kiểm tra buổi chụp thuộc về nhiếp ảnh gia này
+        if ($booking->Ma_NAG !== $nag->Ma_NAG) {
+            return response()->json(['message' => 'Bạn không có quyền duyệt yêu cầu thay đổi này'], 403);
+        }
 
         DB::transaction(function () use ($booking, $changes, $yeuCau) {
             foreach ($changes as $field => $pair) {
@@ -48,11 +67,28 @@ class BookingChangeApprovalController extends Controller
     }
 
     // ❌ Từ chối yêu cầu thay đổi
-    public function reject(int $id, Request $request)
+    public function reject(Request $request, int $id)
     {
+        // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Kiểm tra user là nhiếp ảnh gia
+        $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+        if (!$nag) {
+            return response()->json(['message' => 'Bạn không phải nhiếp ảnh gia'], 403);
+        }
+
         $lyDo = $request->input('ly_do') ?? 'Không có lý do cụ thể';
         $yeuCau = DB::table('yeu_cau_thay_doi')->where('id', $id)->first();
         if (!$yeuCau) return response()->json(['message' => 'Không tìm thấy yêu cầu.'], 404);
+
+        $booking = BuoiChup::find($yeuCau->Ma_BC);
+        if ($booking && $booking->Ma_NAG !== $nag->Ma_NAG) {
+            return response()->json(['message' => 'Bạn không có quyền từ chối yêu cầu thay đổi này'], 403);
+        }
 
         DB::table('yeu_cau_thay_doi')->where('id', $id)->update(['Trang_Thai' => 'Từ chối']);
 

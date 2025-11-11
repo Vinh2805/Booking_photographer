@@ -17,4 +17,10 @@ class NhiepAnhGia extends Model
     protected $fillable = [
         'Ma_NAG', 'Ma_TK', 'Dia_Diem_Hoat_Dong', 'Kinh_Nghiem', 'Gia_Trung_Binh'
     ];
+
+    // Relationships
+    public function taiKhoan()
+    {
+        return $this->belongsTo(User::class, 'Ma_TK', 'Ma_TK');
+    }
 }

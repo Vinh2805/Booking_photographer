@@ -2,16 +2,20 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Thanh toán thành công</title>
+  <title>Thanh toán thất bại</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+  @php
+      $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+      $redirectUrl = "{$frontendUrl}/customer?payment=failed&message=" . urlencode($message ?? 'Thanh toán thất bại hoặc bị hủy');
+  @endphp
+  <meta http-equiv="refresh" content="3;url={{ $redirectUrl }}">
   <style>
     * {
       box-sizing: border-box;
       font-family: "Segoe UI", Roboto, sans-serif;
     }
     body {
-      background: linear-gradient(135deg, #2b9ff9, #845ef7);
+      background: linear-gradient(135deg, #dc3545, #c82333);
       color: #333;
       display: flex;
       align-items: center;
@@ -30,7 +34,7 @@
       animation: fadeIn 0.8s ease;
     }
     h2 {
-      color: #28a745;
+      color: #dc3545;
       font-size: 1.6rem;
       margin-top: 15px;
       margin-bottom: 10px;
@@ -47,7 +51,7 @@
       display: inline-block;
       margin-top: 20px;
       padding: 10px 20px;
-      background: linear-gradient(135deg, #2b9ff9, #845ef7);
+      background: linear-gradient(135deg, #dc3545, #c82333);
       color: white;
       text-decoration: none;
       border-radius: 8px;
@@ -57,9 +61,9 @@
     a.button:hover {
       opacity: 0.9;
     }
-    .checkmark {
+    .error-icon {
       font-size: 3rem;
-      color: #28a745;
+      color: #dc3545;
       animation: pop 0.5s ease-in-out;
     }
     .redirect {
@@ -82,17 +86,13 @@
 </head>
 <body>
   <div class="card">
-    <div class="checkmark">✅</div>
-    <h2>Thanh toán VNPay thành công</h2>
+    <div class="error-icon">❌</div>
+    <h2>Thanh toán VNPay thất bại</h2>
+    <p>{{ $message ?? 'Thanh toán thất bại hoặc bị hủy' }}</p>
+    @if(isset($ma_bc))
     <p>Mã buổi chụp: <strong>{{ $ma_bc }}</strong></p>
-    <p>Số tiền: <strong>{{ $amount }}</strong></p>
-    <p>Mã giao dịch: <strong>{{ $transaction_id }}</strong></p>
+    @endif
 
-    @php
-        $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
-        $redirectUrl = "{$frontendUrl}/customer?payment=success&type={$type}&ma_bc={$ma_bc}&amount=" . urlencode($amount) . "&transaction_id={$transaction_id}";
-    @endphp
-    
     <a href="{{ $redirectUrl }}" class="button">⬅️ Trở về trang chủ</a>
 
     <div class="redirect" id="redirect-msg">
@@ -118,3 +118,4 @@
   </script>
 </body>
 </html>
+

@@ -68,12 +68,28 @@ export function CustomerAuth({ onBack, onLogin }: CustomerAuthProps) {
             });
 
             const data = res.data;
+            console.log("🔐 Response từ server:", data);
+            
+            // Kiểm tra token có tồn tại không
+            if (!data.token) {
+                console.error("❌ Token không có trong response:", data);
+                alert("❌ Lỗi: Server không trả về token!");
+                return;
+            }
+            
             localStorage.setItem("customer_token", data.token);
             localStorage.setItem("customer_info", JSON.stringify(data.user));
+            
+            // Xác nhận token đã được lưu
+            const savedToken = localStorage.getItem("customer_token");
+            console.log("✅ Token đã được lưu:", savedToken ? "Có" : "Không");
+            console.log("📦 Customer info:", JSON.parse(localStorage.getItem("customer_info") || "{}"));
 
             alert("✅ Đăng nhập thành công!");
             onLogin();
         } catch (err: any) {
+            console.error("❌ Lỗi đăng nhập:", err);
+            console.error("❌ Response error:", err.response?.data);
             alert(err.response?.data?.message || "❌ Sai email hoặc mật khẩu!");
         }
     };

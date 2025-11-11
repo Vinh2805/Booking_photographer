@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import apiClient from "../services/apiClient";
+import React from "react";
 
 interface CustomerHomeProps {
   onNavigate: (view: string) => void;
@@ -57,7 +58,32 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
 
   // 📡 Gọi API dashboard + photographer song song
   useEffect(() => {
-    if (!user?.Ma_TK) return;
+    console.log("🔍 CustomerHome - useEffect triggered, user:", user);
+    
+    if (!user) {
+      console.warn("⚠️ CustomerHome - User không tồn tại, đang thử load từ localStorage...");
+      const userData = localStorage.getItem("customer_info");
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          console.log("✅ CustomerHome - Đã load user từ localStorage:", parsedUser);
+          // Không set user ở đây vì nó là prop, chỉ log để debug
+        } catch (error) {
+          console.error("❌ CustomerHome - Lỗi parse user data:", error);
+        }
+      }
+      return;
+    }
+    
+    if (!user.Ma_TK) {
+      console.warn("⚠️ CustomerHome - User.Ma_TK không tồn tại:", user);
+      console.log("📦 User object keys:", Object.keys(user || {}));
+      return;
+    }
+    
+    console.log("🔍 CustomerHome - Đang gọi API dashboard với Ma_TK:", user.Ma_TK);
+    console.log("🔑 Token hiện tại:", localStorage.getItem("customer_token") ? "Có" : "Không");
+    
     setLoading(true);
 
     Promise.all([
@@ -65,11 +91,19 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
       apiClient.get(`/nhiep-anh-gia/noi-bat`)
     ])
       .then(([dashRes, photoRes]) => {
+        console.log("✅ CustomerHome - Response từ dashboard API:", dashRes.data);
+        console.log("✅ CustomerHome - Response từ photographer API:", photoRes.data);
         setDashboard(dashRes.data);
         setAllPhotographers(photoRes.data || []);
       })
       .catch((err) => {
-        console.error("❌ Lỗi tải dữ liệu:", err);
+        console.error("❌ CustomerHome - Lỗi tải dữ liệu:", err);
+        console.error("❌ CustomerHome - Error response:", err.response?.data);
+        console.error("❌ CustomerHome - Error status:", err.response?.status);
+        if (err.response?.status === 401) {
+          console.error("❌ CustomerHome - Unauthorized - Token có thể không hợp lệ");
+          alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
         setAllPhotographers([]); // tránh vỡ UI
       })
       .finally(() => setLoading(false));

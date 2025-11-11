@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
@@ -32,7 +32,23 @@ import {
   PlayCircle,
   XCircle,
 } from "lucide-react";
-import axios from "axios";
+import apiClient from "../services/apiClient";
+import { depositBooking, getFinalQuote, payFinal } from "../services/PaymentAPI";
+import { cancelBooking, requestChange } from "../services/BookingAPI";
+import { downloadPhoto } from "../services/PhotoAPI";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Separator } from "../ui/separator";
+import { toast } from "sonner";
 
 type BookingStatus =
   | "pending_confirmation"
@@ -110,6 +126,7 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
   const [showChangeDialog, setShowChangeDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDepositDialog, setShowDepositDialog] = useState(false);
+  const [showFinalPaymentDialog, setShowFinalPaymentDialog] = useState(false);
   const [changeRequest, setChangeRequest] = useState<ChangeRequest>({
     field: "time",
     currentValue: "",
@@ -118,10 +135,13 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
   });
   const [cancelReason, setCancelReason] = useState("");
   const [depositMethod, setDepositMethod] = useState<"card" | "bank">("card");
+  const [finalPaymentMethod, setFinalPaymentMethod] = useState<"card" | "bank">("bank");
   const [agreePolicy, setAgreePolicy] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [paySuccess, setPaySuccess] = useState(false);
+  const [finalQuote, setFinalQuote] = useState<any>(null);
+  const [loadingQuote, setLoadingQuote] = useState(false);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -130,10 +150,13 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
       if (selectedStatus !== "all") params.status = selectedStatus;
       if (searchQuery) params.search = searchQuery;
 
-      const response = await axios.get("/api/customer/bookings", { params });
+      const response = await apiClient.get("/customer/bookings", { params });
       setBookings(response.data);
     } catch (error: any) {
       console.error("Lỗi tải buổi chụp:", error.response?.data || error.message);
+      if (error.response?.status === 401) {
+        alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      }
     } finally {
       setLoading(false);
     }
@@ -142,6 +165,46 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
   useEffect(() => {
     fetchBookings();
   }, [selectedStatus, searchQuery]);
+
+  // Load quote khi dialog mở và có selectedBooking
+  useEffect(() => {
+    if (showFinalPaymentDialog && selectedBooking) {
+      console.log("🔵 useEffect: Loading final quote for booking:", selectedBooking.id);
+      setLoadingQuote(true);
+      setPayError(null);
+      const paymentMethod = finalPaymentMethod === "card" ? "vi_ca_nhan" : "vnpay";
+      console.log("🔵 useEffect: Calling getFinalQuote with:", { ma_bc: selectedBooking.id, method: paymentMethod });
+      getFinalQuote(selectedBooking.id, paymentMethod)
+        .then((quote) => {
+          console.log("✅ useEffect: Final quote loaded successfully:", quote);
+          setFinalQuote(quote);
+          setLoadingQuote(false);
+          setPayError(null);
+        })
+        .catch((error: any) => {
+          console.error("❌ useEffect: Error loading final quote:", error);
+          console.error("❌ useEffect: Error response:", error.response?.data);
+          console.error("❌ useEffect: Error status:", error.response?.status);
+          console.error("❌ useEffect: Error message:", error.message);
+          const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Không thể tải thông tin thanh toán";
+          console.error("❌ useEffect: Error message to display:", errorMessage);
+          setPayError(errorMessage);
+          setLoadingQuote(false);
+          // Chỉ hiển thị toast nếu không phải lỗi validation thông thường
+          if (error.response?.status !== 400) {
+            toast.error(errorMessage);
+          } else {
+            console.log("⚠️ useEffect: Validation error (400):", errorMessage);
+          }
+        });
+    } else if (!showFinalPaymentDialog) {
+      // Reset khi dialog đóng
+      setFinalQuote(null);
+      setLoadingQuote(false);
+      setPayError(null);
+      setAgreePolicy(false);
+    }
+  }, [showFinalPaymentDialog, selectedBooking?.id, finalPaymentMethod]);
 
   const getStatusInfo = (status: BookingStatus) => {
     const statusMap: Record<BookingStatus, { label: string; color: string; icon: any }> = {
@@ -271,9 +334,501 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                   <p className="text-sm text-muted-foreground">{selectedBooking.description}</p>
                 </div>
               )}
+
+              {/* Action Buttons */}
+              <div className="pt-4 border-t space-y-3">
+                {selectedBooking.status === "pending_deposit" && (
+                  <Button
+                    className="w-full"
+                    onClick={() => setShowDepositDialog(true)}
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Đặt cọc
+                  </Button>
+                )}
+                {selectedBooking.status === "pending_payment" && (
+                  <div className="space-y-3">
+                    <Button
+                      className="w-full"
+                      onClick={() => setShowFinalPaymentDialog(true)}
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Thanh toán phần còn lại
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          await downloadPhoto("raw", selectedBooking.id);
+                          toast.success("Đang tải ảnh gốc...");
+                        } catch (error: any) {
+                          toast.error(error.response?.data?.message || "Lỗi khi tải ảnh");
+                        }
+                      }}
+                    >
+                      <ImageIcon className="w-4 h-4 mr-2" />
+                      Tải ảnh gốc
+                    </Button>
+                  </div>
+                )}
+                {selectedBooking.status === "photos_ready" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          await downloadPhoto("raw", selectedBooking.id);
+                          toast.success("Đang tải ảnh gốc...");
+                        } catch (error: any) {
+                          toast.error(error.response?.data?.message || "Lỗi khi tải ảnh");
+                        }
+                      }}
+                    >
+                      <ImageIcon className="w-4 h-4 mr-2" />
+                      Tải ảnh gốc
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          await downloadPhoto("edited", selectedBooking.id);
+                          toast.success("Đang tải ảnh hậu kỳ...");
+                        } catch (error: any) {
+                          toast.error(error.response?.data?.message || "Lỗi khi tải ảnh");
+                        }
+                      }}
+                    >
+                      <ImageIcon className="w-4 h-4 mr-2" />
+                      Tải ảnh hậu kỳ
+                    </Button>
+                  </div>
+                )}
+                {!["completed", "cancelled"].includes(selectedBooking.status) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowChangeDialog(true)}
+                    >
+                      <AlertCircle className="w-4 h-4 mr-2" />
+                      Yêu cầu thay đổi
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setShowCancelDialog(true)}
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Hủy buổi chụp
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Deposit Dialog */}
+        <Dialog open={showDepositDialog} onOpenChange={setShowDepositDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Đặt cọc buổi chụp</DialogTitle>
+              <DialogDescription>
+                Vui lòng chọn phương thức thanh toán và đồng ý với điều khoản
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <RadioGroup value={depositMethod} onValueChange={(v) => setDepositMethod(v as "card" | "bank")}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="card" id="card" />
+                  <Label htmlFor="card">Ví cá nhân</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="bank" id="bank" />
+                  <Label htmlFor="bank">VNPay</Label>
+                </div>
+              </RadioGroup>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="agree"
+                  checked={agreePolicy}
+                  onChange={(e) => setAgreePolicy(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="agree" className="text-sm">
+                  Tôi đồng ý với điều khoản đặt cọc và chính sách hoàn tiền
+                </Label>
+              </div>
+              {payError && (
+                <div className="text-sm text-destructive">{payError}</div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDepositDialog(false)}>
+                Hủy
+              </Button>
+              <Button
+                disabled={isPaying || !agreePolicy}
+                onClick={async () => {
+                  if (!selectedBooking) return;
+                  setIsPaying(true);
+                  setPayError(null);
+                  try {
+                    const response = await depositBooking(selectedBooking.id, {
+                      payment_method: depositMethod === "card" ? "vi_ca_nhan" : "vnpay",
+                      agree_terms: agreePolicy,
+                    });
+                    if (response.status === "redirect" && response.redirect_url) {
+                      window.location.href = response.redirect_url;
+                    } else {
+                      const successMessage = response.message || "Đặt cọc thành công!";
+                      console.log("✅ Deposit success:", successMessage);
+                      toast.success(successMessage, {
+                        duration: 5000,
+                      });
+                      setShowDepositDialog(false);
+                      fetchBookings();
+                    }
+                  } catch (error: any) {
+                    const errorMessage = error.response?.data?.message || "Lỗi khi đặt cọc";
+                    console.error("❌ Deposit error:", error);
+                    setPayError(errorMessage);
+                    toast.error(errorMessage, {
+                      duration: 5000,
+                    });
+                  } finally {
+                    setIsPaying(false);
+                  }
+                }}
+              >
+                {isPaying ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Xác nhận đặt cọc
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Cancel Dialog */}
+        <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Hủy buổi chụp</DialogTitle>
+              <DialogDescription>
+                Vui lòng nhập lý do hủy buổi chụp
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="cancel-reason">Lý do hủy</Label>
+                <Textarea
+                  id="cancel-reason"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Nhập lý do hủy buổi chụp..."
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
+                Hủy
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!cancelReason.trim() || isPaying}
+                onClick={async () => {
+                  if (!selectedBooking || !cancelReason.trim()) return;
+                  setIsPaying(true);
+                  try {
+                    const response = await cancelBooking(selectedBooking.id, {
+                      ly_do: cancelReason,
+                    });
+                    const successMessage = response.message || "Hủy buổi chụp thành công!";
+                    console.log("✅ Cancel booking success:", successMessage);
+                    toast.success(successMessage, {
+                      duration: 5000,
+                    });
+                    setShowCancelDialog(false);
+                    setCancelReason("");
+                    fetchBookings();
+                    setSelectedBooking(null);
+                  } catch (error: any) {
+                    const errorMessage = error.response?.data?.message || "Lỗi khi hủy buổi chụp";
+                    console.error("❌ Cancel booking error:", error);
+                    toast.error(errorMessage, {
+                      duration: 5000,
+                    });
+                  } finally {
+                    setIsPaying(false);
+                  }
+                }}
+              >
+                {isPaying ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Xác nhận hủy
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Change Request Dialog */}
+        <Dialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Yêu cầu thay đổi buổi chụp</DialogTitle>
+              <DialogDescription>
+                Vui lòng điền thông tin cần thay đổi và lý do
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Loại thay đổi</Label>
+                <select
+                  className="w-full p-2 border rounded"
+                  value={changeRequest.field}
+                  onChange={(e) =>
+                    setChangeRequest({ ...changeRequest, field: e.target.value as any })
+                  }
+                >
+                  <option value="time">Thời gian</option>
+                  <option value="location">Địa điểm</option>
+                  <option value="date">Ngày</option>
+                  <option value="other">Khác</option>
+                </select>
+              </div>
+              <div>
+                <Label>Giá trị mới</Label>
+                <Input
+                  value={changeRequest.newValue}
+                  onChange={(e) =>
+                    setChangeRequest({ ...changeRequest, newValue: e.target.value })
+                  }
+                  placeholder="Nhập giá trị mới..."
+                />
+              </div>
+              <div>
+                <Label>Lý do thay đổi</Label>
+                <Textarea
+                  value={changeRequest.reason}
+                  onChange={(e) =>
+                    setChangeRequest({ ...changeRequest, reason: e.target.value })
+                  }
+                  placeholder="Nhập lý do thay đổi..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowChangeDialog(false)}>
+                Hủy
+              </Button>
+              <Button
+                disabled={!changeRequest.newValue.trim() || !changeRequest.reason.trim() || isPaying}
+                onClick={async () => {
+                  if (!selectedBooking || !changeRequest.newValue.trim() || !changeRequest.reason.trim()) return;
+                  setIsPaying(true);
+                  try {
+                    const thayDoi: Record<string, any> = {};
+                    if (changeRequest.field === "time") {
+                      thayDoi["Bat_Dau_Chup"] = changeRequest.newValue;
+                    } else if (changeRequest.field === "location") {
+                      thayDoi["Dia_Diem"] = changeRequest.newValue;
+                    } else if (changeRequest.field === "date") {
+                      thayDoi["Bat_Dau_Chup"] = changeRequest.newValue;
+                    }
+                    const response = await requestChange(selectedBooking.id, {
+                      thay_doi: thayDoi,
+                      ly_do: changeRequest.reason,
+                    });
+                    const successMessage = response.message || "Yêu cầu thay đổi đã được gửi!";
+                    console.log("✅ Change request success:", successMessage);
+                    toast.success(successMessage, {
+                      duration: 5000,
+                    });
+                    setShowChangeDialog(false);
+                    setChangeRequest({ field: "time", currentValue: "", newValue: "", reason: "" });
+                    fetchBookings();
+                  } catch (error: any) {
+                    const errorMessage = error.response?.data?.message || "Lỗi khi gửi yêu cầu thay đổi";
+                    console.error("❌ Change request error:", error);
+                    toast.error(errorMessage, {
+                      duration: 5000,
+                    });
+                  } finally {
+                    setIsPaying(false);
+                  }
+                }}
+              >
+                {isPaying ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Gửi yêu cầu
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Final Payment Dialog */}
+        <Dialog open={showFinalPaymentDialog} onOpenChange={(open) => {
+          console.log("🔵 Final Payment Dialog - onOpenChange:", { open, selectedBooking: selectedBooking?.id });
+          setShowFinalPaymentDialog(open);
+          if (!open) {
+            setFinalPaymentMethod("bank"); // Reset về VNPay
+            // Reset sẽ được xử lý bởi useEffect
+          } else if (!selectedBooking) {
+            console.error("❌ No selectedBooking when opening final payment dialog");
+            setPayError("Không tìm thấy thông tin buổi chụp");
+          }
+        }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Thanh toán phần còn lại</DialogTitle>
+              <DialogDescription>
+                Vui lòng kiểm tra thông tin thanh toán và đồng ý với điều khoản
+              </DialogDescription>
+            </DialogHeader>
+            {loadingQuote ? (
+              <div className="flex justify-center py-8">
+                <Loader className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-sm text-muted-foreground">Đang tải thông tin...</span>
+              </div>
+            ) : payError ? (
+              <div className="text-center py-8 space-y-4">
+                <div className="text-destructive">{payError}</div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (selectedBooking) {
+                      setPayError(null);
+                      setLoadingQuote(true);
+                      getFinalQuote(selectedBooking.id, finalPaymentMethod === "card" ? "vi_ca_nhan" : "vnpay")
+                        .then((quote) => {
+                          setFinalQuote(quote);
+                          setLoadingQuote(false);
+                        })
+                        .catch((error: any) => {
+                          const errorMessage = error.response?.data?.message || error.message || "Lỗi khi lấy báo giá";
+                          setPayError(errorMessage);
+                          setLoadingQuote(false);
+                        });
+                    }
+                  }}
+                >
+                  Thử lại
+                </Button>
+              </div>
+            ) : finalQuote ? (
+              <div className="space-y-4">
+                <div className="bg-muted p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Tổng tiền:</span>
+                    <span className="font-medium">{finalQuote.booking.Tong_Tien.toLocaleString("vi-VN")}₫</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Tỷ lệ cọc:</span>
+                    <span className="font-medium">{finalQuote.booking["Ti_Le_Coc(%)"]}%</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between text-sm">
+                    <span>Số tiền còn lại:</span>
+                    <span className="font-medium text-primary">{finalQuote.costs.so_tien_con_lai.toLocaleString("vi-VN")}₫</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Phí dịch vụ:</span>
+                    <span className="font-medium">{finalQuote.costs.phi_dich_vu.toLocaleString("vi-VN")}₫</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Tổng thanh toán:</span>
+                    <span className="text-primary">{finalQuote.costs.tong_thanh_toan.toLocaleString("vi-VN")}₫</span>
+                  </div>
+                </div>
+                <div>
+                  <Label>Phương thức thanh toán</Label>
+                  <RadioGroup 
+                    value={finalPaymentMethod} 
+                    onValueChange={(v) => {
+                      console.log("🔵 Payment method changed to:", v);
+                      setFinalPaymentMethod(v as "card" | "bank");
+                      // Quote sẽ được reload tự động bởi useEffect khi finalPaymentMethod thay đổi
+                    }}
+                  >
+                    <div className="flex items-center space-x-2 mt-2">
+                      <RadioGroupItem value="card" id="final-card" />
+                      <Label htmlFor="final-card">Ví cá nhân</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="bank" id="final-bank" />
+                      <Label htmlFor="final-bank">VNPay</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="agree-final"
+                    checked={agreePolicy}
+                    onChange={(e) => setAgreePolicy(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="agree-final" className="text-sm">
+                    Tôi đồng ý với điều khoản thanh toán và chính sách hoàn tiền
+                  </Label>
+                </div>
+                {payError && (
+                  <div className="text-sm text-destructive">{payError}</div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                Không thể tải thông tin thanh toán
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowFinalPaymentDialog(false);
+                setFinalQuote(null);
+              }}>
+                Hủy
+              </Button>
+              <Button
+                disabled={isPaying || !agreePolicy || !finalQuote}
+                onClick={async () => {
+                  if (!selectedBooking || !finalQuote) return;
+                  setIsPaying(true);
+                  setPayError(null);
+                  try {
+                    const response = await payFinal(selectedBooking.id, {
+                      payment_method: finalPaymentMethod === "card" ? "vi_ca_nhan" : "vnpay",
+                      agree_terms: agreePolicy,
+                    });
+                    if (response.status === "redirect" && response.redirect_url) {
+                      window.location.href = response.redirect_url;
+                    } else {
+                      const successMessage = response.message || "Thanh toán thành công!";
+                      console.log("✅ Final payment success:", successMessage);
+                      toast.success(successMessage, {
+                        duration: 5000,
+                      });
+                      setShowFinalPaymentDialog(false);
+                      setFinalQuote(null);
+                      fetchBookings();
+                    }
+                  } catch (error: any) {
+                    const errorMessage = error.response?.data?.message || "Lỗi khi thanh toán";
+                    console.error("❌ Final payment error:", error);
+                    setPayError(errorMessage);
+                    toast.error(errorMessage, {
+                      duration: 5000,
+                    });
+                  } finally {
+                    setIsPaying(false);
+                  }
+                }}
+              >
+                {isPaying ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Xác nhận thanh toán
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

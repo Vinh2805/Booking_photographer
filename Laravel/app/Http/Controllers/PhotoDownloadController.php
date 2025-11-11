@@ -63,11 +63,7 @@ class PhotoDownloadController extends Controller
             'Thoi_Gian' => now(),
         ]);
 
-        // 6️⃣ Cập nhật trạng thái buổi chụp
-        if ($folder === 'edited') {
-            $booking->Trang_Thai = 'Đã xử lý ảnh';
-            $booking->save();
-        }
+        // 6️⃣ Không cần cập nhật trạng thái khi download (chỉ là hành động xem/tải)
 
         // 7️⃣ Trả file về FE
         Log::info("{$typeLabel} thành công", [

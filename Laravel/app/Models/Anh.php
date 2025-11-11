@@ -13,7 +13,7 @@ class Anh extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'Ma_BC', 'Duong_Dan', 'Ten_Anh', 'Mo_Ta'
+        'Ma_BC', 'Duong_Dan', 'Ten_Anh', 'Mo_Ta', 'Loai'
     ];
 
     public function buoiChup()

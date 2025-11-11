@@ -3,15 +3,27 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Models\BuoiChup;
+use App\Models\KhachHang;
 use App\DTOs\YeuCauChupDTO;
 
 class BookingController extends Controller
 {
     public function createRequest(Request $request)
     {
+        $user = Auth::guard('sanctum')->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Kiểm tra user là khách hàng
+        $khachHang = KhachHang::where('Ma_TK', $user->Ma_TK)->first();
+        if (!$khachHang) {
+            return response()->json(['message' => 'Bạn không phải khách hàng'], 403);
+        }
+
         $validated = $request->validate([
-            'Ma_KH' => 'required|string',
             'Ma_NAG' => 'required|string',
             'Loai_Chup' => 'nullable|string',
             'Dia_Diem' => 'nullable|string',
@@ -19,6 +31,9 @@ class BookingController extends Controller
             'Ket_Thuc_Chup' => 'required|date|after:Bat_Dau_Chup',
             'Ghi_Chu' => 'nullable|string'
         ]);
+
+        // Tự động lấy Ma_KH từ user đã đăng nhập
+        $validated['Ma_KH'] = $khachHang->Ma_KH;
 
         $dto = new YeuCauChupDTO($validated);
 

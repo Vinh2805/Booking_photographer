@@ -5,13 +5,27 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use App\Models\BuoiChup;
+use App\Models\KhachHang;
 use Carbon\Carbon;
 
 class BookingCancelController extends Controller
 {
     public function cancel(Request $request, string $ma_bc)
     {
+        // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Kiểm tra user là khách hàng
+        $khachHang = KhachHang::where('Ma_TK', $user->Ma_TK)->first();
+        if (!$khachHang) {
+            return response()->json(['message' => 'Bạn không phải khách hàng'], 403);
+        }
+
         $request->validate([
             'ly_do' => 'required|string|max:255',
         ]);
@@ -19,6 +33,11 @@ class BookingCancelController extends Controller
         $booking = BuoiChup::find($ma_bc);
         if (!$booking) {
             return response()->json(['message' => 'Không tìm thấy buổi chụp.'], 404);
+        }
+
+        // Kiểm tra buổi chụp thuộc về khách hàng này
+        if ($booking->Ma_KH !== $khachHang->Ma_KH) {
+            return response()->json(['message' => 'Bạn không có quyền hủy buổi chụp này'], 403);
         }
 
         // Không cho huỷ nếu buổi chụp đã diễn ra hoặc hoàn tất

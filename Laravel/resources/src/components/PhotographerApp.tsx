@@ -6,6 +6,7 @@ import { PhotographerChat } from "./photographer/PhotographerChat";
 import { PhotographerProfile } from "./photographer/PhotographerProfile";
 import { PhotographerEditProfile } from "./photographer/PhotographerEditProfile";
 import { PhotographerChangePassword } from "./photographer/PhotographerChangePassword";
+import { BookingDetail } from "./photographer/BookingDetail";
 import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
 
 // ✅ Đổi prop từ onBack → onLogout để đồng bộ với App.tsx
@@ -16,6 +17,7 @@ interface PhotographerAppProps {
 type PhotographerView =
     | "home"
     | "bookings"
+    | "booking-detail"
     | "messages"
     | "profile"
     | "edit-profile"
@@ -25,6 +27,7 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [currentView, setCurrentView] = useState<PhotographerView>("home");
+    const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
 
     // ✅ Đọc token và user từ localStorage khi mở lại trang
     useEffect(() => {
@@ -63,18 +66,23 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
         switch (section) {
             case "home":
                 setCurrentView("home");
+                setSelectedBookingId(null);
                 break;
             case "bookings":
                 setCurrentView("bookings");
+                setSelectedBookingId(null);
                 break;
             case "messages":
                 setCurrentView("messages");
+                setSelectedBookingId(null);
                 break;
             case "profile":
                 setCurrentView("profile");
+                setSelectedBookingId(null);
                 break;
             case "settings":
                 setCurrentView("profile");
+                setSelectedBookingId(null);
                 break;
             case "logout":
                 handleLogout();
@@ -91,6 +99,8 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                 return "Tổng quan";
             case "bookings":
                 return "Buổi chụp";
+            case "booking-detail":
+                return "Chi tiết buổi chụp";
             case "messages":
                 return "Tin nhắn";
             case "profile":
@@ -107,6 +117,11 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
     // ✅ Breadcrumb
     const getBreadcrumbs = () => {
         switch (currentView) {
+            case "booking-detail":
+                return [
+                    { label: "Buổi chụp", href: "#" },
+                    { label: "Chi tiết" },
+                ];
             case "edit-profile":
                 return [{ label: "Hồ sơ", href: "#" }, { label: "Chỉnh sửa" }];
             case "change-password":
@@ -131,6 +146,25 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                     <PhotographerBookings
                         user={user}
                         onNavigate={setCurrentView}
+                        selectedBookingId={selectedBookingId || undefined}
+                        onSelectBooking={(bookingId: string) => {
+                            setSelectedBookingId(bookingId);
+                            setCurrentView("booking-detail");
+                        }}
+                        onClearSelection={() => {
+                            setSelectedBookingId(null);
+                            setCurrentView("bookings");
+                        }}
+                    />
+                );
+            case "booking-detail":
+                return (
+                    <BookingDetail
+                        bookingId={selectedBookingId || ""}
+                        onBack={() => {
+                            setCurrentView("bookings");
+                            setSelectedBookingId(null);
+                        }}
                     />
                 );
             case "messages":

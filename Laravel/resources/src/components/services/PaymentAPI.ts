@@ -84,11 +84,19 @@ export async function getFinalQuote(
   ma_bc: string,
   method: "vi_ca_nhan" | "vnpay" = "vnpay"
 ): Promise<FinalQuoteResponse> {
-  const response = await apiClient.get<FinalQuoteResponse>(
-    `/buoi-chup/${ma_bc}/thanh-toan/quote`,
-    { params: { payment_method: method } }
-  );
-  return response.data;
+  console.log("🔵 PaymentAPI.getFinalQuote called with:", { ma_bc, method });
+  try {
+    const response = await apiClient.get<FinalQuoteResponse>(
+      `/buoi-chup/${ma_bc}/thanh-toan/quote`,
+      { params: { payment_method: method } }
+    );
+    console.log("✅ PaymentAPI.getFinalQuote response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ PaymentAPI.getFinalQuote error:", error);
+    console.error("❌ PaymentAPI.getFinalQuote error response:", error.response?.data);
+    throw error;
+  }
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { CustomerAuth } from "./customer/CustomerAuth";
 import { CustomerHome } from "./customer/CustomerHome";
 import { CustomerBookings } from "./customer/CustomerBookings";
@@ -6,6 +7,8 @@ import { CustomerChat } from "./customer/CustomerChat";
 import { CustomerProfile } from "./customer/CustomerProfile";
 import { CustomerEditProfile } from "./customer/CustomerEditProfile";
 import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
+import { toast } from "sonner";
+import React from "react";
 
 interface CustomerAppProps {
     onLogout: () => void; // ✅ đổi tên prop để khớp với App.tsx
@@ -19,6 +22,8 @@ type CustomerView =
     | "edit-profile";
 
 export function CustomerApp({ onLogout }: CustomerAppProps) {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [currentView, setCurrentView] = useState<CustomerView>("home");
@@ -27,11 +32,58 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
     useEffect(() => {
         const token = localStorage.getItem("customer_token");
         const userData = localStorage.getItem("customer_info");
+        console.log("🔍 CustomerApp - Loading user data:", { token: token ? "Có" : "Không", userData: userData ? "Có" : "Không" });
+        
         if (token && userData) {
-            setIsAuthenticated(true);
-            setUser(JSON.parse(userData));
+            try {
+                const parsedUser = JSON.parse(userData);
+                console.log("✅ CustomerApp - User đã được load:", parsedUser);
+                setIsAuthenticated(true);
+                setUser(parsedUser);
+            } catch (error) {
+                console.error("❌ CustomerApp - Lỗi parse user data:", error);
+                // Xóa dữ liệu không hợp lệ
+                localStorage.removeItem("customer_info");
+                localStorage.removeItem("customer_token");
+            }
+        } else {
+            console.warn("⚠️ CustomerApp - Không tìm thấy token hoặc user data");
         }
     }, []);
+
+    // ✅ Xử lý query parameters từ VNPay callback
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const payment = searchParams.get("payment");
+        const message = searchParams.get("message");
+        const type = searchParams.get("type");
+        const ma_bc = searchParams.get("ma_bc");
+        const amount = searchParams.get("amount");
+        const transaction_id = searchParams.get("transaction_id");
+
+        if (payment === "success") {
+            // Xóa query parameters để tránh hiển thị lại thông báo
+            navigate(location.pathname, { replace: true });
+            
+            const paymentType = type === "deposit" ? "Đặt cọc" : "Thanh toán phần còn lại";
+            const successMessage = `${paymentType} thành công!${ma_bc ? ` Mã buổi chụp: ${ma_bc}` : ""}${amount ? ` Số tiền: ${amount}` : ""}${transaction_id ? ` Mã giao dịch: ${transaction_id}` : ""}`;
+            
+            toast.success(successMessage, {
+                duration: 5000,
+            });
+            
+            // Chuyển đến trang bookings để xem buổi chụp
+            setCurrentView("bookings");
+        } else if (payment === "failed") {
+            // Xóa query parameters để tránh hiển thị lại thông báo
+            navigate(location.pathname, { replace: true });
+            
+            const errorMessage = message || "Thanh toán thất bại hoặc bị hủy";
+            toast.error(errorMessage, {
+                duration: 5000,
+            });
+        }
+    }, [location.search, location.pathname, navigate]);
 
     // ✅ Hàm đăng xuất
     const handleLogout = () => {
@@ -48,8 +100,25 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
                 onBack={onLogout} // Quay về trang Landing
                 onLogin={() => {
                     const userData = localStorage.getItem("customer_info");
-                    if (userData) setUser(JSON.parse(userData));
-                    setIsAuthenticated(true);
+                    const token = localStorage.getItem("customer_token");
+                    console.log("🔐 CustomerApp - onLogin callback triggered");
+                    console.log("🔐 CustomerApp - Token:", token ? "Có" : "Không");
+                    console.log("🔐 CustomerApp - User data:", userData);
+                    
+                    if (token && userData) {
+                        try {
+                            const parsedUser = JSON.parse(userData);
+                            console.log("✅ CustomerApp - onLogin - User parsed:", parsedUser);
+                            setUser(parsedUser);
+                            setIsAuthenticated(true);
+                        } catch (error) {
+                            console.error("❌ CustomerApp - onLogin - Lỗi parse user:", error);
+                            alert("❌ Lỗi: Dữ liệu người dùng không hợp lệ!");
+                        }
+                    } else {
+                        console.error("❌ CustomerApp - onLogin - Không tìm thấy token hoặc user data");
+                        alert("❌ Lỗi: Đăng nhập không thành công!");
+                    }
                 }}
             />
         );
@@ -115,6 +184,7 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
             case "home":
                 return (
                     <CustomerHome
+                        user={user}
                         onNavigate={(view: string) =>
                             setCurrentView(view as CustomerView)
                         }
@@ -123,23 +193,21 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
             case "bookings":
                 return (
                     <CustomerBookings
-                        user={user}
-                        onNavigate={(view: string) =>
-                            setCurrentView(view as CustomerView)
-                        }
+                        onBack={() => setCurrentView("home")}
                     />
                 );
+                
             case "messages":
                 return <CustomerChat onBack={() => setCurrentView("home")} />;
             case "profile":
                 return (
                     <CustomerProfile
-                        user={user}
                         onNavigate={(view: string) =>
                             setCurrentView(view as CustomerView)
                         }
                     />
                 );
+                
             case "edit-profile":
                 return (
                     <CustomerEditProfile
@@ -149,6 +217,7 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
             default:
                 return (
                     <CustomerHome
+                        user={user}
                         onNavigate={(view: string) =>
                             setCurrentView(view as CustomerView)
                         }
@@ -164,8 +233,7 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
             breadcrumbs={getBreadcrumbs()}
             userRole="customer"
             currentView={currentView}
-            user={user}
-            onLogout={handleLogout} // ✅ THÊM DÒNG NÀY
+            onLogout={handleLogout}
         >
             {renderContent()}
         </AppLayoutWithSidebar>

@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BuoiChup;
+use App\Models\NhiepAnhGia;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -9,6 +10,19 @@ use Carbon\Carbon;
 
 class BuoiChupController extends Controller
 {
+    /**
+     * Helper method để lấy Ma_NAG từ user đã đăng nhập
+     */
+    private function getPhotographerId()
+    {
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return null;
+        }
+        
+        $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+        return $nag?->Ma_NAG;
+    }
     public function index(Request $request): JsonResponse
     {
         try {
@@ -21,16 +35,26 @@ class BuoiChupController extends Controller
             $query = BuoiChup::query();
 
             // Sửa: Kiểm tra quyền nhiếp ảnh gia chính xác
-            if ($onlyMine && auth()->check()) {
-                $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
-                if ($maNag) {
-                    $query->where('Ma_NAG', $maNag);
-                } else {
+            if ($onlyMine) {
+                // Yêu cầu auth khi only_mine=true
+                $user = auth('sanctum')->user();
+                if (!$user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthenticated. Vui lòng đăng nhập để xem buổi chụp của bạn.'
+                    ], 401);
+                }
+                
+                // Lấy Ma_NAG từ bảng nhiep_anh_gia thông qua Ma_TK
+                $maNag = $this->getPhotographerId();
+                if (!$maNag) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Bạn không phải nhiếp ảnh gia'
                     ], 403);
                 }
+                
+                $query->where('Ma_NAG', $maNag);
             }
 
             if ($request->filled('search')) {
@@ -83,17 +107,17 @@ class BuoiChupController extends Controller
                 $uploaded = $request->get('uploaded');
                 if ($uploaded === 'raw') {
                     $query->whereHas('anh', function ($q) {
-                        $q->where('Loai_Anh', 'raw');
+                        $q->where('Loai', 'raw');
                     });
                 } elseif ($uploaded === 'edited') {
                     $query->whereHas('anh', function ($q) {
-                        $q->where('Loai_Anh', 'edited');
+                        $q->where('Loai', 'edited');
                     });
                 } elseif ($uploaded === 'both') {
                     $query->whereHas('anh', function ($q) {
-                        $q->where('Loai_Anh', 'raw');
+                        $q->where('Loai', 'raw');
                     })->whereHas('anh', function ($q) {
-                        $q->where('Loai_Anh', 'edited');
+                        $q->where('Loai', 'edited');
                     });
                 }
             }
@@ -175,9 +199,13 @@ class BuoiChupController extends Controller
     public function confirm(Request $request, string $id): JsonResponse
     {
         try {
+            $maNag = $this->getPhotographerId();
+            if (!$maNag) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+            }
+            
             $booking = BuoiChup::findOrFail($id);
-            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
-            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+            if ($booking->Ma_NAG !== $maNag) {
                 return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
             }
 
@@ -206,9 +234,13 @@ class BuoiChupController extends Controller
     public function reject(Request $request, string $id): JsonResponse
     {
         try {
+            $maNag = $this->getPhotographerId();
+            if (!$maNag) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+            }
+            
             $booking = BuoiChup::findOrFail($id);
-            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
-            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+            if ($booking->Ma_NAG !== $maNag) {
                 return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
             }
 
@@ -238,9 +270,13 @@ class BuoiChupController extends Controller
     public function changeRequest(Request $request, string $id): JsonResponse
     {
         try {
+            $maNag = $this->getPhotographerId();
+            if (!$maNag) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+            }
+            
             $booking = BuoiChup::findOrFail($id);
-            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
-            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+            if ($booking->Ma_NAG !== $maNag) {
                 return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
             }
 
@@ -286,9 +322,13 @@ class BuoiChupController extends Controller
     public function cancelRequest(Request $request, string $id): JsonResponse
     {
         try {
+            $maNag = $this->getPhotographerId();
+            if (!$maNag) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+            }
+            
             $booking = BuoiChup::findOrFail($id);
-            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
-            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+            if ($booking->Ma_NAG !== $maNag) {
                 return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
             }
 
@@ -323,9 +363,13 @@ class BuoiChupController extends Controller
     public function upload(Request $request, string $id): JsonResponse
     {
         try {
+            $maNag = $this->getPhotographerId();
+            if (!$maNag) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+            }
+            
             $booking = BuoiChup::findOrFail($id);
-            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
-            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+            if ($booking->Ma_NAG !== $maNag) {
                 return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
             }
 
@@ -343,9 +387,10 @@ class BuoiChupController extends Controller
 
             DB::table('anh')->insert([
                 'Ma_BC' => $id,
-                'Loai_Anh' => $request->input('type'),
+                'Loai' => $request->input('type'),
                 'Duong_Dan' => $request->input('url'),
-                'Ngay_Upload' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             if ($request->input('type') === 'edited') {
@@ -369,9 +414,19 @@ class BuoiChupController extends Controller
     public function start(Request $request, string $id): JsonResponse
     {
         try {
+            // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+            }
+            
+            $maNag = $this->getPhotographerId();
+            if (!$maNag) {
+                return response()->json(['success' => false, 'message' => 'Bạn không phải nhiếp ảnh gia'], 403);
+            }
+            
             $booking = BuoiChup::findOrFail($id);
-            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
-            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+            if ($booking->Ma_NAG !== $maNag) {
                 return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
             }
 
@@ -400,9 +455,19 @@ class BuoiChupController extends Controller
     public function end(Request $request, string $id): JsonResponse
     {
         try {
+            // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+            }
+            
+            $maNag = $this->getPhotographerId();
+            if (!$maNag) {
+                return response()->json(['success' => false, 'message' => 'Bạn không phải nhiếp ảnh gia'], 403);
+            }
+            
             $booking = BuoiChup::findOrFail($id);
-            $maNag = auth()->user()->nhiepAnhGia?->Ma_NAG;
-            if (!$maNag || $booking->Ma_NAG !== $maNag) {
+            if ($booking->Ma_NAG !== $maNag) {
                 return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
             }
 
@@ -446,8 +511,8 @@ class BuoiChupController extends Controller
             'time' => $start->format('H:i'),
             'price' => (float) $booking->Tong_Tien,
             'duration' => $this->calculateDuration($booking->Bat_Dau_Chup, $booking->Ket_Thuc_Chup),
-            'uploadedRaw' => $booking->anh->where('Loai_Anh', 'raw')->isNotEmpty(),
-            'uploadedEdited' => $booking->anh->where('Loai_Anh', 'edited')->isNotEmpty(),
+            'uploadedRaw' => $booking->anh->where('Loai', 'raw')->isNotEmpty(),
+            'uploadedEdited' => $booking->anh->where('Loai', 'edited')->isNotEmpty(),
         ];
     }
 
@@ -474,11 +539,11 @@ class BuoiChupController extends Controller
             'duration' => $this->calculateDuration($booking->Bat_Dau_Chup, $booking->Ket_Thuc_Chup),
             'guestCount' => '1', // Sửa: Chưa có cột
             'specialRequests' => $booking->Ghi_Chu ?? '', // Sửa: Chưa có cột
-            'uploadedRaw' => $booking->anh->where('Loai_Anh', 'raw')->isNotEmpty(),
-            'uploadedEdited' => $booking->anh->where('Loai_Anh', 'edited')->isNotEmpty(),
+            'uploadedRaw' => $booking->anh->where('Loai', 'raw')->isNotEmpty(),
+            'uploadedEdited' => $booking->anh->where('Loai', 'edited')->isNotEmpty(),
             'images' => $booking->anh->map(function ($image) {
                 return [
-                    'type' => $image->Loai_Anh,
+                    'type' => $image->Loai,
                     'url' => $image->Duong_Dan
                 ];
             })->toArray(),

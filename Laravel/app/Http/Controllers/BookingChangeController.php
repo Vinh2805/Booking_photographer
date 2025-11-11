@@ -4,12 +4,26 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use App\Models\BuoiChup;
+use App\Models\KhachHang;
 
 class BookingChangeController extends Controller
 {
     public function requestChange(Request $request, string $ma_bc)
     {
+        // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Kiểm tra user là khách hàng
+        $khachHang = KhachHang::where('Ma_TK', $user->Ma_TK)->first();
+        if (!$khachHang) {
+            return response()->json(['message' => 'Bạn không phải khách hàng'], 403);
+        }
+
         $validated = $request->validate([
             'thay_doi' => 'required|array',
             'ly_do' => 'required|string|max:255'
@@ -21,6 +35,11 @@ class BookingChangeController extends Controller
         $booking = BuoiChup::find($ma_bc);
         if (!$booking) {
             return response()->json(['message' => 'Không tìm thấy buổi chụp.'], 404);
+        }
+
+        // Kiểm tra buổi chụp thuộc về khách hàng này
+        if ($booking->Ma_KH !== $khachHang->Ma_KH) {
+            return response()->json(['message' => 'Bạn không có quyền yêu cầu thay đổi buổi chụp này'], 403);
         }
 
         $changes = [];

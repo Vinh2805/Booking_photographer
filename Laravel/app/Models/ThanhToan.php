@@ -15,4 +15,10 @@ class ThanhToan extends Model
     protected $fillable = [
         'Ma_TT','Ma_BC','So_Tien','Hinh_Thuc','Trang_Thai','Ngay_TT','Ghi_Chu'
     ];
+
+    // Relationships
+    public function buoiChup()
+    {
+        return $this->belongsTo(BuoiChup::class, 'Ma_BC', 'Ma_BC');
+    }
 }

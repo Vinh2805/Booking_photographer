@@ -40,4 +40,26 @@ class BuoiChup extends Model
         $next = $number + 1;
         return 'BC' . str_pad($next, 3, '0', STR_PAD_LEFT);
     }
+
+    // Relationships
+    public function khachHang()
+    {
+        return $this->belongsTo(KhachHang::class, 'Ma_KH', 'Ma_KH');
+    }
+
+    public function nhaNhiepAnh()
+    {
+        return $this->belongsTo(NhiepAnhGia::class, 'Ma_NAG', 'Ma_NAG');
+    }
+
+    public function anh()
+    {
+        return $this->hasMany(Anh::class, 'Ma_BC', 'Ma_BC');
+    }
+
+    public function dichVu()
+    {
+        // Nếu có bảng pivot buoi_chup_dich_vu
+        return $this->belongsToMany(DichVu::class, 'buoi_chup_dich_vu', 'Ma_BC', 'Ma_DV');
+    }
 }

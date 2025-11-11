@@ -22,30 +22,37 @@ use App\Http\Controllers\CustomerController;
 
     //Đặt cọc
     Route::post('/buoi-chup/{ma_bc}/dat-coc', [BookingDepositController::class, 'store']);
-    // Xem báo giá phần còn lại trước khi thanh toán
-    Route::get('/buoi-chup/{ma_bc}/thanh-toan/quote', [BookingFinalPaymentController::class, 'quote']);
     //route callback vnpay
     Route::get('/payment/vnpay/return', [VNPayCallbackController::class, 'handle']);
 
-    // Xác nhận thanh toán phần còn lại
-    Route::post('/buoi-chup/{ma_bc}/thanh-toan', [BookingFinalPaymentController::class, 'store']);
+    // === Routes thanh toán - cần authentication ===
+    Route::middleware('auth:sanctum')->group(function () {
+        // Xem báo giá phần còn lại trước khi thanh toán
+        Route::get('/buoi-chup/{ma_bc}/thanh-toan/quote', [BookingFinalPaymentController::class, 'quote']);
+        // Xác nhận thanh toán phần còn lại
+        Route::post('/buoi-chup/{ma_bc}/thanh-toan', [BookingFinalPaymentController::class, 'store']);
+    });
 
     //tải ảnh gốc/hậu kì
     Route::get('/photos/{type}/{ma_bc}/download', [PhotoDownloadController::class, 'download']);
-    //upload ảnh gốc/hậu kì
-    Route::post('/photos/{type}/{ma_bc}/upload', [PhotoUploadController::class, 'upload']);
-    //cus gửi yêu cầu
-    Route::post('/booking/create', [BookingController::class, 'createRequest']);
-        //nag confirm/reject buoi chup
-    Route::post('/booking/{ma_bc}/confirm', [BookingConfirmationController::class, 'confirm']);
-    Route::post('/booking/{ma_bc}/reject', [BookingConfirmationController::class, 'reject']);
-    //KH huỷ
-    Route::post('/booking/{ma_bc}/cancel', [BookingCancelController::class, 'cancel']);
-    //thay đoi yêu cầu
-    Route::post('/booking/{ma_bc}/change', [BookingChangeController::class, 'requestChange']);
-    //chấp nhận, từ chối yêu cầu
-    Route::put('/booking/change/{id}/approve', [BookingChangeApprovalController::class, 'approve']);
-    Route::put('/booking/change/{id}/reject', [BookingChangeApprovalController::class, 'reject']);
+    
+    // === Routes cần authentication ===
+    Route::middleware('auth:sanctum')->group(function () {
+        //upload ảnh gốc/hậu kì (chỉ nhiếp ảnh gia)
+        Route::post('/photos/{type}/{ma_bc}/upload', [PhotoUploadController::class, 'upload']);
+        //cus gửi yêu cầu (chỉ khách hàng)
+        Route::post('/booking/create', [BookingController::class, 'createRequest']);
+        //nag confirm/reject buoi chup (chỉ nhiếp ảnh gia)
+        Route::post('/booking/{ma_bc}/confirm', [BookingConfirmationController::class, 'confirm']);
+        Route::post('/booking/{ma_bc}/reject', [BookingConfirmationController::class, 'reject']);
+        //KH huỷ (chỉ khách hàng)
+        Route::post('/booking/{ma_bc}/cancel', [BookingCancelController::class, 'cancel']);
+        //thay đoi yêu cầu (chỉ khách hàng)
+        Route::post('/booking/{ma_bc}/change', [BookingChangeController::class, 'requestChange']);
+        //chấp nhận, từ chối yêu cầu (chỉ nhiếp ảnh gia)
+        Route::put('/booking/change/{id}/approve', [BookingChangeApprovalController::class, 'approve']);
+        Route::put('/booking/change/{id}/reject', [BookingChangeApprovalController::class, 'reject']);
+    });
     
     //Get cac doan chat
     Route::get('/chat/{Ma_BC}', [ChatController::class, 'index']);
@@ -58,11 +65,12 @@ use App\Http\Controllers\CustomerController;
 
 
     //Auth
-    Route::get('/customer/dashboard/{Ma_TK}', [CustomerController::class, 'dashboard']);
-
-
-Route::get('/photographer/dashboard/{Ma_TK}', [PhotographerController::class, 'dashboard']);
-Route::get('/photographer/{Ma_TK}/bookings', [PhotographerController::class, 'bookings']);
+    // Dashboard routes cần authentication
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/customer/dashboard/{Ma_TK}', [CustomerController::class, 'dashboard']);
+        Route::get('/photographer/dashboard/{Ma_TK}', [PhotographerController::class, 'dashboard']);
+        Route::get('/photographer/{Ma_TK}/bookings', [PhotographerController::class, 'bookings']);
+    });
 
 // 🔹 Auth cho khách hàng
 Route::post('/khach-hang/dang-ky', [AuthController::class, 'registerCustomer']);
@@ -80,16 +88,23 @@ Route::get('/nhiep-anh-gia/noi-bat', [PhotographerController::class, 'featured']
 Route::middleware('auth:sanctum')->post('/dang-xuat', [AuthController::class, 'logout']);
 
 // === Nhiếp ảnh gia ===
+// Route GET /buoi-chup có thể public nếu only_mine=false
+// Nhưng nếu only_mine=true thì cần auth (được xử lý trong controller)
+
+Route::middleware('auth:sanctum')->group(function () {
     Route::get('/buoi-chup', [BuoiChupController::class, 'index']);
     Route::get('/buoi-chup/{id}', [BuoiChupController::class, 'show']);
-    Route::post('/buoi-chup/{id}/confirm', [BuoiChupController::class, 'confirm']);
-    Route::post('/buoi-chup/{id}/reject', [BuoiChupController::class, 'reject']);
-    Route::post('/buoi-chup/{id}/change-request', [BuoiChupController::class, 'changeRequest']);
-    Route::post('/buoi-chup/{id}/cancel', [BuoiChupController::class, 'cancelRequest']);
-    Route::post('/buoi-chup/{id}/upload', [BuoiChupController::class, 'upload']);
+    // Route::post('/buoi-chup/{id}/confirm', [BuoiChupController::class, 'confirm']);
+    // Route::post('/buoi-chup/{id}/reject', [BuoiChupController::class, 'reject']);
+    // Route::post('/buoi-chup/{id}/change-request', [BuoiChupController::class, 'changeRequest']);
+    // Route::post('/buoi-chup/{id}/cancel', [BuoiChupController::class, 'cancelRequest']);
+    // Route::post('/buoi-chup/{id}/upload', [BuoiChupController::class, 'upload']);
     Route::post('/buoi-chup/{id}/start', [BuoiChupController::class, 'start']);
     Route::post('/buoi-chup/{id}/end', [BuoiChupController::class, 'end']);
+});
 
     // === Khách hàng ===
-    Route::get('/customer/bookings', [CustomerBookingController::class, 'index']);
-    Route::get('/customer/bookings/{id}', [CustomerBookingController::class, 'show']);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/customer/bookings', [CustomerBookingController::class, 'index']);
+        Route::get('/customer/bookings/{id}', [CustomerBookingController::class, 'show']);
+    });

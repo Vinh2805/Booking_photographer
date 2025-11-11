@@ -23,7 +23,10 @@ class VNPayCallbackController extends Controller
         // 1. xác thực chữ ký
         if (!$vnpay->verifyReturn($data)) {
             Log::error('VNPay checksum mismatch', ['data' => $data]);
-            return response('Checksum không hợp lệ', 400);
+            return response()->view('payment.vnpay_failure', [
+                'ma_bc' => null,
+                'message' => 'Checksum không hợp lệ. Giao dịch không được xác thực.',
+            ]);
         }
 
         $responseCode = $data['vnp_ResponseCode'] ?? null;
@@ -31,7 +34,34 @@ class VNPayCallbackController extends Controller
 
         if ($responseCode !== '00') {
             Log::warning("Thanh toán VNPay thất bại: {$responseCode}");
-            return response('Thanh toán thất bại hoặc bị huỷ.', 400);
+            
+            // Tách mã buổi chụp từ TxnRef (có thể có -DP hoặc -FN)
+            $ma_bc = $rawRef;
+            if (str_ends_with($rawRef, '-DP')) {
+                $ma_bc = substr($rawRef, 0, -3);
+            } elseif (str_ends_with($rawRef, '-FN')) {
+                $ma_bc = substr($rawRef, 0, -3);
+            }
+            
+            $errorMessages = [
+                '07' => 'Trừ tiền thành công. Giao dịch bị nghi ngờ (liên quan tới lừa đảo, giao dịch bất thường).',
+                '09' => 'Thẻ/Tài khoản chưa đăng ký dịch vụ InternetBanking',
+                '10' => 'Xác thực thông tin thẻ/tài khoản không đúng quá 3 lần',
+                '11' => 'Đã hết hạn chờ thanh toán. Xin vui lòng thực hiện lại giao dịch.',
+                '12' => 'Thẻ/Tài khoản bị khóa.',
+                '13' => 'Nhập sai mật khẩu xác thực giao dịch (OTP).',
+                '51' => 'Tài khoản không đủ số dư để thực hiện giao dịch.',
+                '65' => 'Tài khoản đã vượt quá hạn mức giao dịch trong ngày.',
+                '75' => 'Ngân hàng thanh toán đang bảo trì.',
+                '79' => 'Nhập sai mật khẩu thanh toán quá số lần quy định.',
+            ];
+            
+            $message = $errorMessages[$responseCode] ?? 'Thanh toán thất bại hoặc bị hủy.';
+            
+            return response()->view('payment.vnpay_failure', [
+                'ma_bc' => $ma_bc,
+                'message' => $message,
+            ]);
         }
 
         // 2. tách mã buổi chụp và loại giao dịch
@@ -52,7 +82,10 @@ class VNPayCallbackController extends Controller
 
             $booking = BuoiChup::where('Ma_BC', $ma_bc)->first();
             if (!$booking) {
-                return response("Không tìm thấy buổi chụp $ma_bc", 404);
+                return response()->view('payment.vnpay_failure', [
+                    'ma_bc' => $ma_bc,
+                    'message' => "Không tìm thấy buổi chụp $ma_bc",
+                ]);
             }
 
             $basePrice   = (float) $booking->Tong_Tien;
@@ -107,7 +140,12 @@ class VNPayCallbackController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Lỗi lưu DB sau callback VNPay', ['error' => $e->getMessage()]);
-            return response('Lỗi hệ thống khi lưu giao dịch.', 500);
+            
+            // Redirect về frontend với thông báo lỗi
+            return response()->view('payment.vnpay_failure', [
+                'ma_bc' => $ma_bc ?? null,
+                'message' => 'Lỗi hệ thống khi lưu giao dịch. Vui lòng liên hệ hỗ trợ.',
+            ]);
         }
 
         // gửi mail (tạm cứng)
