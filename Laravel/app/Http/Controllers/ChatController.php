@@ -10,8 +10,33 @@ use Illuminate\Support\Facades\Auth;
 class ChatController extends Controller
 {
     // Lấy lịch sử tin nhắn
-    public function index($Ma_BC)
+    public function index(Request $request, $Ma_BC)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Kiểm tra quyền truy cập: user phải là khách hàng hoặc nhiếp ảnh gia của buổi chụp này
+        $booking = \App\Models\BuoiChup::find($Ma_BC);
+        if (!$booking) {
+            return response()->json(['message' => 'Không tìm thấy buổi chụp'], 404);
+        }
+
+        $khachHang = \App\Models\KhachHang::where('Ma_TK', $user->Ma_TK)->first();
+        $nag = \App\Models\NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+
+        $hasAccess = false;
+        if ($khachHang && $booking->Ma_KH === $khachHang->Ma_KH) {
+            $hasAccess = true;
+        } elseif ($nag && $booking->Ma_NAG === $nag->Ma_NAG) {
+            $hasAccess = true;
+        }
+
+        if (!$hasAccess) {
+            return response()->json(['message' => 'Bạn không có quyền xem tin nhắn của buổi chụp này'], 403);
+        }
+
         $messages = TinNhan::where('Ma_BC', $Ma_BC)
             ->orderBy('Gui_Luc', 'asc')
             ->get();
@@ -22,66 +47,84 @@ class ChatController extends Controller
     // Gửi tin nhắn
     public function store(Request $request)
     {
-        // $user = Auth::user();
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
 
         $data = $request->validate([
-            'Ma_BC' => 'required',
+            'Ma_BC' => 'required|string',
             'Noi_Dung' => 'required|string',
             'Loai_Tin' => 'nullable|string',
-            'Ma_NAG' => 'nullable|string',
-            'Ma_KH' => 'nullable|string',
         ]);
 
-        // $data['Ma_TN'] = 'TN' . now()->format('YmdHis') . rand(100, 999);
-        // $data['Trang_Thai'] = 'Đã gửi';
+        // Kiểm tra quyền truy cập: user phải là khách hàng hoặc nhiếp ảnh gia của buổi chụp này
+        $booking = \App\Models\BuoiChup::find($data['Ma_BC']);
+        if (!$booking) {
+            return response()->json(['message' => 'Không tìm thấy buổi chụp'], 404);
+        }
 
-        // $message = TinNhan::create($data);
+        $khachHang = \App\Models\KhachHang::where('Ma_TK', $user->Ma_TK)->first();
+        $nag = \App\Models\NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
 
-        // // Gửi realtime event
-        // broadcast(new MessageSent($user, $message))->toOthers();
+        $senderType = null;
+        $senderId = null;
 
-        // return response()->json($message);
-        // Giả lập user hiện tại
-    $user = null;
+        if ($khachHang && $booking->Ma_KH === $khachHang->Ma_KH) {
+            $senderType = 'customer';
+            $senderId = $khachHang->Ma_KH;
+            $data['Ma_KH'] = $khachHang->Ma_KH;
+        } elseif ($nag && $booking->Ma_NAG === $nag->Ma_NAG) {
+            $senderType = 'photographer';
+            $senderId = $nag->Ma_NAG;
+            $data['Ma_NAG'] = $nag->Ma_NAG;
+        } else {
+            return response()->json(['message' => 'Bạn không có quyền gửi tin nhắn cho buổi chụp này'], 403);
+        }
 
-    if (!empty($data['Ma_KH'])) {
-        $user = \App\Models\User::where('Ma_TK', $data['Ma_KH'])->first();
-    } elseif (!empty($data['Ma_NAG'])) {
-        $user = \App\Models\User::where('Ma_TK', $data['Ma_NAG'])->first();
-    }
+        // Tạo bản ghi tin nhắn
+        $data['Ma_TN'] = 'TN' . now()->format('YmdHis') . rand(100, 999);
+        $data['Trang_Thai'] = 'Chưa đọc';
+        $data['Gui_Luc'] = now();
 
-    // Nếu chưa có user vẫn cho phép test (gán tạm)
-    if (!$user) {
-        $user = new \App\Models\User([
-            'Ma_TK' => 'TEST001',
-            'Ho_Ten' => 'Tài khoản test',
-        ]);
-    }
+        $message = \App\Models\TinNhan::create($data);
 
-    // Tạo bản ghi tin nhắn
-    $data['Ma_TN'] = 'TN' . now()->format('YmdHis') . rand(100, 999);
-    $data['Trang_Thai'] = 'Đã gửi';
+        // Broadcast realtime (chỉ chạy nếu Pusher/WebSocket đang hoạt động)
+        try {
+            broadcast(new \App\Events\MessageSent($user, $message))->toOthers();
+        } catch (\Exception $e) {
+            // Log lỗi nhưng vẫn trả về tin nhắn
+            \Log::error('Broadcast error: ' . $e->getMessage());
+        }
 
-    $message = \App\Models\TinNhan::create($data);
-
-    // Broadcast realtime (chỉ chạy nếu Pusher/WebSocket đang hoạt động)
-    broadcast(new \App\Events\MessageSent($user, $message))->toOthers();
-
-    return response()->json($message);
+        return response()->json($message);
     }
     // 🟡 API: Lấy tin nhắn chưa đọc của người dùng
     public function unread(Request $request)
     {
-        $userId = $request->input('Ma_TK');
-        if (!$userId) {
-            return response()->json(['error' => 'Thiếu mã tài khoản'], 400);
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $messages = TinNhan::where(function ($q) use ($userId) {
-                $q->where('Ma_KH', $userId)
-                  ->orWhere('Ma_NAG', $userId);
-            })
-            ->where('Trang_Thai', 'Chưa đọc')
+        $khachHang = \App\Models\KhachHang::where('Ma_TK', $user->Ma_TK)->first();
+        $nag = \App\Models\NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+
+        $query = TinNhan::query();
+
+        if ($khachHang) {
+            // Nếu là khách hàng, lấy tin nhắn gửi cho khách hàng (từ nhiếp ảnh gia)
+            $query->where('Ma_KH', $khachHang->Ma_KH)
+                  ->whereNotNull('Ma_NAG'); // Tin nhắn từ nhiếp ảnh gia
+        } elseif ($nag) {
+            // Nếu là nhiếp ảnh gia, lấy tin nhắn gửi cho nhiếp ảnh gia (từ khách hàng)
+            $query->where('Ma_NAG', $nag->Ma_NAG)
+                  ->whereNotNull('Ma_KH'); // Tin nhắn từ khách hàng
+        } else {
+            return response()->json(['message' => 'Bạn không phải khách hàng hoặc nhiếp ảnh gia'], 403);
+        }
+
+        $messages = $query->where('Trang_Thai', 'Chưa đọc')
             ->orderBy('Gui_Luc', 'asc')
             ->get();
 
@@ -91,12 +134,31 @@ class ChatController extends Controller
     // 🟢 API: Đánh dấu tin nhắn đã đọc theo mã cuộc trò chuyện hoặc danh sách id
     public function markAsRead(Request $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
         $data = $request->validate([
             'Ma_BC' => 'nullable|string',
             'ids' => 'nullable|array',
         ]);
 
+        $khachHang = \App\Models\KhachHang::where('Ma_TK', $user->Ma_TK)->first();
+        $nag = \App\Models\NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+
         $query = TinNhan::query();
+
+        // Chỉ đánh dấu tin nhắn gửi cho user hiện tại
+        if ($khachHang) {
+            $query->where('Ma_KH', $khachHang->Ma_KH)
+                  ->whereNotNull('Ma_NAG'); // Tin nhắn từ nhiếp ảnh gia
+        } elseif ($nag) {
+            $query->where('Ma_NAG', $nag->Ma_NAG)
+                  ->whereNotNull('Ma_KH'); // Tin nhắn từ khách hàng
+        } else {
+            return response()->json(['message' => 'Bạn không phải khách hàng hoặc nhiếp ảnh gia'], 403);
+        }
 
         if (!empty($data['Ma_BC'])) {
             $query->where('Ma_BC', $data['Ma_BC']);

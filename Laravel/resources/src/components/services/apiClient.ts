@@ -6,7 +6,8 @@ const apiClient = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  withCredentials: true, 
+  withCredentials: true,
+  timeout: 30000, // 30 giây timeout
 });
 
 // Interceptor để tự động thêm token vào header

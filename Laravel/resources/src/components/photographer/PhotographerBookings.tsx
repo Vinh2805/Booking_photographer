@@ -11,6 +11,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import {
   Calendar,
@@ -26,8 +35,11 @@ import {
   CheckCircle,
   Image as ImageIcon,
   RefreshCw,
+  Check,
+  XCircle,
 } from "lucide-react";
 import apiClient from "../services/apiClient";
+import { confirmBooking, rejectBooking } from "../services/BookingAPI";
 import { toast } from "sonner";
 
 type BookingStatus =
@@ -83,6 +95,10 @@ export function PhotographerBookings({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedBookingForReject, setSelectedBookingForReject] = useState<Booking | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [processingAction, setProcessingAction] = useState<string | null>(null);
 
   // Fetch bookings từ API
   const fetchBookings = async (status: string = selectedStatus, search: string = searchQuery) => {
@@ -132,6 +148,72 @@ export function PhotographerBookings({
     fetchBookings(selectedStatus, searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, searchQuery]);
+
+  // Xử lý xác nhận buổi chụp
+  const handleConfirm = async (bookingId: string) => {
+    if (processingAction) return;
+    
+    setProcessingAction(bookingId);
+    try {
+      const response = await confirmBooking(bookingId);
+      toast.success(response.message || "Đã xác nhận buổi chụp thành công", {
+        duration: 3000,
+      });
+      // Refresh danh sách
+      await fetchBookings(selectedStatus, searchQuery);
+    } catch (error: any) {
+      console.error("❌ Lỗi khi xác nhận buổi chụp:", error);
+      const msg = error.response?.data?.message || error.message || "Lỗi không xác định";
+      toast.error(msg, {
+        duration: 5000,
+      });
+    } finally {
+      setProcessingAction(null);
+    }
+  };
+
+  // Xử lý mở dialog từ chối
+  const handleRejectClick = (booking: Booking, e: React.MouseEvent) => {
+    e.stopPropagation(); // Ngăn trigger onClick của Card
+    setSelectedBookingForReject(booking);
+    setRejectReason("");
+    setRejectDialogOpen(true);
+  };
+
+  // Xử lý từ chối buổi chụp
+  const handleReject = async () => {
+    if (!selectedBookingForReject || !rejectReason.trim()) {
+      toast.error("Vui lòng nhập lý do từ chối", {
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (processingAction) return;
+    
+    setProcessingAction(selectedBookingForReject.id);
+    try {
+      const response = await rejectBooking(selectedBookingForReject.id, {
+        ly_do: rejectReason.trim(),
+      });
+      toast.success(response.message || "Đã từ chối buổi chụp thành công", {
+        duration: 3000,
+      });
+      setRejectDialogOpen(false);
+      setSelectedBookingForReject(null);
+      setRejectReason("");
+      // Refresh danh sách
+      await fetchBookings(selectedStatus, searchQuery);
+    } catch (error: any) {
+      console.error("❌ Lỗi khi từ chối buổi chụp:", error);
+      const msg = error.response?.data?.message || error.message || "Lỗi không xác định";
+      toast.error(msg, {
+        duration: 5000,
+      });
+    } finally {
+      setProcessingAction(null);
+    }
+  };
 
   const getStatusInfo = (status: BookingStatus) => {
     const statusMap = {
@@ -379,10 +461,47 @@ export function PhotographerBookings({
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mb-2">
                       <MapPin className="w-3 h-3" />
                       <span className="truncate">{booking.location}</span>
                     </div>
+                    {/* Nút xác nhận/từ chối cho trạng thái chờ xác nhận */}
+                    {booking.status === "pending_confirmation" && (
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleConfirm(booking.id);
+                          }}
+                          disabled={processingAction === booking.id}
+                        >
+                          {processingAction === booking.id ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                              Đang xử lý...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-3 h-3 mr-1" />
+                              Xác nhận
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={(e) => handleRejectClick(booking, e)}
+                          disabled={processingAction === booking.id}
+                        >
+                          <XCircle className="w-3 h-3 mr-1" />
+                          Từ chối
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -398,6 +517,71 @@ export function PhotographerBookings({
           </div>
         )}
       </div>
+
+      {/* Dialog từ chối buổi chụp */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Từ chối buổi chụp</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn từ chối buổi chụp này? Vui lòng nhập lý do từ chối.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedBookingForReject && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Buổi chụp:</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedBookingForReject.title} - {selectedBookingForReject.customer.name}
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <label htmlFor="reject-reason" className="text-sm font-medium">
+                Lý do từ chối <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                id="reject-reason"
+                placeholder="Nhập lý do từ chối buổi chụp..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRejectDialogOpen(false);
+                setRejectReason("");
+                setSelectedBookingForReject(null);
+              }}
+              disabled={!!processingAction}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={!rejectReason.trim() || !!processingAction}
+            >
+              {processingAction ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Xác nhận từ chối
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

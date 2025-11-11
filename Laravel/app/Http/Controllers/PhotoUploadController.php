@@ -60,7 +60,7 @@ class PhotoUploadController extends Controller
         // ✅ Ghi log upload vào bảng `lich_su_giao_dich`
         DB::table('lich_su_giao_dich')->insert([
             'Ma_BC' => $ma_bc,
-            'Loai_Giao_Dich' => $folder === 'original' ? 'Upload anh goc' : 'Upload anh hau ky',
+            'Loai_Giao_Dich' => $folder === 'original' ? 'Upload anh goc' : 'Upload anh hau ki',
             'Mo_Ta' => "Upload file ZIP {$fileName} cho buổi chụp {$ma_bc}",
             'Thoi_Gian' => now(),
         ]);

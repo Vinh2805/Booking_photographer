@@ -152,7 +152,40 @@ export async function requestChange(
 
 /**
  * ==========================================
- * API DUYỆT YÊU CẦU THAY ĐỔI (Nhiếp ảnh gia)
+ * API LẤY DANH SÁCH YÊU CẦU THAY ĐỔI CHỜ DUYỆT
+ * GET /booking/change-requests/pending
+ * ==========================================
+ */
+export interface PendingChangeRequest {
+  id: number;
+  ma_bc: string;
+  booking: {
+    id: string;
+    title: string;
+    location: string;
+    date: string;
+  };
+  changes: Record<string, { cu: any; moi: any }>;
+  ly_do: string;
+  nguoi_gui: 'customer' | 'photographer';
+  ngay_tao: string;
+}
+
+export interface PendingChangeRequestsResponse {
+  success: boolean;
+  data: PendingChangeRequest[];
+}
+
+export async function getPendingChangeRequests(): Promise<PendingChangeRequestsResponse> {
+  const response = await apiClient.get<PendingChangeRequestsResponse>(
+    '/booking/change-requests/pending'
+  );
+  return response.data;
+}
+
+/**
+ * ==========================================
+ * API DUYỆT YÊU CẦU THAY ĐỔI (Cả khách hàng và nhiếp ảnh gia)
  * PUT /booking/change/{id}/approve
  * ==========================================
  */
@@ -210,6 +243,19 @@ export async function endBooking(id: string): Promise<StartEndResponse> {
 
 /**
  * ==========================================
+ * API HOÀN THÀNH XỬ LÝ ẢNH (Nhiếp ảnh gia)
+ * POST /buoi-chup/{id}/complete-processing
+ * ==========================================
+ */
+export async function completeProcessing(id: string): Promise<StartEndResponse> {
+  const response = await apiClient.post<StartEndResponse>(
+    `/buoi-chup/${id}/complete-processing`
+  );
+  return response.data;
+}
+
+/**
+ * ==========================================
  * EXPORT MẶC ĐỊNH
  * ==========================================
  */
@@ -222,5 +268,6 @@ export default {
   rejectChangeRequest,
   startBooking,
   endBooking,
+  completeProcessing,
 };
 

@@ -14,12 +14,10 @@ export interface PhotoUploadRequest {
 export interface PhotoUploadResponse {
   status: "success";
   message: string;
-  data: {
-    ma_bc: string;
-    loai: "raw" | "edited";
-    file_path: string;
-    file_name: string;
-  };
+  file_name: string;
+  booking_code: string;
+  type: string;
+  next_status: string;
 }
 
 export interface PhotoDownloadResponse {

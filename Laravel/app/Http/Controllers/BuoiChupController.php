@@ -1,8 +1,10 @@
 <?php 
+
 namespace App\Http\Controllers;
 
 use App\Models\BuoiChup;
 use App\Models\NhiepAnhGia;
+use App\Models\ThanhToan;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -23,9 +25,92 @@ class BuoiChupController extends Controller
         $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
         return $nag?->Ma_NAG;
     }
+
+    /**
+     * Tự động cập nhật trạng thái booking dựa trên thời gian
+     */
+    private function autoUpdateBookingStatus(): void
+    {
+        $now = Carbon::now();
+        
+        // 1. Hủy các buổi chụp muộn quá 30 phút (chưa bắt đầu)
+        // Lưu ý: Không hủy những buổi chụp đã từng được bắt đầu và kết thúc (session_ended = true)
+        $lateBookings = BuoiChup::whereIn('Trang_Thai', ['Chờ thanh toán', 'Chờ xử lý ảnh', 'Sắp diễn ra'])
+            ->get();
+        
+        foreach ($lateBookings as $booking) {
+            // Kiểm tra xem buổi chụp đã từng được bắt đầu và kết thúc chưa
+            $sessionEnded = false;
+            if ($booking->Ghi_Chu) {
+                try {
+                    $ghiChuData = json_decode($booking->Ghi_Chu, true);
+                    if (is_array($ghiChuData) && isset($ghiChuData['session_ended']) && $ghiChuData['session_ended'] === true) {
+                        $sessionEnded = true;
+                    }
+                } catch (\Exception $e) {
+                    // Nếu không parse được, bỏ qua
+                }
+            }
+            
+            // Nếu đã từng bắt đầu và kết thúc, bỏ qua (không tự động hủy)
+            if ($sessionEnded) {
+                continue;
+            }
+            
+            $scheduledTime = $booking->Bat_Dau_Chup instanceof Carbon 
+                ? $booking->Bat_Dau_Chup 
+                : Carbon::parse($booking->Bat_Dau_Chup);
+            $minutesLate = $now->diffInMinutes($scheduledTime, false);
+            
+            // Nếu muộn quá 30 phút
+            if ($minutesLate < -30) {
+                $booking->Trang_Thai = 'Đã hủy';
+                $booking->Ly_Do_Huy = 'Tự động hủy do muộn quá 30 phút so với thời gian hẹn';
+                $booking->save();
+                
+                // Ghi log
+                DB::table('lich_su_giao_dich')->insert([
+                    'Ma_BC' => $booking->Ma_BC,
+                    'Loai_Giao_Dich' => 'Da huy',
+                    'Mo_Ta' => "Tự động hủy do muộn quá 30 phút. Thời gian hẹn: {$scheduledTime->format('d/m/Y H:i')}, Thời gian hiện tại: {$now->format('d/m/Y H:i')}",
+                    'Thoi_Gian' => $now
+                ]);
+            }
+        }
+        
+        // 2. Hoàn thành các buổi chụp đã qua thời gian kết thúc
+        $endedBookings = BuoiChup::whereIn('Trang_Thai', ['Đang diễn ra', 'Chờ xử lý ảnh'])
+            ->get();
+        
+        foreach ($endedBookings as $booking) {
+            $endTime = $booking->Ket_Thuc_Chup instanceof Carbon 
+                ? $booking->Ket_Thuc_Chup 
+                : Carbon::parse($booking->Ket_Thuc_Chup);
+            
+            // Nếu đã qua thời gian kết thúc
+            if ($now->greaterThan($endTime)) {
+                if ($booking->Trang_Thai === 'Đang diễn ra') {
+                    // Nếu đang diễn ra → chuyển sang "Chờ xử lý ảnh"
+                    $booking->Trang_Thai = 'Chờ xử lý ảnh';
+                    $booking->save();
+                } elseif ($booking->Trang_Thai === 'Chờ xử lý ảnh') {
+                    // Nếu đã xử lý ảnh → chuyển sang "Đã hoàn thành"
+                    $booking->Trang_Thai = 'Đã hoàn thành';
+                    $booking->save();
+                }
+            }
+        }
+    }
+
+    /**
+     * Danh sách buổi chụp (vẫn giữ nguyên cho frontend)
+     */
     public function index(Request $request): JsonResponse
     {
         try {
+            // Tự động cập nhật trạng thái trước khi lấy danh sách
+            $this->autoUpdateBookingStatus();
+            
             $perPage = (int) $request->get('per_page', 10);
             $sortBy = $request->get('sort_by', 'Ngay_Tao');
             $sortOrder = strtolower($request->get('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
@@ -34,125 +119,46 @@ class BuoiChupController extends Controller
 
             $query = BuoiChup::query();
 
-            // Sửa: Kiểm tra quyền nhiếp ảnh gia chính xác
+            // Giới hạn danh sách buổi chụp của nhiếp ảnh gia đang đăng nhập (nếu có)
             if ($onlyMine) {
-                // Yêu cầu auth khi only_mine=true
-                $user = auth('sanctum')->user();
-                if (!$user) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Unauthenticated. Vui lòng đăng nhập để xem buổi chụp của bạn.'
-                    ], 401);
-                }
-                
-                // Lấy Ma_NAG từ bảng nhiep_anh_gia thông qua Ma_TK
                 $maNag = $this->getPhotographerId();
                 if (!$maNag) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Bạn không phải nhiếp ảnh gia'
+                        'message' => 'Bạn không phải nhiếp ảnh gia hoặc chưa đăng nhập.'
                     ], 403);
                 }
-                
                 $query->where('Ma_NAG', $maNag);
             }
 
+            // Tìm kiếm
             if ($request->filled('search')) {
                 $search = $request->get('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('Ma_BC', 'like', "%{$search}%")
                       ->orWhere('Dia_Diem', 'like', "%{$search}%")
                       ->orWhere('Loai_Chup', 'like', "%{$search}%")
-                      // Sửa: Tìm kiếm tên khách hàng qua tai_khoan
                       ->orWhereHas('khachHang.taiKhoan', function ($tk) use ($search) {
                           $tk->where('Ho_Ten', 'like', "%{$search}%");
                       });
                 });
             }
 
-            if ($request->filled('status') && $statusParam !== 'all') {
+            // Lọc trạng thái
+            if ($statusParam !== 'all') {
                 $dbStatus = $this->mapStatusToDatabase($statusParam);
                 $query->where('Trang_Thai', $dbStatus);
             }
 
-            if ($request->filled('start_date') || $request->filled('end_date')) {
-                $start = $request->filled('start_date') ? Carbon::parse($request->get('start_date'))->startOfDay() : null;
-                $end = $request->filled('end_date') ? Carbon::parse($request->get('end_date'))->endOfDay() : null;
-
-                if ($start && $end) {
-                    $query->whereBetween('Bat_Dau_Chup', [$start, $end]);
-                } elseif ($start) {
-                    $query->where('Bat_Dau_Chup', '>=', $start);
-                } elseif ($end) {
-                    $query->where('Bat_Dau_Chup', '<=', $end);
-                }
-            }
-
-            if ($request->filled('min_price') || $request->filled('max_price')) {
-                $min = $request->filled('min_price') ? (float) $request->get('min_price') : 0;
-                $max = $request->filled('max_price') ? (float) $request->get('max_price') : null;
-
-                if (!is_null($max)) {
-                    $query->whereBetween('Tong_Tien', [$min, $max]);
-                } else {
-                    $query->where('Tong_Tien', '>=', $min);
-                }
-            }
-
-            if ($request->filled('type')) {
-                $query->where('Loai_Chup', $request->get('type'));
-            }
-
-            if ($request->filled('uploaded')) {
-                $uploaded = $request->get('uploaded');
-                if ($uploaded === 'raw') {
-                    $query->whereHas('anh', function ($q) {
-                        $q->where('Loai', 'raw');
-                    });
-                } elseif ($uploaded === 'edited') {
-                    $query->whereHas('anh', function ($q) {
-                        $q->where('Loai', 'edited');
-                    });
-                } elseif ($uploaded === 'both') {
-                    $query->whereHas('anh', function ($q) {
-                        $q->where('Loai', 'raw');
-                    })->whereHas('anh', function ($q) {
-                        $q->where('Loai', 'edited');
-                    });
-                }
-            }
-
-            $allowedSort = ['Ngay_Tao', 'Bat_Dau_Chup', 'Tong_Tien'];
-            if (!in_array($sortBy, $allowedSort)) {
-                $sortBy = 'Ngay_Tao';
-            }
-            $query->orderBy($sortBy, $sortOrder);
-
-            $query->with(['khachHang.taiKhoan', 'nhaNhiepAnh', 'anh']);
+            // Sắp xếp và phân trang
+            $query->orderBy($sortBy, $sortOrder)
+                  ->with(['khachHang.taiKhoan', 'nhaNhiepAnh', 'anh']);
 
             $paginator = $query->paginate($perPage)->appends($request->query());
 
             $items = $paginator->getCollection()->map(function ($booking) {
                 return $this->transformBookingSummary($booking);
             })->toArray();
-
-            $statusCountsRaw = BuoiChup::select('Trang_Thai', DB::raw('count(*) as count'))
-                ->groupBy('Trang_Thai')
-                ->pluck('count', 'Trang_Thai')
-                ->toArray();
-
-            $allFeStatuses = [
-                'all' => array_sum($statusCountsRaw),
-                'pending_confirmation' => $statusCountsRaw['Chờ xác nhận'] ?? 0,
-                'pending_deposit' => $statusCountsRaw['Chờ đặt cọc'] ?? 0,
-                'upcoming' => $statusCountsRaw['Sắp diễn ra'] ?? 0,
-                'ongoing' => $statusCountsRaw['Đang diễn ra'] ?? 0,
-                'pending_payment' => $statusCountsRaw['Chờ thanh toán'] ?? 0,
-                'pending_processing' => $statusCountsRaw['Chờ xử lý ảnh'] ?? 0,
-                'processed' => $statusCountsRaw['Đã xử lý ảnh'] ?? 0,
-                'completed' => $statusCountsRaw['Đã hoàn thành'] ?? 0,
-                'cancelled' => $statusCountsRaw['Đã hủy'] ?? 0,
-            ];
 
             return response()->json([
                 'success' => true,
@@ -162,11 +168,7 @@ class BuoiChupController extends Controller
                     'per_page' => $paginator->perPage(),
                     'current_page' => $paginator->currentPage(),
                     'last_page' => $paginator->lastPage(),
-                ],
-                'counts' => $allFeStatuses,
-                'filters' => [
-                    'applied' => $request->all(),
-                ],
+                ]
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -177,9 +179,15 @@ class BuoiChupController extends Controller
         }
     }
 
+    /**
+     * Xem chi tiết buổi chụp
+     */
     public function show(string $id): JsonResponse
     {
         try {
+            // Tự động cập nhật trạng thái trước khi lấy chi tiết
+            $this->autoUpdateBookingStatus();
+            
             $booking = BuoiChup::with(['khachHang.taiKhoan', 'nhaNhiepAnh', 'anh'])
                 ->where('Ma_BC', $id)
                 ->firstOrFail();
@@ -196,230 +204,12 @@ class BuoiChupController extends Controller
         }
     }
 
-    public function confirm(Request $request, string $id): JsonResponse
-    {
-        try {
-            $maNag = $this->getPhotographerId();
-            if (!$maNag) {
-                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-            }
-            
-            $booking = BuoiChup::findOrFail($id);
-            if ($booking->Ma_NAG !== $maNag) {
-                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
-            }
-
-            if ($booking->Trang_Thai !== 'Chờ xác nhận') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Buổi chụp không ở trạng thái chờ xác nhận'
-                ], 400);
-            }
-            $booking->Trang_Thai = 'Chờ đặt cọc';
-            $booking->save();
-
-            return response()->json([
-                'success' => true,
-                'data' => $this->transformBookingDetail($booking)
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi xác nhận buổi chụp',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function reject(Request $request, string $id): JsonResponse
-    {
-        try {
-            $maNag = $this->getPhotographerId();
-            if (!$maNag) {
-                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-            }
-            
-            $booking = BuoiChup::findOrFail($id);
-            if ($booking->Ma_NAG !== $maNag) {
-                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
-            }
-
-            if ($booking->Trang_Thai !== 'Chờ xác nhận') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Buổi chụp không ở trạng thái chờ xác nhận'
-                ], 400);
-            }
-            $booking->Trang_Thai = 'Đã hủy';
-            $booking->Ly_Do_Huy = $request->input('reason', 'Không có lý do cụ thể');
-            $booking->save();
-
-            return response()->json([
-                'success' => true,
-                'data' => $this->transformBookingDetail($booking)
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi từ chối buổi chụp',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function changeRequest(Request $request, string $id): JsonResponse
-    {
-        try {
-            $maNag = $this->getPhotographerId();
-            if (!$maNag) {
-                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-            }
-            
-            $booking = BuoiChup::findOrFail($id);
-            if ($booking->Ma_NAG !== $maNag) {
-                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
-            }
-
-            if (!in_array($booking->Trang_Thai, ['Chờ đặt cọc', 'Sắp diễn ra'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không thể yêu cầu thay đổi ở trạng thái này'
-                ], 400);
-            }
-
-            $request->validate([
-                'field' => 'required|in:time,location,date,other',
-                'newValue' => 'required|string',
-                'reason' => 'required|string',
-            ]);
-
-            $booking->Ly_Do_Thay_Doi = $request->input('reason');
-            $booking->Trang_Thai = 'Chờ xác nhận';
-            $booking->save();
-
-            // Tạm thời comment nếu chưa có bảng
-            // DB::table('change_requests')->insert([
-            //     'Ma_BC' => $id,
-            //     'Field' => $request->input('field'),
-            //     'New_Value' => $request->input('newValue'),
-            //     'Reason' => $request->input('reason'),
-            //     'Created_At' => now(),
-            // ]);
-
-            return response()->json([
-                'success' => true,
-                'data' => $this->transformBookingDetail($booking)
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi gửi yêu cầu thay đổi',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function cancelRequest(Request $request, string $id): JsonResponse
-    {
-        try {
-            $maNag = $this->getPhotographerId();
-            if (!$maNag) {
-                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-            }
-            
-            $booking = BuoiChup::findOrFail($id);
-            if ($booking->Ma_NAG !== $maNag) {
-                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
-            }
-
-            if (!in_array($booking->Trang_Thai, ['Chờ đặt cọc', 'Sắp diễn ra'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không thể hủy ở trạng thái này'
-                ], 400);
-            }
-
-            $request->validate([
-                'reason' => 'required|string',
-            ]);
-
-            $booking->Trang_Thai = 'Đã hủy';
-            $booking->Ly_Do_Huy = $request->input('reason');
-            $booking->save();
-
-            return response()->json([
-                'success' => true,
-                'data' => $this->transformBookingDetail($booking)
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi gửi yêu cầu hủy',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function upload(Request $request, string $id): JsonResponse
-    {
-        try {
-            $maNag = $this->getPhotographerId();
-            if (!$maNag) {
-                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-            }
-            
-            $booking = BuoiChup::findOrFail($id);
-            if ($booking->Ma_NAG !== $maNag) {
-                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
-            }
-
-            if (!in_array($booking->Trang_Thai, ['Chờ xử lý ảnh', 'Chờ thanh toán'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không thể upload ảnh ở trạng thái này'
-                ], 400);
-            }
-
-            $request->validate([
-                'type' => 'required|in:raw,edited',
-                'url' => 'required|url',
-            ]);
-
-            DB::table('anh')->insert([
-                'Ma_BC' => $id,
-                'Loai' => $request->input('type'),
-                'Duong_Dan' => $request->input('url'),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            if ($request->input('type') === 'edited') {
-                $booking->Trang_Thai = 'Đã xử lý ảnh';
-                $booking->save();
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $this->transformBookingDetail($booking)
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi upload ảnh',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
+    /**
+     * Bắt đầu buổi chụp (Start)
+     */
     public function start(Request $request, string $id): JsonResponse
     {
         try {
-            // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
-            $user = $request->user();
-            if (!$user) {
-                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-            }
-            
             $maNag = $this->getPhotographerId();
             if (!$maNag) {
                 return response()->json(['success' => false, 'message' => 'Bạn không phải nhiếp ảnh gia'], 403);
@@ -430,17 +220,112 @@ class BuoiChupController extends Controller
                 return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
             }
 
-            if ($booking->Trang_Thai !== 'Sắp diễn ra') {
+            // Chấp nhận cả "Chờ thanh toán" và "Chờ xử lý ảnh"
+            if (!in_array($booking->Trang_Thai, ['Chờ thanh toán', 'Chờ xử lý ảnh'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Buổi chụp không ở trạng thái sắp diễn ra'
+                    'message' => 'Buổi chụp phải ở trạng thái "Chờ thanh toán" hoặc "Chờ xử lý ảnh" để bắt đầu'
                 ], 400);
             }
+
+            // Kiểm tra xem buổi chụp đã từng được kết thúc chưa (không cho phép bắt đầu lại)
+            $sessionEnded = false;
+            if ($booking->Ghi_Chu) {
+                try {
+                    $ghiChuData = json_decode($booking->Ghi_Chu, true);
+                    if (is_array($ghiChuData) && isset($ghiChuData['session_ended']) && $ghiChuData['session_ended'] === true) {
+                        $sessionEnded = true;
+                    }
+                } catch (\Exception $e) {
+                    // Nếu không parse được, bỏ qua
+                }
+            }
+
+            if ($sessionEnded) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Buổi chụp đã được kết thúc. Không thể bắt đầu lại.'
+                ], 400);
+            }
+
+            // Kiểm tra thanh toán: phải có đặt cọc HOẶC thanh toán đầy đủ
+            // Nếu trạng thái là "Chờ thanh toán" thì coi như đã đặt cọc
+            // Nếu trạng thái là "Chờ xử lý ảnh" thì coi như đã thanh toán đầy đủ
+            $hasDeposit = ($booking->Trang_Thai === 'Chờ thanh toán');
+            $hasFullPayment = ($booking->Trang_Thai === 'Chờ xử lý ảnh');
+            
+            // Nếu chưa xác định được từ trạng thái, kiểm tra từ bảng thanh_toan
+            if (!$hasDeposit && !$hasFullPayment) {
+                $payments = ThanhToan::where('Ma_BC', $booking->Ma_BC)
+                    ->where('Trang_Thai', 'Thành công')
+                    ->get();
+                
+                foreach ($payments as $payment) {
+                    $ghiChu = json_decode($payment->Ghi_Chu, true);
+                    if (isset($ghiChu['type'])) {
+                        if ($ghiChu['type'] === 'deposit') {
+                            $hasDeposit = true;
+                        } elseif ($ghiChu['type'] === 'final') {
+                            $hasFullPayment = true;
+                        }
+                    }
+                }
+            }
+
+            if (!$hasDeposit && !$hasFullPayment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Buổi chụp chưa được thanh toán hoặc đặt cọc. Vui lòng đợi khách hàng thanh toán trước khi bắt đầu.'
+                ], 400);
+            }
+
+            // Kiểm tra thời gian: cho phép bắt đầu trong khoảng từ 30 phút trước đến 30 phút sau giờ hẹn
+            $scheduledTime = $booking->Bat_Dau_Chup instanceof Carbon 
+                ? $booking->Bat_Dau_Chup 
+                : Carbon::parse($booking->Bat_Dau_Chup);
+            $now = Carbon::now();
+            $minutesUntilStart = $now->diffInMinutes($scheduledTime, false);
+
+            // Cho phép nếu: -30 <= minutesUntilStart <= 30
+            // Nghĩa là: từ 30 phút trước giờ hẹn đến 30 phút sau giờ hẹn
+            if ($minutesUntilStart > 30) {
+            return response()->json([
+                'success' => false,
+                    'message' => 'Chỉ có thể bắt đầu buổi chụp trong khoảng từ 30 phút trước đến 30 phút sau thời gian hẹn. Còn ' . $minutesUntilStart . ' phút nữa mới đến giờ hẹn.'
+                ], 400);
+            }
+            
+            if ($minutesUntilStart < -30) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Buổi chụp đã muộn quá 30 phút. Buổi chụp sẽ tự động bị hủy.'
+                ], 400);
+            }
+
+            // Lưu trạng thái cũ vào Ghi_Chu dưới dạng JSON (nếu chưa có)
+            $oldStatus = $booking->Trang_Thai;
             $booking->Trang_Thai = 'Đang diễn ra';
+            
+            // Lưu trạng thái cũ vào Ghi_Chu để quay lại sau
+            $ghiChuData = [];
+            if ($booking->Ghi_Chu) {
+                try {
+                    $ghiChuData = json_decode($booking->Ghi_Chu, true);
+                    if (!is_array($ghiChuData)) {
+                        $ghiChuData = ['original_note' => $booking->Ghi_Chu];
+                    }
+                } catch (\Exception $e) {
+                    $ghiChuData = ['original_note' => $booking->Ghi_Chu];
+                }
+            }
+            $ghiChuData['previous_status'] = $oldStatus;
+            $booking->Ghi_Chu = json_encode($ghiChuData, JSON_UNESCAPED_UNICODE);
+            
             $booking->save();
 
             return response()->json([
                 'success' => true,
+                'message' => 'Buổi chụp đã bắt đầu',
                 'data' => $this->transformBookingDetail($booking)
             ]);
         } catch (\Throwable $e) {
@@ -452,15 +337,12 @@ class BuoiChupController extends Controller
         }
     }
 
+    /**
+     * Kết thúc buổi chụp (End)
+     */
     public function end(Request $request, string $id): JsonResponse
     {
         try {
-            // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
-            $user = $request->user();
-            if (!$user) {
-                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-            }
-            
             $maNag = $this->getPhotographerId();
             if (!$maNag) {
                 return response()->json(['success' => false, 'message' => 'Bạn không phải nhiếp ảnh gia'], 403);
@@ -477,11 +359,88 @@ class BuoiChupController extends Controller
                     'message' => 'Buổi chụp không ở trạng thái đang diễn ra'
                 ], 400);
             }
-            $booking->Trang_Thai = 'Chờ xử lý ảnh';
+
+            // Lấy trạng thái cũ từ Ghi_Chu
+            $previousStatus = null;
+            if ($booking->Ghi_Chu) {
+                try {
+                    $ghiChuData = json_decode($booking->Ghi_Chu, true);
+                    if (is_array($ghiChuData) && isset($ghiChuData['previous_status'])) {
+                        $previousStatus = $ghiChuData['previous_status'];
+                    }
+                } catch (\Exception $e) {
+                    // Nếu không parse được JSON, bỏ qua
+                }
+            }
+
+            // Nếu không tìm thấy trạng thái cũ trong Ghi_Chu, xác định dựa trên thanh toán
+            if (!$previousStatus) {
+                // Kiểm tra từ bảng thanh_toan
+                $payments = ThanhToan::where('Ma_BC', $booking->Ma_BC)
+                    ->where('Trang_Thai', 'Thành công')
+                    ->get();
+                
+                $hasDeposit = false;
+                $hasFullPayment = false;
+                
+                foreach ($payments as $payment) {
+                    $ghiChu = json_decode($payment->Ghi_Chu, true);
+                    if (isset($ghiChu['type'])) {
+                        if ($ghiChu['type'] === 'deposit') {
+                            $hasDeposit = true;
+                        } elseif ($ghiChu['type'] === 'final') {
+                            $hasFullPayment = true;
+                        }
+                    }
+                }
+
+                // Xác định trạng thái cũ dựa trên thanh toán
+                // Nếu đã thanh toán đầy đủ → "Chờ xử lý ảnh"
+                // Nếu chỉ đặt cọc hoặc có đặt cọc → "Chờ thanh toán"
+                // Nếu không có gì → mặc định "Chờ thanh toán" (fallback)
+                if ($hasFullPayment) {
+                    $previousStatus = 'Chờ xử lý ảnh';
+                } elseif ($hasDeposit) {
+                    $previousStatus = 'Chờ thanh toán';
+                } else {
+                    // Fallback: mặc định là "Chờ thanh toán" nếu không xác định được
+                    $previousStatus = 'Chờ thanh toán';
+                }
+            }
+
+            // Quay lại trạng thái cũ
+            $booking->Trang_Thai = $previousStatus;
+            
+            // Khôi phục Ghi_Chu gốc (loại bỏ previous_status) và đánh dấu đã kết thúc session
+            $ghiChuData = [];
+            if ($booking->Ghi_Chu) {
+                try {
+                    $ghiChuData = json_decode($booking->Ghi_Chu, true);
+                    if (!is_array($ghiChuData)) {
+                        $ghiChuData = ['original_note' => $booking->Ghi_Chu];
+                    }
+                } catch (\Exception $e) {
+                    $ghiChuData = ['original_note' => $booking->Ghi_Chu];
+                }
+            }
+            
+            // Loại bỏ previous_status và đánh dấu đã kết thúc session
+            unset($ghiChuData['previous_status']);
+            $ghiChuData['session_ended'] = true;
+            
+            // Nếu có original_note, giữ lại nó
+            if (isset($ghiChuData['original_note'])) {
+                $originalNote = $ghiChuData['original_note'];
+                $ghiChuData = ['original_note' => $originalNote, 'session_ended' => true];
+            }
+            
+            $booking->Ghi_Chu = json_encode($ghiChuData, JSON_UNESCAPED_UNICODE);
+            
             $booking->save();
 
             return response()->json([
                 'success' => true,
+                'message' => 'Buổi chụp đã kết thúc',
                 'data' => $this->transformBookingDetail($booking)
             ]);
         } catch (\Throwable $e) {
@@ -493,26 +452,65 @@ class BuoiChupController extends Controller
         }
     }
 
+    /**
+     * Hoàn thành xử lý ảnh - Chuyển từ "Chờ xử lý ảnh" sang "Đã xử lý ảnh"
+     */
+    public function completeProcessing(Request $request, string $id): JsonResponse
+    {
+        try {
+            $maNag = $this->getPhotographerId();
+            if (!$maNag) {
+                return response()->json(['success' => false, 'message' => 'Bạn không phải nhiếp ảnh gia'], 403);
+            }
+            
+            $booking = BuoiChup::findOrFail($id);
+            if ($booking->Ma_NAG !== $maNag) {
+                return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
+            }
+
+            if ($booking->Trang_Thai !== 'Chờ xử lý ảnh') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Buổi chụp không ở trạng thái chờ xử lý ảnh'
+                ], 400);
+            }
+
+            $booking->Trang_Thai = 'Đã xử lý ảnh';
+            $booking->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã hoàn thành xử lý ảnh',
+                'data' => $this->transformBookingDetail($booking)
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi hoàn thành xử lý ảnh',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ==========================================================
+    // Các hàm tiện ích giữ nguyên
+    // ==========================================================
+
     private function transformBookingSummary($booking): array
     {
         $start = $booking->Bat_Dau_Chup instanceof Carbon ? $booking->Bat_Dau_Chup : Carbon::parse($booking->Bat_Dau_Chup);
+        $taiKhoan = optional(optional($booking->khachHang)->taiKhoan);
 
         return [
             'id' => $booking->Ma_BC,
             'status' => $this->mapStatusToFe($booking->Trang_Thai),
             'title' => trim(($booking->Loai_Chup ?: '') . ' - ' . ($booking->Dia_Diem ?: '')),
             'customer' => [
-                'name' => $booking->khachHang->taiKhoan->Ho_Ten ?? 'Khách hàng',
-                'avatar' => $booking->khachHang->taiKhoan->Avatar ?? null,
+                'name' => $taiKhoan->Ho_Ten ?? 'Khách hàng',
             ],
-            'type' => $booking->Loai_Chup,
-            'location' => $booking->Dia_Diem,
             'date' => $start->toDateString(),
             'time' => $start->format('H:i'),
             'price' => (float) $booking->Tong_Tien,
-            'duration' => $this->calculateDuration($booking->Bat_Dau_Chup, $booking->Ket_Thuc_Chup),
-            'uploadedRaw' => $booking->anh->where('Loai', 'raw')->isNotEmpty(),
-            'uploadedEdited' => $booking->anh->where('Loai', 'edited')->isNotEmpty(),
         ];
     }
 
@@ -520,70 +518,95 @@ class BuoiChupController extends Controller
     {
         $start = $booking->Bat_Dau_Chup instanceof Carbon ? $booking->Bat_Dau_Chup : Carbon::parse($booking->Bat_Dau_Chup);
 
+        // Safely access nested relationships
+        $taiKhoan = optional(optional($booking->khachHang)->taiKhoan);
+
+        // Kiểm tra thanh toán
+        $payments = ThanhToan::where('Ma_BC', $booking->Ma_BC)
+            ->where('Trang_Thai', 'Thành công')
+            ->get();
+        
+        $hasDeposit = false;
+        $hasFullPayment = false;
+        $totalPaid = 0;
+        
+        foreach ($payments as $payment) {
+            $totalPaid += (float) $payment->So_Tien;
+            $ghiChu = json_decode($payment->Ghi_Chu, true);
+            if (isset($ghiChu['type'])) {
+                if ($ghiChu['type'] === 'deposit') {
+                    $hasDeposit = true;
+                } elseif ($ghiChu['type'] === 'final') {
+                    $hasFullPayment = true;
+                }
+            }
+        }
+        
+        // Nếu trạng thái là "Chờ thanh toán" thì coi như đã đặt cọc
+        if ($booking->Trang_Thai === 'Chờ thanh toán') {
+            $hasDeposit = true;
+        }
+        
+        // Nếu trạng thái là "Chờ xử lý ảnh" thì coi như đã thanh toán đầy đủ
+        if ($booking->Trang_Thai === 'Chờ xử lý ảnh') {
+            $hasFullPayment = true;
+        }
+
+        // Kiểm tra xem buổi chụp đã từng được kết thúc chưa
+        $sessionEnded = false;
+        if ($booking->Ghi_Chu) {
+            try {
+                $ghiChuData = json_decode($booking->Ghi_Chu, true);
+                if (is_array($ghiChuData) && isset($ghiChuData['session_ended']) && $ghiChuData['session_ended'] === true) {
+                    $sessionEnded = true;
+                }
+            } catch (\Exception $e) {
+                // Nếu không parse được, bỏ qua
+            }
+        }
+
+        $end = $booking->Ket_Thuc_Chup instanceof Carbon ? $booking->Ket_Thuc_Chup : Carbon::parse($booking->Ket_Thuc_Chup);
+
         return [
             'id' => $booking->Ma_BC,
             'status' => $this->mapStatusToFe($booking->Trang_Thai),
             'title' => $booking->Loai_Chup,
             'customer' => [
-                'name' => $booking->khachHang->taiKhoan->Ho_Ten ?? 'Khách hàng',
-                'avatar' => $booking->khachHang->taiKhoan->Avatar ?? null,
-                'email' => $booking->khachHang->taiKhoan->Email ?? null,
-                'phone' => $booking->khachHang->taiKhoan->So_Dien_Thoai ?? null,
+                'name' => $taiKhoan->Ho_Ten ?? 'Khách hàng',
+                'avatar' => null, // Avatar field doesn't exist in tai_khoan table
+                'email' => $taiKhoan->Email_TK ?? null,
+                'phone' => $taiKhoan->So_ĐT ?? null,
             ],
             'type' => $booking->Loai_Chup,
             'location' => $booking->Dia_Diem,
             'date' => $start->toDateString(),
             'time' => $start->format('H:i'),
+            'endTime' => $end->format('H:i'),
+            'endDate' => $end->toDateString(),
+            'endDateTime' => $end->toDateTimeString(),
             'price' => (float) $booking->Tong_Tien,
-            'description' => $booking->Ghi_Chu,
+            'description' => $this->extractOriginalNote($booking->Ghi_Chu),
             'duration' => $this->calculateDuration($booking->Bat_Dau_Chup, $booking->Ket_Thuc_Chup),
             'guestCount' => '1', // Sửa: Chưa có cột
-            'specialRequests' => $booking->Ghi_Chu ?? '', // Sửa: Chưa có cột
-            'uploadedRaw' => $booking->anh->where('Loai', 'raw')->isNotEmpty(),
-            'uploadedEdited' => $booking->anh->where('Loai', 'edited')->isNotEmpty(),
-            'images' => $booking->anh->map(function ($image) {
+            'specialRequests' => $this->extractOriginalNote($booking->Ghi_Chu) ?? '',
+            'uploadedRaw' => $booking->anh && $booking->anh->where('Loai', 'raw')->isNotEmpty(),
+            'uploadedEdited' => $booking->anh && $booking->anh->where('Loai', 'edited')->isNotEmpty(),
+            'images' => $booking->anh ? $booking->anh->map(function ($image) {
                 return [
                     'type' => $image->Loai,
                     'url' => $image->Duong_Dan
                 ];
-            })->toArray(),
+            })->toArray() : [],
             'createdAt' => ($booking->Ngay_Tao instanceof Carbon) ? $booking->Ngay_Tao->toDateTimeString() : Carbon::parse($booking->Ngay_Tao)->toDateTimeString(),
             'depositRate' => (float) $booking->Ti_Le_Coc,
             'cancelReason' => $booking->Ly_Do_Huy,
             'changeReason' => $booking->Ly_Do_Thay_Doi,
+            'hasDeposit' => $hasDeposit,
+            'hasFullPayment' => $hasFullPayment,
+            'totalPaid' => $totalPaid,
+            'scheduledDateTime' => $start->toDateTimeString(), // Thêm thời gian hẹn để frontend kiểm tra
+            'sessionEnded' => $sessionEnded, // Đánh dấu buổi chụp đã từng được kết thúc
         ];
-    }
-
-    private function mapStatusToDatabase(string $feStatus): string
-    {
-        $statusMap = [
-            'pending_confirmation' => 'Chờ xác nhận',
-            'pending_deposit' => 'Chờ đặt cọc',
-            'upcoming' => 'Sắp diễn ra',
-            'ongoing' => 'Đang diễn ra',
-            'pending_payment' => 'Chờ thanh toán',
-            'pending_processing' => 'Chờ xử lý ảnh',
-            'processed' => 'Đã xử lý ảnh',
-            'completed' => 'Đã hoàn thành',
-            'cancelled' => 'Đã hủy',
-        ];
-        return $statusMap[$feStatus] ?? $feStatus;
-    }
-
-    private function mapStatusToFe(string $dbStatus): string
-    {
-        $statusMap = [
-            'Chờ xác nhận' => 'pending_confirmation',
-            'Chờ đặt cọc' => 'pending_deposit',
-            'Sắp diễn ra' => 'upcoming',
-            'Đang diễn ra' => 'ongoing',
-            'Chờ thanh toán' => 'pending_payment',
-            'Chờ xử lý ảnh' => 'pending_processing',
-            'Đã xử lý ảnh' => 'processed',
-            'Đã hoàn thành' => 'completed',
-            'Đã hủy' => 'cancelled',
-        ];
-        return $statusMap[$dbStatus] ?? 'pending_confirmation';
     }
 
     private function calculateDuration($start, $end): string
@@ -607,4 +630,58 @@ class BuoiChupController extends Controller
             return '';
         }
     }
+
+    /**
+     * Trích xuất ghi chú gốc từ Ghi_Chu (có thể là JSON chứa previous_status)
+     */
+    private function extractOriginalNote($ghiChu): ?string
+    {
+        if (!$ghiChu) return null;
+        
+        try {
+            $data = json_decode($ghiChu, true);
+            if (is_array($data)) {
+                if (isset($data['original_note'])) {
+                    return $data['original_note'];
+                }
+                // Nếu không có original_note, trả về null (vì đây là JSON metadata)
+                return null;
+            }
+        } catch (\Exception $e) {
+            // Nếu không phải JSON, trả về ghi chú gốc
+        }
+        
+        return $ghiChu;
+    }
+
+    private function mapStatusToDatabase(string $feStatus): string
+    {
+        return [
+            'pending_confirmation' => 'Chờ xác nhận',
+            'pending_deposit' => 'Chờ đặt cọc',
+            'pending_payment' => 'Chờ thanh toán',
+            'upcoming' => 'Sắp diễn ra',
+            'ongoing' => 'Đang diễn ra',
+            'pending_processing' => 'Chờ xử lý ảnh',
+            'processed' => 'Đã xử lý ảnh',
+            'completed' => 'Đã hoàn thành',
+            'cancelled' => 'Đã hủy',
+        ][$feStatus] ?? $feStatus;
+    }
+
+    private function mapStatusToFe(string $dbStatus): string
+    {
+        return [
+            'Chờ xác nhận' => 'pending_confirmation',
+            'Chờ đặt cọc' => 'pending_deposit',
+            'Chờ thanh toán' => 'pending_payment',
+            'Sắp diễn ra' => 'upcoming',
+            'Đang diễn ra' => 'ongoing',
+            'Chờ xử lý ảnh' => 'pending_processing',
+            'Đã xử lý ảnh' => 'processed',
+            'Đã hoàn thành' => 'completed',
+            'Đã hủy' => 'cancelled',
+        ][$dbStatus] ?? 'pending_confirmation';
+    }
 }
+

@@ -20,13 +20,14 @@ use App\Http\Controllers\PhotographerController;
 use App\Http\Controllers\CustomerController;
 
 
-    //Đặt cọc
-    Route::post('/buoi-chup/{ma_bc}/dat-coc', [BookingDepositController::class, 'store']);
+    
     //route callback vnpay
     Route::get('/payment/vnpay/return', [VNPayCallbackController::class, 'handle']);
 
     // === Routes thanh toán - cần authentication ===
     Route::middleware('auth:sanctum')->group(function () {
+        //Đặt cọc
+        Route::post('/buoi-chup/{ma_bc}/dat-coc', [BookingDepositController::class, 'store']);
         // Xem báo giá phần còn lại trước khi thanh toán
         Route::get('/buoi-chup/{ma_bc}/thanh-toan/quote', [BookingFinalPaymentController::class, 'quote']);
         // Xác nhận thanh toán phần còn lại
@@ -45,23 +46,28 @@ use App\Http\Controllers\CustomerController;
         //nag confirm/reject buoi chup (chỉ nhiếp ảnh gia)
         Route::post('/booking/{ma_bc}/confirm', [BookingConfirmationController::class, 'confirm']);
         Route::post('/booking/{ma_bc}/reject', [BookingConfirmationController::class, 'reject']);
-        //KH huỷ (chỉ khách hàng)
+        //Hủy buổi chụp (cả khách hàng và nhiếp ảnh gia, tùy trạng thái)
         Route::post('/booking/{ma_bc}/cancel', [BookingCancelController::class, 'cancel']);
-        //thay đoi yêu cầu (chỉ khách hàng)
+        //Yêu cầu thay đổi (cả khách hàng và nhiếp ảnh gia)
         Route::post('/booking/{ma_bc}/change', [BookingChangeController::class, 'requestChange']);
-        //chấp nhận, từ chối yêu cầu (chỉ nhiếp ảnh gia)
+        //Lấy danh sách yêu cầu thay đổi chờ duyệt (cả khách hàng và nhiếp ảnh gia)
+        Route::get('/booking/change-requests/pending', [BookingChangeController::class, 'getPendingRequests']);
+        //Duyệt/từ chối yêu cầu thay đổi (cả khách hàng và nhiếp ảnh gia, tùy người gửi)
         Route::put('/booking/change/{id}/approve', [BookingChangeApprovalController::class, 'approve']);
         Route::put('/booking/change/{id}/reject', [BookingChangeApprovalController::class, 'reject']);
     });
     
-    //Get cac doan chat
-    Route::get('/chat/{Ma_BC}', [ChatController::class, 'index']);
-    //Post chat
-    Route::post('/chat', [ChatController::class, 'store']);
-    //Get unread
-    Route::get('/chat/unread', [ChatController::class, 'unread']); 
-    //post mark read
-    Route::post('/chat/mark-read', [ChatController::class, 'markAsRead']); 
+    // Chat routes - cần authentication
+    Route::middleware('auth:sanctum')->group(function () {
+        //Get cac doan chat
+        Route::get('/chat/{Ma_BC}', [ChatController::class, 'index']);
+        //Post chat
+        Route::post('/chat', [ChatController::class, 'store']);
+        //Get unread
+        Route::get('/chat/unread', [ChatController::class, 'unread']); 
+        //post mark read
+        Route::post('/chat/mark-read', [ChatController::class, 'markAsRead']);
+    }); 
 
 
     //Auth
@@ -101,6 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::post('/buoi-chup/{id}/upload', [BuoiChupController::class, 'upload']);
     Route::post('/buoi-chup/{id}/start', [BuoiChupController::class, 'start']);
     Route::post('/buoi-chup/{id}/end', [BuoiChupController::class, 'end']);
+    Route::post('/buoi-chup/{id}/complete-processing', [BuoiChupController::class, 'completeProcessing']);
 });
 
     // === Khách hàng ===

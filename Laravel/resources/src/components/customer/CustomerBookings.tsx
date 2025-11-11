@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
-import { Card, CardContent } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +36,7 @@ import apiClient from "../services/apiClient";
 import { depositBooking, getFinalQuote, payFinal } from "../services/PaymentAPI";
 import { cancelBooking, requestChange } from "../services/BookingAPI";
 import { downloadPhoto } from "../services/PhotoAPI";
+import { ChangeRequestList } from "../shared/ChangeRequestList";
 import {
   Dialog,
   DialogContent,
@@ -89,8 +90,8 @@ interface Booking {
 
 interface ChangeRequest {
   field: "time" | "location" | "date" | "other";
-  currentValue: string;
-  newValue: string;
+  newStartTime: string;
+  newEndTime: string;
   reason: string;
 }
 
@@ -129,10 +130,86 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
   const [showFinalPaymentDialog, setShowFinalPaymentDialog] = useState(false);
   const [changeRequest, setChangeRequest] = useState<ChangeRequest>({
     field: "time",
-    currentValue: "",
-    newValue: "",
+    newStartTime: "",
+    newEndTime: "",
     reason: "",
   });
+  const [changeValidationError, setChangeValidationError] = useState<string>("");
+
+  // Hàm validate khoảng thời gian
+  const validateTimeRange = (startTime: string, endTime: string) => {
+    if (!startTime && !endTime) {
+      setChangeValidationError("");
+      return;
+    }
+
+    // Validate định dạng thời gian bắt đầu
+    if (startTime) {
+      const dateTimeRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+      if (!dateTimeRegex.test(startTime)) {
+        setChangeValidationError("Định dạng thời gian bắt đầu không hợp lệ. Vui lòng nhập đúng định dạng: YYYY-MM-DD HH:mm");
+        return;
+      }
+
+      const [datePart, timePart] = startTime.split(' ');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes] = timePart.split(':').map(Number);
+
+      if (month < 1 || month > 12 || day < 1 || day > 31 || 
+          hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        setChangeValidationError("Giá trị thời gian bắt đầu không hợp lệ. Tháng: 1-12, Ngày: 1-31, Giờ: 0-23, Phút: 0-59");
+        return;
+      }
+
+      const testDate = new Date(year, month - 1, day, hours, minutes);
+      if (testDate.getFullYear() !== year || 
+          testDate.getMonth() !== month - 1 || 
+          testDate.getDate() !== day) {
+        setChangeValidationError("Ngày bắt đầu không hợp lệ (ví dụ: tháng 2 chỉ có 28/29 ngày)");
+        return;
+      }
+    }
+
+    // Validate định dạng thời gian kết thúc
+    if (endTime) {
+      const dateTimeRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+      if (!dateTimeRegex.test(endTime)) {
+        setChangeValidationError("Định dạng thời gian kết thúc không hợp lệ. Vui lòng nhập đúng định dạng: YYYY-MM-DD HH:mm");
+        return;
+      }
+
+      const [datePart, timePart] = endTime.split(' ');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes] = timePart.split(':').map(Number);
+
+      if (month < 1 || month > 12 || day < 1 || day > 31 || 
+          hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        setChangeValidationError("Giá trị thời gian kết thúc không hợp lệ. Tháng: 1-12, Ngày: 1-31, Giờ: 0-23, Phút: 0-59");
+        return;
+      }
+
+      const testDate = new Date(year, month - 1, day, hours, minutes);
+      if (testDate.getFullYear() !== year || 
+          testDate.getMonth() !== month - 1 || 
+          testDate.getDate() !== day) {
+        setChangeValidationError("Ngày kết thúc không hợp lệ (ví dụ: tháng 2 chỉ có 28/29 ngày)");
+        return;
+      }
+    }
+
+    // Kiểm tra thời gian kết thúc phải sau thời gian bắt đầu
+    if (startTime && endTime) {
+      const startDate = new Date(startTime.replace(' ', 'T'));
+      const endDate = new Date(endTime.replace(' ', 'T'));
+      
+      if (endDate <= startDate) {
+        setChangeValidationError("Thời gian kết thúc phải sau thời gian bắt đầu");
+        return;
+      }
+    }
+
+    setChangeValidationError("");
+  };
   const [cancelReason, setCancelReason] = useState("");
   const [depositMethod, setDepositMethod] = useState<"card" | "bank">("card");
   const [finalPaymentMethod, setFinalPaymentMethod] = useState<"card" | "bank">("bank");
@@ -257,6 +334,17 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
           <Button variant="ghost" size="sm" onClick={() => setSelectedBooking(null)}>
             <ArrowLeft className="w-4 h-4 mr-2" />Quay lại
           </Button>
+
+          {/* Yêu cầu thay đổi chờ duyệt */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-500" />
+                Yêu cầu thay đổi chờ duyệt
+              </h3>
+              <ChangeRequestList onRefresh={fetchBookings} />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardContent className="p-6 space-y-6">
@@ -404,24 +492,40 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                     </Button>
                   </div>
                 )}
-                {!["completed", "cancelled"].includes(selectedBooking.status) && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowChangeDialog(true)}
-                    >
-                      <AlertCircle className="w-4 h-4 mr-2" />
-                      Yêu cầu thay đổi
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => setShowCancelDialog(true)}
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Hủy buổi chụp
-                    </Button>
-                  </div>
-                )}
+                {(() => {
+                  // Các trạng thái không cho phép thay đổi
+                  const cannotChangeStatuses = [
+                    "ongoing",
+                    "pending_processing",
+                    "photos_ready",
+                    "completed",
+                    "cancelled"
+                  ];
+                  
+                  // Kiểm tra trạng thái và sessionEnded flag
+                  // Nếu buổi chụp đã từng được bắt đầu (sessionEnded = true), không cho phép thay đổi
+                  const canChange = !cannotChangeStatuses.includes(selectedBooking.status) 
+                    && !(selectedBooking as any).sessionEnded;
+                  
+                  return canChange && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowChangeDialog(true)}
+                      >
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Yêu cầu thay đổi
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => setShowCancelDialog(true)}
+                      >
+                        <XCircle className="w-4 h-4 mr-2" />
+                        Hủy buổi chụp
+                      </Button>
+                    </div>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -585,26 +689,91 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                 <select
                   className="w-full p-2 border rounded"
                   value={changeRequest.field}
-                  onChange={(e) =>
-                    setChangeRequest({ ...changeRequest, field: e.target.value as any })
-                  }
+                  onChange={(e) => {
+                    setChangeRequest({ ...changeRequest, field: e.target.value as any, newStartTime: "", newEndTime: "" });
+                    setChangeValidationError("");
+                  }}
                 >
-                  <option value="time">Thời gian</option>
+                  <option value="time">Thời gian bắt đầu</option>
                   <option value="location">Địa điểm</option>
-                  <option value="date">Ngày</option>
-                  <option value="other">Khác</option>
                 </select>
               </div>
+              
+              {/* Hiển thị giá trị cũ */}
               <div>
-                <Label>Giá trị mới</Label>
-                <Input
-                  value={changeRequest.newValue}
-                  onChange={(e) =>
-                    setChangeRequest({ ...changeRequest, newValue: e.target.value })
-                  }
-                  placeholder="Nhập giá trị mới..."
-                />
+                <Label>Khoảng thời gian hiện tại</Label>
+                <div className="p-3 bg-muted rounded-md text-sm space-y-1">
+                  {(() => {
+                    if (!selectedBooking) return "N/A";
+                    if (changeRequest.field === "time") {
+                      return (
+                        <>
+                          <div><strong>Bắt đầu:</strong> {selectedBooking.date} {selectedBooking.time}</div>
+                          <div><strong>Kết thúc:</strong> {(selectedBooking as any).endDate || selectedBooking.date} {(selectedBooking as any).endTime || "N/A"}</div>
+                          {selectedBooking.duration && (
+                            <div className="text-xs text-muted-foreground mt-1">Thời lượng: {selectedBooking.duration}</div>
+                          )}
+                        </>
+                      );
+                    } else if (changeRequest.field === "location") {
+                      return selectedBooking.location || "Chưa có";
+                    }
+                    return "N/A";
+                  })()}
+                </div>
               </div>
+
+              {changeRequest.field === "time" ? (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Thời gian bắt đầu mới <span className="text-xs text-muted-foreground">(Định dạng: YYYY-MM-DD HH:mm, ví dụ: 2025-11-22 14:30)</span></Label>
+                    <Input
+                      type="text"
+                      value={changeRequest.newStartTime}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setChangeRequest({ ...changeRequest, newStartTime: value });
+                        validateTimeRange(value, changeRequest.newEndTime);
+                      }}
+                      placeholder="Nhập theo định dạng: 2025-11-22 14:30"
+                      pattern="\d{4}-\d{2}-\d{2} \d{2}:\d{2}"
+                    />
+                  </div>
+                  <div>
+                    <Label>Thời gian kết thúc mới <span className="text-xs text-muted-foreground">(Định dạng: YYYY-MM-DD HH:mm, ví dụ: 2025-11-22 17:30)</span></Label>
+                    <Input
+                      type="text"
+                      value={changeRequest.newEndTime}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setChangeRequest({ ...changeRequest, newEndTime: value });
+                        validateTimeRange(changeRequest.newStartTime, value);
+                      }}
+                      placeholder="Nhập theo định dạng: 2025-11-22 17:30"
+                      pattern="\d{4}-\d{2}-\d{2} \d{2}:\d{2}"
+                    />
+                  </div>
+                  {changeValidationError && (
+                    <p className="text-sm text-red-600 mt-1">{changeValidationError}</p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Label>Giá trị mới</Label>
+                  <Input
+                    value={changeRequest.newStartTime}
+                    onChange={(e) => {
+                      setChangeRequest({ ...changeRequest, newStartTime: e.target.value });
+                      setChangeValidationError("");
+                    }}
+                    placeholder="Nhập địa điểm mới..."
+                    maxLength={255}
+                  />
+                  {changeValidationError && (
+                    <p className="text-sm text-red-600 mt-1">{changeValidationError}</p>
+                  )}
+                </div>
+              )}
               <div>
                 <Label>Lý do thay đổi</Label>
                 <Textarea
@@ -618,22 +787,47 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowChangeDialog(false)}>
+              <Button variant="outline" onClick={() => {
+                setShowChangeDialog(false);
+                setChangeRequest({ field: "time", newStartTime: "", newEndTime: "", reason: "" });
+                setChangeValidationError("");
+              }}>
                 Hủy
               </Button>
               <Button
-                disabled={!changeRequest.newValue.trim() || !changeRequest.reason.trim() || isPaying}
+                disabled={
+                  (changeRequest.field === "time" 
+                    ? (!changeRequest.newStartTime.trim() || !changeRequest.newEndTime.trim())
+                    : !changeRequest.newStartTime.trim()) 
+                  || !changeRequest.reason.trim() 
+                  || isPaying 
+                  || !!changeValidationError
+                }
                 onClick={async () => {
-                  if (!selectedBooking || !changeRequest.newValue.trim() || !changeRequest.reason.trim()) return;
+                  if (!selectedBooking || !changeRequest.reason.trim()) return;
+                  
+                  // Validate lại trước khi gửi
+                  if (changeRequest.field === "time") {
+                    if (!changeRequest.newStartTime.trim() || !changeRequest.newEndTime.trim()) {
+                      setChangeValidationError("Vui lòng nhập đầy đủ thời gian bắt đầu và kết thúc");
+                      return;
+                    }
+                    
+                    validateTimeRange(changeRequest.newStartTime, changeRequest.newEndTime);
+                    if (changeValidationError) {
+                      return;
+                    }
+                  }
+                  
                   setIsPaying(true);
                   try {
                     const thayDoi: Record<string, any> = {};
                     if (changeRequest.field === "time") {
-                      thayDoi["Bat_Dau_Chup"] = changeRequest.newValue;
+                      // Giá trị đã đúng định dạng YYYY-MM-DD HH:mm, chỉ cần thêm :00 cho giây
+                      thayDoi["Bat_Dau_Chup"] = changeRequest.newStartTime + ":00";
+                      thayDoi["Ket_Thuc_Chup"] = changeRequest.newEndTime + ":00";
                     } else if (changeRequest.field === "location") {
-                      thayDoi["Dia_Diem"] = changeRequest.newValue;
-                    } else if (changeRequest.field === "date") {
-                      thayDoi["Bat_Dau_Chup"] = changeRequest.newValue;
+                      thayDoi["Dia_Diem"] = changeRequest.newStartTime.trim();
                     }
                     const response = await requestChange(selectedBooking.id, {
                       thay_doi: thayDoi,
@@ -645,11 +839,24 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                       duration: 5000,
                     });
                     setShowChangeDialog(false);
-                    setChangeRequest({ field: "time", currentValue: "", newValue: "", reason: "" });
+                    setChangeRequest({ field: "time", newStartTime: "", newEndTime: "", reason: "" });
+                    setChangeValidationError("");
                     fetchBookings();
                   } catch (error: any) {
-                    const errorMessage = error.response?.data?.message || "Lỗi khi gửi yêu cầu thay đổi";
                     console.error("❌ Change request error:", error);
+                    console.error("❌ Error response:", error.response?.data);
+                    
+                    // Hiển thị lỗi chi tiết từ backend
+                    let errorMessage = "Lỗi khi gửi yêu cầu thay đổi";
+                    if (error.response?.data?.errors) {
+                        // Nếu có nhiều lỗi validation, hiển thị tất cả
+                        const errors = error.response.data.errors;
+                        const errorList = Object.values(errors).join(", ");
+                        errorMessage = `Lỗi validation: ${errorList}`;
+                    } else if (error.response?.data?.message) {
+                        errorMessage = error.response.data.message;
+                    }
+                    
                     toast.error(errorMessage, {
                       duration: 5000,
                     });
