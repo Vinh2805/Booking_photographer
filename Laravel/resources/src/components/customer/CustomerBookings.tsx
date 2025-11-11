@@ -651,6 +651,7 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                   checked={agreePolicy}
                   onChange={(e) => setAgreePolicy(e.target.checked)}
                   className="w-4 h-4"
+                  placeholder="term"
                 />
                 <Label htmlFor="agree" className="text-sm">
                   Tôi đồng ý với điều khoản đặt cọc và chính sách hoàn tiền
@@ -788,7 +789,10 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                       type="button"
                       onClick={() => setReviewData({ ...reviewData, rating: star })}
                       className="focus:outline-none"
+                      aria-label={`Chọn ${star} sao`}
+                      title={`Chọn ${star} sao`}
                     >
+                      <span className="sr-only">Chọn {star} sao</span>
                       <Star
                         className={`w-8 h-8 ${
                           star <= reviewData.rating
@@ -854,8 +858,10 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Loại thay đổi</Label>
+                <Label htmlFor="change-type">Loại thay đổi</Label>
                 <select
+                  id="change-type"
+                  aria-label="Loại thay đổi"
                   className="w-full p-2 border rounded"
                   value={changeRequest.field}
                   onChange={(e) => {
@@ -1145,6 +1151,7 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                     checked={agreePolicy}
                     onChange={(e) => setAgreePolicy(e.target.checked)}
                     className="w-4 h-4"
+                    placeholder="final"
                   />
                   <Label htmlFor="agree-final" className="text-sm">
                     Tôi đồng ý với điều khoản thanh toán và chính sách hoàn tiền

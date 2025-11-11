@@ -710,6 +710,7 @@ export function CustomerEditProfile({ onBack }: CustomerEditProfileProps) {
                   type="file"
                   accept="image/jpeg,image/jpg,image/png"
                   className="hidden"
+                  aria-label="Tải lên ảnh đại diện"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {

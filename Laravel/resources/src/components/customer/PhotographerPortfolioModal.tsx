@@ -619,6 +619,7 @@ export function PhotographerPortfolioModal({
                           type="file"
                           className="hidden"
                           accept="image/png,image/jpeg,image/jpg"
+                          aria-label="Tải lên ảnh minh họa"
                           onChange={handleImageUpload}
                         />
                       </label>
