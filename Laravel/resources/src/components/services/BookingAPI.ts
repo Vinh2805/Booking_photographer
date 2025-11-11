@@ -230,6 +230,40 @@ export async function startBooking(id: string): Promise<StartEndResponse> {
 
 /**
  * ==========================================
+ * API TẠO YÊU CẦU ĐẶT LỊCH (Khách hàng)
+ * POST /booking/create
+ * ==========================================
+ */
+export interface CreateBookingRequest {
+  Ma_NAG: string;
+  Loai_Chup?: string;
+  Dia_Diem?: string;
+  Bat_Dau_Chup: string; // ISO date string
+  Ket_Thuc_Chup: string; // ISO date string
+  Ghi_Chu?: string;
+}
+
+export interface CreateBookingResponse {
+  status: 'success';
+  message: string;
+  data: {
+    ma_buoi_chup: string;
+    trang_thai: string;
+  };
+}
+
+export async function createBooking(
+  data: CreateBookingRequest
+): Promise<CreateBookingResponse> {
+  const response = await apiClient.post<CreateBookingResponse>(
+    '/booking/create',
+    data
+  );
+  return response.data;
+}
+
+/**
+ * ==========================================
  * API KẾT THÚC BUỔI CHỤP (Nhiếp ảnh gia)
  * POST /buoi-chup/{id}/end
  * ==========================================
@@ -256,6 +290,54 @@ export async function completeProcessing(id: string): Promise<StartEndResponse> 
 
 /**
  * ==========================================
+ * API ĐÁNH GIÁ NHIẾP ẢNH GIA
+ * ==========================================
+ */
+export interface CreateReviewRequest {
+  So_Sao: number; // 1-5
+  Noi_Dung?: string;
+}
+
+export interface CreateReviewResponse {
+  status: 'success';
+  message: string;
+  data: {
+    ma_danh_gia: string;
+    so_sao: number;
+    noi_dung: string | null;
+  };
+}
+
+export interface GetReviewResponse {
+  hasReview: boolean;
+  review: {
+    ma_danh_gia: string;
+    so_sao: number;
+    noi_dung: string | null;
+    ngay_danh_gia: string;
+  } | null;
+}
+
+export async function createReview(
+  ma_bc: string,
+  data: CreateReviewRequest
+): Promise<CreateReviewResponse> {
+  const response = await apiClient.post<CreateReviewResponse>(
+    `/booking/${ma_bc}/review`,
+    data
+  );
+  return response.data;
+}
+
+export async function getReview(ma_bc: string): Promise<GetReviewResponse> {
+  const response = await apiClient.get<GetReviewResponse>(
+    `/booking/${ma_bc}/review`
+  );
+  return response.data;
+}
+
+/**
+ * ==========================================
  * EXPORT MẶC ĐỊNH
  * ==========================================
  */
@@ -269,5 +351,7 @@ export default {
   startBooking,
   endBooking,
   completeProcessing,
+  createReview,
+  getReview,
 };
 

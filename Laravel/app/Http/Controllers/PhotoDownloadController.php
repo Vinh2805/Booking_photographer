@@ -63,7 +63,20 @@ class PhotoDownloadController extends Controller
             'Thoi_Gian' => now(),
         ]);
 
-        // 6️⃣ Không cần cập nhật trạng thái khi download (chỉ là hành động xem/tải)
+        // 6️⃣ Cập nhật trạng thái thành "Đã hoàn thành" khi khách hàng tải ảnh hậu kỳ
+        // Chỉ cập nhật nếu buổi chụp đang ở trạng thái "Đã xử lý ảnh"
+        if ($folder === 'edited' && $booking->Trang_Thai === 'Đã xử lý ảnh') {
+            $booking->Trang_Thai = 'Đã hoàn thành';
+            $booking->save();
+
+            // Ghi log cập nhật trạng thái
+            DB::table('lich_su_giao_dich')->insert([
+                'Ma_BC' => $ma_bc,
+                'Loai_Giao_Dich' => 'Da hoan thanh',
+                'Mo_Ta' => "Buổi chụp đã hoàn thành sau khi khách hàng tải ảnh hậu kỳ",
+                'Thoi_Gian' => now(),
+            ]);
+        }
 
         // 7️⃣ Trả file về FE
         Log::info("{$typeLabel} thành công", [

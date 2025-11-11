@@ -4,6 +4,9 @@ import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Star, MapPin, Calendar, ArrowRight } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import apiClient from "./services/apiClient";
+import { PhotographerPortfolioModal } from "./customer/PhotographerPortfolioModal";
 
 interface FeaturedPhotographersProps {
   onViewAll: () => void;
@@ -62,9 +65,45 @@ export function FeaturedPhotographers({
   onViewAll,
   onBookPhotographer,
 }: FeaturedPhotographersProps) {
+  const [photographers, setPhotographers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPhotographerId, setSelectedPhotographerId] = useState<string | null>(null);
+  const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
+
+  useEffect(() => {
+    loadPhotographers();
+  }, []);
+
+  const loadPhotographers = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get("/nhiep-anh-gia/noi-bat");
+      setPhotographers(response.data || []);
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách nhiếp ảnh gia:", error);
+      setPhotographers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN").format(price) + "đ";
   };
+
+  const handleAvatarClick = (photographerId: string) => {
+    console.log("handleAvatarClick called with:", photographerId);
+    setSelectedPhotographerId(photographerId);
+    setPortfolioModalOpen(true);
+    console.log("Modal state set to open");
+  };
+
+  const handleBookingSuccess = () => {
+    setPortfolioModalOpen(false);
+    // Có thể refresh danh sách hoặc thông báo
+  };
+
+  const displayPhotographers = photographers.length > 0 ? photographers : featuredPhotographers;
 
   return (
     <section className="py-16 bg-white dark:bg-slate-900">
@@ -88,8 +127,11 @@ export function FeaturedPhotographers({
         </div>
 
         {/* Photographer Cards */}
-        <div className="grid md:grid-cols-3 gap-8">
-          {featuredPhotographers.map((photographer) => (
+        {loading ? (
+          <div className="text-center py-8">Đang tải...</div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-8">
+            {displayPhotographers.slice(0, 3).map((photographer) => (
             <Card
               key={photographer.id}
               className="group overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300"
@@ -112,7 +154,7 @@ export function FeaturedPhotographers({
                 {/* Price Badge */}
                 <div className="absolute bottom-4 left-4">
                   <div className="bg-primary text-white px-3 py-1 rounded-lg font-semibold">
-                    {formatPrice(photographer.price)}
+                    {formatPrice(photographer.priceValue || photographer.price || 0)}
                   </div>
                 </div>
               </div>
@@ -120,12 +162,20 @@ export function FeaturedPhotographers({
               <CardContent className="p-6">
                 {/* Photographer Info */}
                 <div className="flex items-center gap-3 mb-4">
-                  <Avatar className="w-12 h-12 border-2 border-white shadow-lg">
-                    <AvatarImage src={photographer.avatar} />
-                    <AvatarFallback>
-                      {photographer.name.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div 
+                    className="cursor-pointer hover:ring-2 hover:ring-primary transition-all rounded-full"
+                    onClick={() => {
+                      console.log("Avatar clicked:", photographer.id);
+                      handleAvatarClick(photographer.id);
+                    }}
+                  >
+                    <Avatar className="w-12 h-12 border-2 border-white shadow-lg">
+                      <AvatarImage src={photographer.avatar} />
+                      <AvatarFallback>
+                        {photographer.name.slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">
                       {photographer.name}
@@ -164,7 +214,7 @@ export function FeaturedPhotographers({
 
                 {/* Specialties */}
                 <div className="flex flex-wrap gap-2 mb-6">
-                  {photographer.specialties.map((specialty) => (
+                  {(photographer.specialties || photographer.styles || []).map((specialty: string) => (
                     <Badge
                       key={specialty}
                       variant="secondary"
@@ -179,7 +229,11 @@ export function FeaturedPhotographers({
                 <div className="flex gap-3">
                   <Button
                     className="flex-1 sky-gradient text-white hover:opacity-90"
-                    onClick={() => onBookPhotographer(photographer.id)}
+                    onClick={() => {
+                      console.log("Đặt lịch clicked:", photographer.id);
+                      handleAvatarClick(photographer.id);
+                      setPortfolioModalOpen(true);
+                    }}
                   >
                     <Calendar className="w-4 h-4 mr-2" />
                     Đặt lịch
@@ -190,9 +244,21 @@ export function FeaturedPhotographers({
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Portfolio Modal */}
+      <PhotographerPortfolioModal
+        photographerId={selectedPhotographerId}
+        open={portfolioModalOpen}
+        onClose={() => {
+          setPortfolioModalOpen(false);
+          setSelectedPhotographerId(null);
+        }}
+        onBookingSuccess={handleBookingSuccess}
+      />
     </section>
   );
 }

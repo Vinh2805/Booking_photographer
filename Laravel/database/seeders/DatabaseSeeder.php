@@ -168,5 +168,8 @@ class DatabaseSeeder extends Seeder
             ];
             DB::table('buoi_chup')->insert($sessions);
         }
+
+        // 💼 Bảng dịch vụ
+        $this->call(DichVuSeeder::class);
     }
 }

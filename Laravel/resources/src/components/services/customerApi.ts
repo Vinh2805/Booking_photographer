@@ -15,6 +15,28 @@ const customerApi = {
   async getUnreadMessages() {
     return apiClient.get("/tin-nhan/chua-doc");
   },
+
+  // Profile management
+  async getProfile() {
+    const response = await apiClient.get("/profile/customer");
+    return response.data;
+  },
+
+  async updateProfile(data: any) {
+    const response = await apiClient.put("/profile/customer", data);
+    return response.data;
+  },
+
+  async uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const response = await apiClient.post("/profile/customer/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  },
 };
 
 export default customerApi;

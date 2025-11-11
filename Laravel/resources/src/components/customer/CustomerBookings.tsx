@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import apiClient from "../services/apiClient";
 import { depositBooking, getFinalQuote, payFinal } from "../services/PaymentAPI";
-import { cancelBooking, requestChange } from "../services/BookingAPI";
+import { cancelBooking, requestChange, createReview, getReview } from "../services/BookingAPI";
 import { downloadPhoto } from "../services/PhotoAPI";
 import { ChangeRequestList } from "../shared/ChangeRequestList";
 import {
@@ -135,6 +135,13 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
     reason: "",
   });
   const [changeValidationError, setChangeValidationError] = useState<string>("");
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [hasReview, setHasReview] = useState(false);
+  const [reviewData, setReviewData] = useState({
+    rating: 0,
+    comment: "",
+  });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Hàm validate khoảng thời gian
   const validateTimeRange = (startTime: string, endTime: string) => {
@@ -228,7 +235,18 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
       if (searchQuery) params.search = searchQuery;
 
       const response = await apiClient.get("/customer/bookings", { params });
-      setBookings(response.data);
+      const updatedBookings = response.data;
+      setBookings(updatedBookings);
+      
+      // Update selectedBooking if it exists
+      if (selectedBooking) {
+        const updatedBooking = updatedBookings.find(
+          (b: Booking) => b.id === selectedBooking.id
+        );
+        if (updatedBooking) {
+          setSelectedBooking(updatedBooking);
+        }
+      }
     } catch (error: any) {
       console.error("Lỗi tải buổi chụp:", error.response?.data || error.message);
       if (error.response?.status === 401) {
@@ -242,6 +260,53 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
   useEffect(() => {
     fetchBookings();
   }, [selectedStatus, searchQuery]);
+
+  // Check review status when selectedBooking changes
+  useEffect(() => {
+    if (selectedBooking && selectedBooking.status === "completed") {
+      checkReviewStatus(selectedBooking.id);
+    } else {
+      setHasReview(false);
+    }
+  }, [selectedBooking]);
+
+  // Check if customer has already reviewed this booking
+  const checkReviewStatus = async (ma_bc: string) => {
+    try {
+      const response = await getReview(ma_bc);
+      setHasReview(response.hasReview);
+    } catch (error: any) {
+      console.error("Lỗi khi kiểm tra đánh giá:", error);
+      setHasReview(false);
+    }
+  };
+
+  // Submit review
+  const handleSubmitReview = async () => {
+    if (!selectedBooking || reviewData.rating === 0) {
+      toast.error("Vui lòng chọn số sao đánh giá");
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      await createReview(selectedBooking.id, {
+        So_Sao: reviewData.rating,
+        Noi_Dung: reviewData.comment || undefined,
+      });
+      toast.success("Đánh giá đã được gửi thành công!");
+      setShowReviewDialog(false);
+      setHasReview(true);
+      setReviewData({ rating: 0, comment: "" });
+      // Refresh bookings to update photographer rating
+      fetchBookings();
+    } catch (error: any) {
+      console.error("Lỗi khi gửi đánh giá:", error);
+      toast.error(error.response?.data?.message || "Lỗi khi gửi đánh giá");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   // Load quote khi dialog mở và có selectedBooking
   useEffect(() => {
@@ -468,6 +533,8 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                         try {
                           await downloadPhoto("raw", selectedBooking.id);
                           toast.success("Đang tải ảnh gốc...");
+                          // Refresh bookings after download
+                          fetchBookings();
                         } catch (error: any) {
                           toast.error(error.response?.data?.message || "Lỗi khi tải ảnh");
                         }
@@ -481,7 +548,14 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                       onClick={async () => {
                         try {
                           await downloadPhoto("edited", selectedBooking.id);
-                          toast.success("Đang tải ảnh hậu kỳ...");
+                          toast.success("Đang tải ảnh hậu kỳ... Buổi chụp đã hoàn thành!");
+                          // Refresh bookings after download to update status
+                          await fetchBookings();
+                          // Check if booking is now completed and show review dialog
+                          const updatedBooking = bookings.find(b => b.id === selectedBooking.id);
+                          if (updatedBooking?.status === "completed") {
+                            checkReviewStatus(selectedBooking.id);
+                          }
                         } catch (error: any) {
                           toast.error(error.response?.data?.message || "Lỗi khi tải ảnh");
                         }
@@ -490,6 +564,25 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                       <ImageIcon className="w-4 h-4 mr-2" />
                       Tải ảnh hậu kỳ
                     </Button>
+                  </div>
+                )}
+                {selectedBooking.status === "completed" && !hasReview && (
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      setShowReviewDialog(true);
+                    }}
+                  >
+                    <Star className="w-4 h-4 mr-2" />
+                    Đánh giá nhiếp ảnh gia
+                  </Button>
+                )}
+                {selectedBooking.status === "completed" && hasReview && (
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="font-medium">Bạn đã đánh giá buổi chụp này</span>
+                    </div>
                   </div>
                 )}
                 {(() => {
@@ -674,6 +767,82 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
           </DialogContent>
         </Dialog>
 
+        {/* Review Dialog */}
+        <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Đánh giá nhiếp ảnh gia</DialogTitle>
+              <DialogDescription>
+                Hãy chia sẻ trải nghiệm của bạn về buổi chụp này
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>
+                  Số sao đánh giá <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex items-center gap-2 mt-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewData({ ...reviewData, rating: star })}
+                      className="focus:outline-none"
+                    >
+                      <Star
+                        className={`w-8 h-8 ${
+                          star <= reviewData.rating
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-gray-300 hover:text-yellow-300"
+                        } transition-colors cursor-pointer`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                {reviewData.rating === 0 && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Vui lòng chọn số sao đánh giá
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="review-comment">Đánh giá chi tiết (tùy chọn)</Label>
+                <Textarea
+                  id="review-comment"
+                  value={reviewData.comment}
+                  onChange={(e) =>
+                    setReviewData({ ...reviewData, comment: e.target.value })
+                  }
+                  placeholder="Chia sẻ trải nghiệm của bạn về buổi chụp..."
+                  rows={4}
+                  maxLength={1000}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {reviewData.comment.length}/1000 ký tự
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowReviewDialog(false);
+                  setReviewData({ rating: 0, comment: "" });
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleSubmitReview}
+                disabled={submittingReview || reviewData.rating === 0}
+              >
+                {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Change Request Dialog */}
         <Dialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
           <DialogContent>
@@ -700,28 +869,22 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
               </div>
               
               {/* Hiển thị giá trị cũ */}
-              <div>
-                <Label>Khoảng thời gian hiện tại</Label>
-                <div className="p-3 bg-muted rounded-md text-sm space-y-1">
-                  {(() => {
-                    if (!selectedBooking) return "N/A";
-                    if (changeRequest.field === "time") {
-                      return (
-                        <>
-                          <div><strong>Bắt đầu:</strong> {selectedBooking.date} {selectedBooking.time}</div>
-                          <div><strong>Kết thúc:</strong> {(selectedBooking as any).endDate || selectedBooking.date} {(selectedBooking as any).endTime || "N/A"}</div>
-                          {selectedBooking.duration && (
-                            <div className="text-xs text-muted-foreground mt-1">Thời lượng: {selectedBooking.duration}</div>
-                          )}
-                        </>
-                      );
-                    } else if (changeRequest.field === "location") {
-                      return selectedBooking.location || "Chưa có";
-                    }
-                    return "N/A";
-                  })()}
+              {changeRequest.field === "time" && (
+                <div>
+                  <Label>Khoảng thời gian hiện tại</Label>
+                  <div className="p-3 bg-muted rounded-md text-sm space-y-1">
+                    {selectedBooking ? (
+                      <>
+                        <div><strong>Bắt đầu:</strong> {selectedBooking.date} {selectedBooking.time}</div>
+                        <div><strong>Kết thúc:</strong> {(selectedBooking as any).endDate || selectedBooking.date} {(selectedBooking as any).endTime || "N/A"}</div>
+                        {selectedBooking.duration && (
+                          <div className="text-xs text-muted-foreground mt-1">Thời lượng: {selectedBooking.duration}</div>
+                        )}
+                      </>
+                    ) : "N/A"}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {changeRequest.field === "time" ? (
                 <div className="space-y-4">
@@ -758,20 +921,28 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                   )}
                 </div>
               ) : (
-                <div>
-                  <Label>Giá trị mới</Label>
-                  <Input
-                    value={changeRequest.newStartTime}
-                    onChange={(e) => {
-                      setChangeRequest({ ...changeRequest, newStartTime: e.target.value });
-                      setChangeValidationError("");
-                    }}
-                    placeholder="Nhập địa điểm mới..."
-                    maxLength={255}
-                  />
-                  {changeValidationError && (
-                    <p className="text-sm text-red-600 mt-1">{changeValidationError}</p>
-                  )}
+                <div className="space-y-2">
+                  <div>
+                    <Label>Địa điểm hiện tại</Label>
+                    <div className="p-3 bg-muted rounded-md text-sm">
+                      {selectedBooking?.location || "Chưa có"}
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Địa điểm mới</Label>
+                    <Input
+                      value={changeRequest.newStartTime}
+                      onChange={(e) => {
+                        setChangeRequest({ ...changeRequest, newStartTime: e.target.value });
+                        setChangeValidationError("");
+                      }}
+                      placeholder="Nhập địa điểm mới..."
+                      maxLength={255}
+                    />
+                    {changeValidationError && (
+                      <p className="text-sm text-red-600 mt-1">{changeValidationError}</p>
+                    )}
+                  </div>
                 </div>
               )}
               <div>

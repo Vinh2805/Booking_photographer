@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
+import { photographerApi } from "../services/photographerApi";
 import {
   Card,
   CardContent,
@@ -14,10 +15,7 @@ import { ProfileHeader } from "./components/ProfileHeader";
 import { ReviewsSection } from "./components/ReviewsSection";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { ShieldCheck, Smartphone, ArrowLeft } from "lucide-react";
-import {
-  PHOTOGRAPHER_DATA,
-  RECENT_REVIEWS,
-} from "./constants/photographerProfileData";
+// Removed PHOTOGRAPHER_DATA and RECENT_REVIEWS - now loading from API
 import {
   MAIN_MENU_ITEMS,
   SETTINGS_MENU_ITEMS,
@@ -35,6 +33,36 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
   const [currentView, setCurrentView] = useState<
     "profile" | "edit" | "password" | "security"
   >("profile");
+  
+  const [photographerData, setPhotographerData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load photographer data from API
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setIsLoading(true);
+        const profile = await photographerApi.getProfile();
+        setPhotographerData({
+          name: profile.name || "",
+          avatar: profile.avatar || "",
+          coverImage: profile.coverImage || "",
+          location: profile.location || "",
+          experience: profile.experience || 0,
+          rating: profile.rating || 0,
+          reviewCount: profile.reviewCount || 0,
+          completedBookings: profile.completedBookings || 0,
+          styles: profile.styles || [],
+          achievements: profile.achievements || [],
+        });
+      } catch (error: any) {
+        console.error("Lỗi khi tải thông tin hồ sơ:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadProfile();
+  }, []);
 
   const handleMainMenuClick = (itemId: string) => {
     switch (itemId) {
@@ -202,10 +230,30 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
     return <SecuritySettingsView onBack={() => setCurrentView("profile")} />;
   }
 
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-6 pb-24 bg-background">
+        <div className="text-center py-8 text-muted-foreground">
+          Đang tải thông tin hồ sơ...
+        </div>
+      </div>
+    );
+  }
+
+  if (!photographerData) {
+    return (
+      <div className="p-4 space-y-6 pb-24 bg-background">
+        <div className="text-center py-8 text-muted-foreground">
+          Không tìm thấy thông tin hồ sơ
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 space-y-6 pb-24 bg-background">
       <ProfileHeader
-        photographer={PHOTOGRAPHER_DATA}
+        photographer={photographerData}
         onEdit={() => setCurrentView("edit")}
       />
 
@@ -229,7 +277,7 @@ export function PhotographerProfile({}: PhotographerProfileProps) {
         })}
       </div>
 
-      <ReviewsSection reviews={RECENT_REVIEWS} />
+      <ReviewsSection reviews={[]} />
 
       {/* Settings Section */}
       <div className="space-y-4">

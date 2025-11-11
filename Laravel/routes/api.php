@@ -18,6 +18,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\PhotographerController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReviewController;
 
 
     
@@ -55,18 +57,21 @@ use App\Http\Controllers\CustomerController;
         //Duyệt/từ chối yêu cầu thay đổi (cả khách hàng và nhiếp ảnh gia, tùy người gửi)
         Route::put('/booking/change/{id}/approve', [BookingChangeApprovalController::class, 'approve']);
         Route::put('/booking/change/{id}/reject', [BookingChangeApprovalController::class, 'reject']);
+        // Đánh giá nhiếp ảnh gia (chỉ khách hàng)
+        Route::post('/booking/{ma_bc}/review', [ReviewController::class, 'create']);
+        Route::get('/booking/{ma_bc}/review', [ReviewController::class, 'getReview']);
     });
     
     // Chat routes - cần authentication
     Route::middleware('auth:sanctum')->group(function () {
+        //Get unread - phải đặt trước /chat/{Ma_BC} để tránh conflict
+        Route::get('/chat/unread', [ChatController::class, 'unread']); 
+        //post mark read
+        Route::post('/chat/mark-read', [ChatController::class, 'markAsRead']);
         //Get cac doan chat
         Route::get('/chat/{Ma_BC}', [ChatController::class, 'index']);
         //Post chat
         Route::post('/chat', [ChatController::class, 'store']);
-        //Get unread
-        Route::get('/chat/unread', [ChatController::class, 'unread']); 
-        //post mark read
-        Route::post('/chat/mark-read', [ChatController::class, 'markAsRead']);
     }); 
 
 
@@ -88,6 +93,8 @@ Route::post('/nhiep-anh-gia/dang-nhap', [AuthController::class, 'loginPhotograph
 
 // Route::get('/customer/dashboard/{id}', [DashboardController::class, 'customer']);
 Route::get('/nhiep-anh-gia/noi-bat', [PhotographerController::class, 'featured']);
+Route::get('/nhiep-anh-gia/{id}', [PhotographerController::class, 'show']); // Public endpoint để xem thông tin photographer
+Route::get('/dich-vu', [BookingController::class, 'getServices']); // Public endpoint để lấy danh sách dịch vụ
 
 
 // 🔹 Đăng xuất (cần token)
@@ -115,3 +122,23 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/customer/bookings', [CustomerBookingController::class, 'index']);
         Route::get('/customer/bookings/{id}', [CustomerBookingController::class, 'show']);
     });
+
+    // === Profile Management ===
+    Route::middleware('auth:sanctum')->group(function () {
+        // Customer profile
+        Route::get('/profile/customer', [ProfileController::class, 'getCustomerProfile']);
+        Route::put('/profile/customer', [ProfileController::class, 'updateCustomerProfile']);
+        Route::post('/profile/customer/avatar', [ProfileController::class, 'uploadCustomerAvatar']);
+        
+        // Photographer profile
+        Route::get('/profile/photographer', [ProfileController::class, 'getPhotographerProfile']);
+        Route::put('/profile/photographer', [ProfileController::class, 'updatePhotographerProfile']);
+        Route::post('/profile/photographer/avatar', [ProfileController::class, 'uploadPhotographerAvatar']);
+        Route::post('/profile/photographer/cover', [ProfileController::class, 'uploadPhotographerCover']);
+        Route::post('/profile/photographer/portfolio', [ProfileController::class, 'uploadPhotographerPortfolio']);
+    });
+
+    // Serve files from private storage - PUBLIC ACCESS (không cần auth để xem ảnh của người khác)
+    Route::get('/storage/avatars/{filename}', [ProfileController::class, 'serveAvatar']);
+    Route::get('/storage/covers/{filename}', [ProfileController::class, 'serveCover']);
+    Route::get('/storage/portfolio/{filename}', [ProfileController::class, 'servePortfolio']);

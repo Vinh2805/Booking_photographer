@@ -15,8 +15,15 @@ class KhachHang extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'Ma_KH', 'Ma_TK', 'Dia_Chi', 'Ngay_Sinh', 'Gioi_Tinh'
+        'Ma_KH', 'Ma_TK', 'Dia_Chi', 'Ngay_Sinh', 'Gioi_Tinh', 'So_Thich_The_Loai', 'So_Thich_Dia_Diem'
     ];
+
+    public $timestamps = false;
+
+    protected $casts = [
+        'Ngay_Sinh' => 'date',
+    ];
+
     public function taiKhoan()
     {
         return $this->belongsTo(User::class, 'Ma_TK', 'Ma_TK');

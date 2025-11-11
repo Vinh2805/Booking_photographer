@@ -20,13 +20,12 @@ class BuoiChup extends Model
         'Tong_Tien' => 'decimal:2',
         'Ti_Le_Coc' => 'decimal:2',
     ];
-    protected $attributes = [
-    'So_Nguoi' => 0,
-];
+    
     protected $fillable = [
         'Ma_BC','Ma_NAG','Ma_KH','Ngay_Tao','Tong_Tien','Bat_Dau_Chup',
         'Ket_Thuc_Chup','Dia_Diem','Loai_Chup','Ghi_Chu','Trang_Thai',
-        'Ti_Le_Coc','Ly_Do_Huy','Ly_Do_Thay_Doi'
+        'Ti_Le_Coc','Ly_Do_Huy','Ly_Do_Thay_Doi','Tieu_De','The_Loai_Chup',
+        'Boi_Canh_Chup','Anh_Minh_Hoa'
     ];
     public static function generateMaBC(): string
     {

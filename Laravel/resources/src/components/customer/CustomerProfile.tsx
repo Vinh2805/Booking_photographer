@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { CustomerEditProfile } from "./CustomerEditProfile";
 import { CustomerBookings } from "./CustomerBookings";
+import customerApi from "../services/customerApi";
+import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
@@ -498,20 +500,62 @@ export function CustomerProfile({
     | "bookings"
   >("profile");
 
-  // Mock customer data
-  const customerData: CustomerData = {
-    id: "CUST001",
-    name: "Nguyễn Văn A",
-    email: "nguyenvana@email.com",
-    phone: "0901234567",
-    avatar:
-      "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=150&h=150&fit=crop&crop=face",
-    location: "Hà Nội",
-    joinDate: "2024-03-15",
-    totalBookings: 8,
-    completedBookings: 6,
-    favoritePhotographers: 3,
-  };
+  const [customerData, setCustomerData] = useState<CustomerData>({
+    id: "",
+    name: "",
+    email: "",
+    phone: "",
+    avatar: "",
+    location: "",
+    joinDate: "",
+    totalBookings: 0,
+    completedBookings: 0,
+    favoritePhotographers: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load customer data from API
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setIsLoading(true);
+        const profile = await customerApi.getProfile();
+        
+        // Process avatar URL - API returns full URL from serveAvatar route
+        let avatarUrl = profile.avatar || "";
+        
+        // Backend should return full URL, but if not, construct it
+        if (avatarUrl && !avatarUrl.startsWith("http") && !avatarUrl.startsWith("data:")) {
+          if (avatarUrl.startsWith("/api/storage/")) {
+            // Already correct format
+            avatarUrl = `${window.location.origin}${avatarUrl}`;
+          } else if (avatarUrl.startsWith("/storage")) {
+            avatarUrl = `${window.location.origin}${avatarUrl}`;
+          } else if (avatarUrl.startsWith("storage/")) {
+            avatarUrl = `${window.location.origin}/${avatarUrl}`;
+          }
+        }
+        
+        setCustomerData({
+          id: profile.id || "",
+          name: profile.name || "",
+          email: profile.email || "",
+          phone: profile.phone || "",
+          avatar: avatarUrl,
+          location: profile.location || "",
+          joinDate: profile.joinDate || "",
+          totalBookings: profile.totalBookings || 0,
+          completedBookings: profile.completedBookings || 0,
+          favoritePhotographers: profile.favoritePhotographers || 0,
+        });
+      } catch (error: any) {
+        console.error("Lỗi khi tải thông tin hồ sơ:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadProfile();
+  }, []);
 
   const openSupportChat = () => alert("Mở chat hỗ trợ khách hàng");
 
@@ -535,6 +579,16 @@ export function CustomerProfile({
   }
 
   // Profile main
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-6 pb-24 bg-background">
+        <div className="text-center py-8 text-muted-foreground">
+          Đang tải thông tin hồ sơ...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 space-y-6 pb-24 bg-background">
 
@@ -543,11 +597,13 @@ export function CustomerProfile({
         <CardContent className="p-6">
           <div className="flex items-center gap-6 mb-6">
             <div className="relative">
-              <img
-                src={customerData.avatar}
-                alt={customerData.name}
-                className="w-24 h-24 rounded-full object-cover border-4 border-card shadow-lg"
-              />
+              <div className="w-24 h-24 rounded-full border-4 border-card shadow-lg overflow-hidden bg-muted">
+                <ImageWithFallback
+                  src={customerData.avatar || ""}
+                  alt={customerData.name || "Avatar"}
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-500 border-3 border-card rounded-full flex items-center justify-center">
                 <div className="w-3 h-3 bg-white rounded-full"></div>
               </div>
@@ -561,13 +617,19 @@ export function CustomerProfile({
                 <MapPin className="w-4 h-4" />
                 <span>{customerData.location}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                <span>
-                  Tham gia từ{" "}
-                  {new Date(customerData.joinDate).toLocaleDateString("vi-VN")}
-                </span>
-              </div>
+              {customerData.joinDate && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    Tham gia từ{" "}
+                    {new Date(customerData.joinDate).toLocaleDateString("vi-VN", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

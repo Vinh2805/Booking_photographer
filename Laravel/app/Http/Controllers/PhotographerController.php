@@ -91,6 +91,10 @@ class PhotographerController extends Controller
             ->select(
                 'nhiep_anh_gia.Ma_NAG as id',
                 'tai_khoan.Ho_Ten as name',
+                'tai_khoan.Avatar as avatar',
+                'nhiep_anh_gia.Anh_Bia as coverImage',
+                'nhiep_anh_gia.Portfolio as portfolio',
+                'nhiep_anh_gia.Boi_Canh_Chup as styles',
                 'nhiep_anh_gia.Gia_Trung_Binh as priceValue',
                 'nhiep_anh_gia.Dia_Diem_Hoat_Dong as location',
                 'nhiep_anh_gia.Kinh_Nghiem as experience'
@@ -109,17 +113,64 @@ class PhotographerController extends Controller
                     ->where('Ma_NAG', $p->id)
                     ->avg('So_Sao') ?? 0;
 
+                // Process avatar URL - file is stored in storage/app/private/public/avatars/
+                $avatarUrl = null;
+                if ($p->avatar && !empty($p->avatar)) {
+                    $filePath = str_replace('/storage/', 'public/', $p->avatar);
+                    if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
+                        $fileName = basename($p->avatar);
+                        $avatarUrl = url('/api/storage/avatars/' . $fileName);
+                    }
+                }
+
+                // Process cover image URL - file is stored in storage/app/private/public/covers/
+                $coverImageUrl = null;
+                if ($p->coverImage && !empty($p->coverImage)) {
+                    $filePath = str_replace('/storage/', 'public/', $p->coverImage);
+                    if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
+                        $fileName = basename($p->coverImage);
+                        $coverImageUrl = url('/api/storage/covers/' . $fileName);
+                    }
+                }
+
+                // Process portfolio URLs - files are stored in storage/app/private/public/portfolio/
+                $portfolioImages = [];
+                if ($p->portfolio) {
+                    $portfolio = json_decode($p->portfolio, true);
+                    if (is_array($portfolio)) {
+                        foreach ($portfolio as $portfolioUrl) {
+                            if ($portfolioUrl && !empty($portfolioUrl)) {
+                                $filePath = str_replace('/storage/', 'public/', $portfolioUrl);
+                                if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
+                                    $fileName = basename($portfolioUrl);
+                                    $portfolioImages[] = url('/api/storage/portfolio/' . $fileName);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Process styles
+                $specialties = ['Chân dung']; // Default
+                if ($p->styles) {
+                    $styles = json_decode($p->styles, true);
+                    if (is_array($styles) && !empty($styles)) {
+                        $specialties = $styles;
+                    }
+                }
+
                 return (object) [
                     'id' => $p->id,
                     'name' => $p->name ?? 'Nhiếp ảnh gia',
-                    'avatar' => '', // Chưa có trong database
-                    'coverImage' => '', // Chưa có trong database
+                    'avatar' => $avatarUrl ?? '',
+                    'coverImage' => $coverImageUrl ?? '',
+                    'portfolioImages' => $portfolioImages,
                     'priceValue' => (float)($p->priceValue ?? 0),
                     'price' => number_format($p->priceValue ?? 0, 0, ',', '.') . '₫',
                     'location' => $p->location ?? 'Chưa cập nhật',
                     'rating' => round($rating, 1),
                     'description' => 'Nhiếp ảnh gia chuyên nghiệp',
-                    'specialties' => ['Chân dung'], // Default
+                    'specialties' => $specialties,
                     'isOnline' => false,
                     'isVerified' => false,
                     'level' => 'Professional',
@@ -130,5 +181,131 @@ class PhotographerController extends Controller
             });
 
         return response()->json($photographers);
+    }
+
+    /**
+     * Lấy thông tin chi tiết của một photographer theo ID (public)
+     */
+    public function show($id)
+    {
+        $nag = NhiepAnhGia::join('tai_khoan', 'nhiep_anh_gia.Ma_TK', '=', 'tai_khoan.Ma_TK')
+            ->where('nhiep_anh_gia.Ma_NAG', $id)
+            ->select(
+                'nhiep_anh_gia.Ma_NAG as id',
+                'tai_khoan.Ho_Ten as name',
+                'tai_khoan.Avatar as avatar',
+                'nhiep_anh_gia.Anh_Bia as coverImage',
+                'nhiep_anh_gia.Portfolio as portfolio',
+                'nhiep_anh_gia.Boi_Canh_Chup as styles',
+                'nhiep_anh_gia.Thiet_Bi as equipment',
+                'nhiep_anh_gia.Gia_Trung_Binh as priceValue',
+                'nhiep_anh_gia.Gia_Toi_Thieu as priceMin',
+                'nhiep_anh_gia.Gia_Toi_Da as priceMax',
+                'nhiep_anh_gia.Dia_Diem_Hoat_Dong as location',
+                'nhiep_anh_gia.Kinh_Nghiem as experience',
+                'tai_khoan.Gioi_Thieu as bio'
+            )
+            ->first();
+
+        if (!$nag) {
+            return response()->json(['message' => 'Không tìm thấy nhiếp ảnh gia'], 404);
+        }
+
+        // Đếm số buổi chụp đã hoàn thành
+        $completedBookings = BuoiChup::where('Ma_NAG', $nag->id)
+            ->where('Trang_Thai', 'Đã hoàn thành')
+            ->count();
+        
+        // Tính rating trung bình từ bảng danh_gia
+        $rating = DB::table('danh_gia')
+            ->where('Ma_NAG', $nag->id)
+            ->avg('So_Sao') ?? 0;
+        $reviewCount = DB::table('danh_gia')
+            ->where('Ma_NAG', $nag->id)
+            ->count();
+
+        // Process avatar URL
+        $avatarUrl = null;
+        if ($nag->avatar && !empty($nag->avatar)) {
+            $filePath = str_replace('/storage/', 'public/', $nag->avatar);
+            if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
+                $fileName = basename($nag->avatar);
+                $avatarUrl = url('/api/storage/avatars/' . $fileName);
+            }
+        }
+
+        // Process cover image URL
+        $coverImageUrl = null;
+        if ($nag->coverImage && !empty($nag->coverImage)) {
+            $filePath = str_replace('/storage/', 'public/', $nag->coverImage);
+            if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
+                $fileName = basename($nag->coverImage);
+                $coverImageUrl = url('/api/storage/covers/' . $fileName);
+            }
+        }
+
+        // Process portfolio URLs
+        $portfolioImages = [];
+        if ($nag->portfolio) {
+            $portfolio = json_decode($nag->portfolio, true);
+            if (is_array($portfolio) && !empty($portfolio)) {
+                foreach ($portfolio as $portfolioUrl) {
+                    if ($portfolioUrl && !empty($portfolioUrl)) {
+                        // Extract filename from URL (could be /storage/portfolio/... or full URL)
+                        $fileName = basename($portfolioUrl);
+                        
+                        // Try to find the file in storage
+                        $filePath = 'public/portfolio/' . $fileName;
+                        
+                        // Check if file exists in local storage
+                        if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
+                            // File exists, generate serve URL
+                            $portfolioImages[] = url('/api/storage/portfolio/' . $fileName);
+                        } else {
+                            // File might not exist or path is different, but still try to serve it
+                            // The serve endpoint will handle 404 if file doesn't exist
+                            $portfolioImages[] = url('/api/storage/portfolio/' . $fileName);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Process styles
+        $specialties = [];
+        if ($nag->styles) {
+            $styles = json_decode($nag->styles, true);
+            if (is_array($styles)) {
+                $specialties = $styles;
+            }
+        }
+
+        // Process equipment
+        $equipmentList = [];
+        if ($nag->equipment) {
+            $equipment = json_decode($nag->equipment, true);
+            if (is_array($equipment)) {
+                $equipmentList = $equipment;
+            }
+        }
+
+        return response()->json([
+            'id' => $nag->id,
+            'name' => $nag->name ?? 'Nhiếp ảnh gia',
+            'avatar' => $avatarUrl ?? '',
+            'coverImage' => $coverImageUrl ?? '',
+            'portfolio' => $portfolioImages,
+            'styles' => $specialties,
+            'equipment' => $equipmentList,
+            'priceValue' => (float)($nag->priceValue ?? 0),
+            'priceMin' => (float)($nag->priceMin ?? 0),
+            'priceMax' => (float)($nag->priceMax ?? 0),
+            'location' => $nag->location ?? 'Chưa cập nhật',
+            'experience' => $nag->experience ?? 0,
+            'bio' => $nag->bio ?? '',
+            'rating' => round($rating, 1),
+            'reviewCount' => $reviewCount,
+            'completedBookings' => $completedBookings,
+        ]);
     }
 }

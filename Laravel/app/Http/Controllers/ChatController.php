@@ -124,7 +124,8 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không phải khách hàng hoặc nhiếp ảnh gia'], 403);
         }
 
-        $messages = $query->where('Trang_Thai', 'Chưa đọc')
+        // Tin nhắn chưa đọc là những tin có Trang_Thai = 'Đã gửi' (chưa được đọc)
+        $messages = $query->where('Trang_Thai', 'Đã gửi')
             ->orderBy('Gui_Luc', 'asc')
             ->get();
 

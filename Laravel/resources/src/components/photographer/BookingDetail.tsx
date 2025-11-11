@@ -1379,28 +1379,22 @@ export interface BookingDetailData {
                             </div>
                             
                             {/* Hiển thị giá trị cũ */}
-                            <div>
-                                <Label>Khoảng thời gian hiện tại</Label>
-                                <div className="p-3 bg-muted rounded-md text-sm space-y-1">
-                                    {(() => {
-                                        if (!booking) return "N/A";
-                                        if (changeRequest.field === "time") {
-                                            return (
-                                                <>
-                                                    <div><strong>Bắt đầu:</strong> {booking.date} {booking.time}</div>
-                                                    <div><strong>Kết thúc:</strong> {booking.endDate || booking.date} {booking.endTime || "N/A"}</div>
-                                                    {booking.duration && (
-                                                        <div className="text-xs text-muted-foreground mt-1">Thời lượng: {booking.duration}</div>
-                                                    )}
-                                                </>
-                                            );
-                                        } else if (changeRequest.field === "location") {
-                                            return booking.location || "Chưa có";
-                                        }
-                                        return "N/A";
-                                    })()}
+                            {changeRequest.field === "time" && (
+                                <div>
+                                    <Label>Khoảng thời gian hiện tại</Label>
+                                    <div className="p-3 bg-muted rounded-md text-sm space-y-1">
+                                        {booking ? (
+                                            <>
+                                                <div><strong>Bắt đầu:</strong> {booking.date} {booking.time}</div>
+                                                <div><strong>Kết thúc:</strong> {booking.endDate || booking.date} {booking.endTime || "N/A"}</div>
+                                                {booking.duration && (
+                                                    <div className="text-xs text-muted-foreground mt-1">Thời lượng: {booking.duration}</div>
+                                                )}
+                                            </>
+                                        ) : "N/A"}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {changeRequest.field === "time" ? (
                                 <div className="space-y-4">
@@ -1437,20 +1431,28 @@ export interface BookingDetailData {
                                     )}
                                 </div>
                             ) : (
-                                <div>
-                                    <Label>Giá trị mới</Label>
-                                    <Input
-                                        value={changeRequest.newStartTime}
-                                        onChange={(e) => {
-                                            setChangeRequest({ ...changeRequest, newStartTime: e.target.value });
-                                            setChangeValidationError("");
-                                        }}
-                                        placeholder="Nhập địa điểm mới..."
-                                        maxLength={255}
-                                    />
-                                    {changeValidationError && (
-                                        <p className="text-sm text-red-600 mt-1">{changeValidationError}</p>
-                                    )}
+                                <div className="space-y-2">
+                                    <div>
+                                        <Label>Địa điểm hiện tại</Label>
+                                        <div className="p-3 bg-muted rounded-md text-sm">
+                                            {booking?.location || "Chưa có"}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label>Địa điểm mới</Label>
+                                        <Input
+                                            value={changeRequest.newStartTime}
+                                            onChange={(e) => {
+                                                setChangeRequest({ ...changeRequest, newStartTime: e.target.value });
+                                                setChangeValidationError("");
+                                            }}
+                                            placeholder="Nhập địa điểm mới..."
+                                            maxLength={255}
+                                        />
+                                        {changeValidationError && (
+                                            <p className="text-sm text-red-600 mt-1">{changeValidationError}</p>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                             <div>

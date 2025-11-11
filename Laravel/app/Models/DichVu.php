@@ -15,6 +15,11 @@ class DichVu extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'Ma_DV', 'Ten_DV', 'Gia'
+        'Ma_DV', 'Ten_DV', 'Mo_Ta', 'Gia', 'Hoat_Dong'
+    ];
+
+    protected $casts = [
+        'Gia' => 'decimal:2',
+        'Hoat_Dong' => 'boolean',
     ];
 }

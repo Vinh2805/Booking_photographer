@@ -33,6 +33,7 @@ import {
 } from "../ui/dropdown-menu";
 import apiClient from "../services/apiClient";
 import React from "react";
+import { PhotographerPortfolioModal } from "./PhotographerPortfolioModal";
 
 interface CustomerHomeProps {
   onNavigate: (view: string) => void;
@@ -55,6 +56,8 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
   const [dashboard, setDashboard] = useState<any>(null);
   const [allPhotographers, setAllPhotographers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedPhotographerId, setSelectedPhotographerId] = useState<string | null>(null);
+  const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
 
   // 📡 Gọi API dashboard + photographer song song
   useEffect(() => {
@@ -691,7 +694,14 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
 
                     <CardContent className="p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="relative">
+                        <div 
+                          className="relative cursor-pointer hover:ring-4 hover:ring-primary transition-all rounded-full"
+                          onClick={() => {
+                            console.log("Avatar clicked in CustomerHome:", photographer.id);
+                            setSelectedPhotographerId(photographer.id);
+                            setPortfolioModalOpen(true);
+                          }}
+                        >
                           <ImageWithFallback
                             src={photographer.avatar}
                             alt={photographer.name}
@@ -762,7 +772,11 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
                       <div className="flex gap-2">
                         <Button
                           className="flex-1 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-300"
-                          onClick={() => onNavigate("bookings")}
+                          onClick={() => {
+                            console.log("Đặt lịch clicked in grid view:", photographer.id);
+                            setSelectedPhotographerId(photographer.id);
+                            setPortfolioModalOpen(true);
+                          }}
                         >
                           <Calendar className="w-4 h-4 mr-2" />
                           Đặt lịch
@@ -790,7 +804,14 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
                             alt={photographer.name}
                             className="w-32 h-32 object-cover rounded-lg"
                           />
-                          <div className="absolute -bottom-2 -right-2">
+                          <div 
+                            className="absolute -bottom-2 -right-2 cursor-pointer hover:ring-2 hover:ring-primary transition-all rounded-full"
+                            onClick={() => {
+                              console.log("Avatar clicked in list view:", photographer.id);
+                              setSelectedPhotographerId(photographer.id);
+                              setPortfolioModalOpen(true);
+                            }}
+                          >
                             <ImageWithFallback
                               src={photographer.avatar}
                               alt={photographer.name}
@@ -882,7 +903,11 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
                               <Button variant="outline">Xem hồ sơ</Button>
                               <Button
                                 className="bg-primary hover:bg-primary/90"
-                                onClick={() => onNavigate("bookings")}
+                                onClick={() => {
+                                  console.log("Đặt lịch clicked in list view button:", photographer.id);
+                                  setSelectedPhotographerId(photographer.id);
+                                  setPortfolioModalOpen(true);
+                                }}
                               >
                                 <Calendar className="w-4 h-4 mr-2" />
                                 Đặt lịch
@@ -944,6 +969,24 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
           </CardContent>
         </Card>
         </div>
+
+      {/* Portfolio Modal */}
+      <PhotographerPortfolioModal
+        photographerId={selectedPhotographerId}
+        open={portfolioModalOpen}
+        onClose={() => {
+          setPortfolioModalOpen(false);
+          setSelectedPhotographerId(null);
+        }}
+        onBookingSuccess={() => {
+          // Refresh data if needed
+          if (user?.Ma_TK) {
+            apiClient.get(`/customer/dashboard/${user.Ma_TK}`).then((res) => {
+              setDashboard(res.data);
+            });
+          }
+        }}
+      />
     </div>
   );
 }

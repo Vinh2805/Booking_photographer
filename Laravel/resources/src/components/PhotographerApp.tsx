@@ -8,6 +8,7 @@ import { PhotographerEditProfile } from "./photographer/PhotographerEditProfile"
 import { PhotographerChangePassword } from "./photographer/PhotographerChangePassword";
 import { BookingDetail } from "./photographer/BookingDetail";
 import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
+import React from "react";
 
 // ✅ Đổi prop từ onBack → onLogout để đồng bộ với App.tsx
 interface PhotographerAppProps {
@@ -170,7 +171,6 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
             case "messages":
                 return (
                     <PhotographerChat
-                        user={user}
                         onBack={() => setCurrentView("home")}
                     />
                 );
@@ -184,14 +184,12 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
             case "edit-profile":
                 return (
                     <PhotographerEditProfile
-                        user={user}
                         onBack={() => setCurrentView("profile")}
                     />
                 );
             case "change-password":
                 return (
                     <PhotographerChangePassword
-                        user={user}
                         onBack={() => setCurrentView("profile")}
                     />
                 );
@@ -209,7 +207,6 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
             breadcrumbs={getBreadcrumbs()}
             userRole="photographer"
             currentView={currentView}
-            user={user}
             onLogout={handleLogout} // ✅ THÊM DÒNG NÀY
         >
             {renderContent()}
