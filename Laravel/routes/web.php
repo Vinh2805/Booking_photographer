@@ -1,41 +1,22 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
+use Illuminate\Support\Facades\DB;
 
-// Route::get('/', function () {
-//     return view('welcome');
-// });
-
-// Route::get('/', function () {
-//     return view('main');
-// });
+// Chỉ phục vụ React frontend
 Route::get('/check-db', function () {
     try {
         DB::connection()->getPdo();
-        return "✅ Kết nối database thành công!";
+        return "Kết nối database thành công!";
     } catch (\Exception $e) {
-        return "❌ Kết nối thất bại: " . $e->getMessage();
+        return "Kết nối thất bại: " . $e->getMessage();
     }
 });
 
-// Route API React
-Route::get('/{any}', function () {
-    return view('main');
-})->where('any', '^(?!api).*$');
-Route::get('/photographer', function () {
-    return view('photographer');
-});
-Route::get('/photographer/detail/{id}', function ($id) {
-    return view('photographer_detail', ['id' => $id]);
-});
+// Test DB (tạm giữ lại để debug)
 Route::get('/test-db', function () {
-    // Test database connection và data
     try {
-        $bookings = DB::table('buoi_chup')
-            ->where('Ma_NAG', 'NAG001')
-            ->get();
-            
+        $bookings = DB::table('buoi_chup')->where('Ma_NAG', 'NAG001')->get();
         $customers = DB::table('khach_hang')->get();
         $photographers = DB::table('nhiep_anh_gia')->get();
         
@@ -45,12 +26,13 @@ Route::get('/test-db', function () {
             'khach_hang_count' => $customers->count(),
             'nhiep_anh_gia_count' => $photographers->count(),
             'sample_buoi_chup' => $bookings->first(),
-            'all_buoi_chup' => $bookings
         ]);
     } catch (\Exception $e) {
-        return response()->json([
-            'database_connection' => 'failed',
-            'error' => $e->getMessage()
-        ], 500);
+        return response()->json(['error' => $e->getMessage()], 500);
     }
 });
+
+// Route chính cho React (phải để CUỐI CÙNG!)
+Route::get('/{any}', function () {
+    return view('main');
+})->where('any', '.*'); // Bắt hết, kể cả /photographer, /admin, v.v.

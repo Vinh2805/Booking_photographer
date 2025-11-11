@@ -1,5 +1,5 @@
 // frontend/src/components/PhotographerBookings.tsx
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -26,7 +26,6 @@ import {
   Star,
   CheckCircle,
   Image as ImageIcon,
-  RefreshCw,
 } from "lucide-react";
 
 type BookingStatus =
@@ -74,71 +73,8 @@ export function PhotographerBookings({
 }: PhotographerBookingsProps) {
   const [selectedStatus, setSelectedStatus] = useState<BookingStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [bookings] = useState<Booking[]>([]); // trống
   const navigate = useNavigate();
-
-  // Lấy token từ localStorage (Sanctum)
-  const getToken = () => {
-    return localStorage.getItem("auth_token") || "";
-  };
-
-  // Fetch bookings từ API
-  const fetchBookings = async (status: string = selectedStatus, search: string = searchQuery) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (status !== "all") params.append("status", status);
-      if (search) params.append("search", search);
-
-      const token = getToken();
-      const response = await fetch(`http://127.0.0.1:8000/api/buoi-chup?${params}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        credentials: "include",
-      });
-
-      // Kiểm tra nếu server trả về HTML (lỗi 500, 404, v.v.)
-      const text = await response.text();
-      if (text.trim().startsWith("<!DOCTYPE") || text.includes("<html")) {
-        console.error("Server trả về HTML:", text.substring(0, 200));
-        throw new Error("Lỗi server: trả về HTML thay vì JSON. Kiểm tra backend.");
-      }
-
-      let result;
-      try {
-        result = JSON.parse(text);
-      } catch (parseError) {
-        console.error("JSON parse error:", parseError);
-        throw new Error("Dữ liệu trả về không phải JSON hợp lệ.");
-      }
-
-      if (result.success) {
-        setBookings(result.data || []);
-      } else {
-        setError(result.message || "Có lỗi xảy ra khi tải danh sách buổi chụp");
-      }
-    } catch (error: any) {
-      console.error("Lỗi khi tải bookings:", error);
-      const msg = error.message.includes("Failed to fetch")
-        ? "Không thể kết nối đến server. Kiểm tra Laravel có đang chạy không."
-        : error.message || "Lỗi không xác định";
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch khi mount hoặc filter thay đổi
-  useEffect(() => {
-    fetchBookings();
-  }, [selectedStatus, searchQuery]);
 
   const getStatusInfo = (status: BookingStatus) => {
     const statusMap = {
@@ -233,33 +169,10 @@ export function PhotographerBookings({
     setSelectedStatus(status);
   };
 
-  // Loading state
-  if (loading && bookings.length === 0) {
-    return (
-      <div className="p-4 flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
-        <span className="ml-2">Đang tải danh sách buổi chụp...</span>
-      </div>
-    );
-  }
-
-  if (error && bookings.length === 0) {
-    return (
-      <div className="p-4 text-center text-red-600 space-y-3">
-        <AlertCircle className="w-10 h-10 mx-auto mb-2 text-red-500" />
-        <p className="font-medium">{error}</p>
-        <Button onClick={() => fetchBookings()} variant="default" className="flex items-center gap-2">
-          <RefreshCw className="w-4 h-4" />
-          Thử lại
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 space-y-4 pb-24 bg-slate-50 dark:bg-slate-900">
+      {/* Filter & Search */}
       <div className="flex items-center gap-3">
-        {/* Filter Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -308,7 +221,6 @@ export function PhotographerBookings({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Search */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -322,73 +234,10 @@ export function PhotographerBookings({
 
       {/* Bookings List */}
       <div className="space-y-3">
-        {filteredBookings.map((booking) => {
-          const statusInfo = getStatusInfo(booking.status);
-          const StatusIcon = statusInfo.icon;
-
-          return (
-            <Card
-              key={booking.id}
-              className="cursor-pointer hover:shadow-lg hover-lift transition-all duration-200 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 group"
-              onClick={() => navigate(`/buoi-chup/${booking.id}`)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <ImageWithFallback
-                    src={booking.customer.avatar}
-                    alt={booking.customer.name}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-slate-200 dark:border-slate-600 group-hover:scale-110 transition-transform duration-200"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="font-medium truncate text-slate-800 dark:text-slate-100">
-                          {booking.title}
-                        </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                          {booking.customer.name}
-                        </p>
-                      </div>
-                      <Badge className={statusInfo.color}>
-                        <StatusIcon className="w-3 h-3 mr-1" />
-                        {statusInfo.label}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-400 mb-2">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span>{new Date(booking.date).toLocaleDateString("vi-VN")}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{booking.time}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Camera className="w-3 h-3" />
-                        <span>{booking.type}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" />
-                        <span className="font-semibold text-pink-600 dark:text-pink-400">
-                          {booking.price.toLocaleString("vi-VN")}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                      <MapPin className="w-3 h-3" />
-                      <span className="truncate">{booking.location}</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-
         {filteredBookings.length === 0 && (
           <div className="text-center py-12 text-slate-500 dark:text-slate-400">
             <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-            <p className="text-lg font-medium mb-2">Không tìm thấy buổi chụp nào</p>
+            <p className="text-lg font-medium mb-2">Không có buổi chụp nào</p>
             <p className="text-sm">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
           </div>
         )}

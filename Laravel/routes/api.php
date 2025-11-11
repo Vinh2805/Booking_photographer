@@ -1,11 +1,11 @@
 <?php
 
 use Illuminate\Http\Request;
-use App\Http\Controllers\BuoiChupController;
-use App\Http\Controllers\CustomerBookingController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\PhotographerController;
+use App\Http\Controllers\BuoiChupController;
+use App\Http\Controllers\CustomerBookingController;
+use App\Http\Controllers\PhotographerController; 
 
 Route::get('/customer/dashboard/{Ma_TK}', [CustomerController::class, 'dashboard']);
 
@@ -27,6 +27,7 @@ Route::get('/nhiep-anh-gia/noi-bat', [PhotographerController::class, 'featured']
 
 // 🔹 Đăng xuất (cần token)
 Route::middleware('auth:sanctum')->post('/dang-xuat', [AuthController::class, 'logout']);
+
 // TẤT CẢ ROUTE ĐỀU TRONG 1 GROUP DUY NHẤT
 // Route::middleware('auth:sanctum')->group(function () { // chưa fix được lỗi bỏ cái này 
 
@@ -44,4 +45,3 @@ Route::middleware('auth:sanctum')->post('/dang-xuat', [AuthController::class, 'l
     // === Khách hàng ===
     Route::get('/customer/bookings', [CustomerBookingController::class, 'index']);
     Route::get('/customer/bookings/{id}', [CustomerBookingController::class, 'show']);
-// });
