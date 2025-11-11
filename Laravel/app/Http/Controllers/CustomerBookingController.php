@@ -7,9 +7,11 @@ use App\Models\KhachHang;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Traits\AutoUpdateBookingStatus;
 
 class CustomerBookingController extends Controller
 {
+    use AutoUpdateBookingStatus;
     // Map trạng thái frontend → backend
     private function mapStatusToDb($status)
     {
@@ -49,6 +51,9 @@ class CustomerBookingController extends Controller
      */
     public function index(Request $request)
 {
+    // Tự động cập nhật trạng thái trước khi lấy danh sách
+    $this->autoUpdateBookingStatus();
+    
     // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
     $user = $request->user();
     if (!$user) {
@@ -142,6 +147,9 @@ class CustomerBookingController extends Controller
      */
     public function show(Request $request, $id)
     {
+        // Tự động cập nhật trạng thái trước khi lấy chi tiết
+        $this->autoUpdateBookingStatus();
+        
         // Kiểm tra authentication - middleware auth:sanctum đã xác thực rồi
         $user = $request->user();
         if (!$user) return response()->json(['message' => 'Unauthenticated'], 401);

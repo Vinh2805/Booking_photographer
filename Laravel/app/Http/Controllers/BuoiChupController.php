@@ -9,9 +9,12 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Traits\AutoUpdateBookingStatus;
 
 class BuoiChupController extends Controller
 {
+    use AutoUpdateBookingStatus;
+
     /**
      * Helper method để lấy Ma_NAG từ user đã đăng nhập
      */
@@ -24,82 +27,6 @@ class BuoiChupController extends Controller
         
         $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
         return $nag?->Ma_NAG;
-    }
-
-    /**
-     * Tự động cập nhật trạng thái booking dựa trên thời gian
-     */
-    private function autoUpdateBookingStatus(): void
-    {
-        $now = Carbon::now();
-        
-        // 1. Hủy các buổi chụp muộn quá 30 phút (chưa bắt đầu)
-        // Lưu ý: Không hủy những buổi chụp đã từng được bắt đầu và kết thúc (session_ended = true)
-        $lateBookings = BuoiChup::whereIn('Trang_Thai', ['Chờ thanh toán', 'Chờ xử lý ảnh', 'Sắp diễn ra'])
-            ->get();
-        
-        foreach ($lateBookings as $booking) {
-            // Kiểm tra xem buổi chụp đã từng được bắt đầu và kết thúc chưa
-            $sessionEnded = false;
-            if ($booking->Ghi_Chu) {
-                try {
-                    $ghiChuData = json_decode($booking->Ghi_Chu, true);
-                    if (is_array($ghiChuData) && isset($ghiChuData['session_ended']) && $ghiChuData['session_ended'] === true) {
-                        $sessionEnded = true;
-                    }
-                } catch (\Exception $e) {
-                    // Nếu không parse được, bỏ qua
-                }
-            }
-            
-            // Nếu đã từng bắt đầu và kết thúc, bỏ qua (không tự động hủy)
-            if ($sessionEnded) {
-                continue;
-            }
-            
-            $scheduledTime = $booking->Bat_Dau_Chup instanceof Carbon 
-                ? $booking->Bat_Dau_Chup 
-                : Carbon::parse($booking->Bat_Dau_Chup);
-            $minutesLate = $now->diffInMinutes($scheduledTime, false);
-            
-            // Nếu muộn quá 30 phút
-            if ($minutesLate < -30) {
-                $booking->Trang_Thai = 'Đã hủy';
-                $booking->Ly_Do_Huy = 'Tự động hủy do muộn quá 30 phút so với thời gian hẹn';
-                $booking->save();
-                
-                // Ghi log
-                DB::table('lich_su_giao_dich')->insert([
-                    'Ma_BC' => $booking->Ma_BC,
-                    'Loai_Giao_Dich' => 'Da huy',
-                    'Mo_Ta' => "Tự động hủy do muộn quá 30 phút. Thời gian hẹn: {$scheduledTime->format('d/m/Y H:i')}, Thời gian hiện tại: {$now->format('d/m/Y H:i')}",
-                    'Thoi_Gian' => $now
-                ]);
-            }
-        }
-        
-        // 2. Hoàn thành các buổi chụp đã qua thời gian kết thúc
-        $endedBookings = BuoiChup::whereIn('Trang_Thai', ['Đang diễn ra', 'Chờ xử lý ảnh'])
-            ->get();
-        
-        foreach ($endedBookings as $booking) {
-            $endTime = $booking->Ket_Thuc_Chup instanceof Carbon 
-                ? $booking->Ket_Thuc_Chup 
-                : Carbon::parse($booking->Ket_Thuc_Chup);
-            
-            // Nếu đã qua thời gian kết thúc
-            if ($now->greaterThan($endTime)) {
-                if ($booking->Trang_Thai === 'Đang diễn ra') {
-                    // Nếu đang diễn ra → chuyển sang "Chờ xử lý ảnh"
-                    $booking->Trang_Thai = 'Chờ xử lý ảnh';
-                    $booking->save();
-                } elseif ($booking->Trang_Thai === 'Chờ xử lý ảnh') {
-                    // Nếu đã xử lý ảnh → chuyển sang "Đã hoàn thành"
-                    $booking->Trang_Thai = 'Đã hoàn thành';
-                    $booking->save();
-                }
-            }
-        }
     }
 
     /**
