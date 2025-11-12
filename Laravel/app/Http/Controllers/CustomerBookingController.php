@@ -128,6 +128,10 @@ class CustomerBookingController extends Controller
             'location' => $bc->Dia_Diem,
             'date' => $start?->format('Y-m-d'),
             'time' => $start?->format('H:i'),
+            'endDate' => $end?->format('Y-m-d'),
+            'endTime' => $end?->format('H:i'),
+            'startDateTime' => $start?->format('Y-m-d H:i:s'),
+            'endDateTime' => $end?->format('Y-m-d H:i:s'),
             'price' => $bc->Tong_Tien,
             'description' => $bc->Ghi_Chu ?? '',
             'services' => [], // TODO: Load từ bảng buoi_chup_dich_vu khi bảng được tạo
@@ -194,6 +198,10 @@ class CustomerBookingController extends Controller
             'location' => $bc->Dia_Diem,
             'date' => $start?->format('Y-m-d'),
             'time' => $start?->format('H:i'),
+            'endDate' => $end?->format('Y-m-d'),
+            'endTime' => $end?->format('H:i'),
+            'startDateTime' => $start?->format('Y-m-d H:i:s'),
+            'endDateTime' => $end?->format('Y-m-d H:i:s'),
             'price' => $bc->Tong_Tien,
             'description' => $bc->Ghi_Chu ?? '',
             'services' => [], // TODO: Load từ bảng buoi_chup_dich_vu khi bảng được tạo

@@ -106,12 +106,24 @@ class BookingChangeController extends Controller
             return response()->json(['message' => 'Không tìm thấy buổi chụp.'], 404);
         }
 
-        // Kiểm tra trạng thái: chỉ cho phép thay đổi khi buổi chụp ở trạng thái "Chờ xác nhận" hoặc "Chờ đặt cọc"
-        $allowedStatuses = ['Chờ xác nhận', 'Chờ đặt cọc'];
+        // Kiểm tra trạng thái: chỉ cho phép thay đổi khi buổi chụp ở trạng thái "Chờ xác nhận", "Chờ đặt cọc" hoặc "Thay đổi"
+        $allowedStatuses = ['Chờ xác nhận', 'Chờ đặt cọc', 'Thay đổi'];
         
         if (!in_array($booking->Trang_Thai, $allowedStatuses)) {
             return response()->json([
-                'message' => 'Buổi chụp chỉ có thể thay đổi khi ở trạng thái "Chờ xác nhận" hoặc "Chờ đặt cọc". Trạng thái hiện tại: ' . $booking->Trang_Thai
+                'message' => 'Buổi chụp chỉ có thể thay đổi khi ở trạng thái "Chờ xác nhận", "Chờ đặt cọc" hoặc "Thay đổi". Trạng thái hiện tại: ' . $booking->Trang_Thai
+            ], 400);
+        }
+
+        // Kiểm tra xem đã có yêu cầu thay đổi nào đang chờ duyệt chưa
+        $existingRequest = DB::table('yeu_cau_thay_doi')
+            ->where('Ma_BC', $ma_bc)
+            ->where('Trang_Thai', 'Chờ duyệt')
+            ->first();
+        
+        if ($existingRequest) {
+            return response()->json([
+                'message' => 'Đã có yêu cầu thay đổi đang chờ duyệt. Vui lòng đợi yêu cầu hiện tại được xử lý trước khi gửi yêu cầu mới.'
             ], 400);
         }
 

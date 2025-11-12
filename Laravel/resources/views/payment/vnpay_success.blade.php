@@ -89,8 +89,15 @@
     <p>Mã giao dịch: <strong>{{ $transaction_id }}</strong></p>
 
     @php
-        $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
-        $redirectUrl = "{$frontendUrl}/customer?payment=success&type={$type}&ma_bc={$ma_bc}&amount=" . urlencode($amount) . "&transaction_id={$transaction_id}";
+        // Sử dụng APP_URL từ Laravel để redirect về Laravel app (không phải Vite dev server)
+        $frontendUrl = env('APP_URL', 'http://127.0.0.1:8000');
+        $redirectUrl = $frontendUrl . '/customer-auth-login?' . http_build_query([
+            'payment' => 'success',
+            'type' => $type,
+            'ma_bc' => $ma_bc,
+            'amount' => $amount,
+            'transaction_id' => $transaction_id
+        ]);
     @endphp
     
     <a href="{{ $redirectUrl }}" class="button">⬅️ Trở về trang chủ</a>

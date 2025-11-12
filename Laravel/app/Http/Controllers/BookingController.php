@@ -10,6 +10,7 @@ use App\Models\BuoiChup;
 use App\Models\KhachHang;
 use App\Models\DichVu;
 use App\DTOs\YeuCauChupDTO;
+use Carbon\Carbon;
 
 class BookingController extends Controller
 {
@@ -45,6 +46,29 @@ class BookingController extends Controller
 
         // Tự động lấy Ma_KH từ user đã đăng nhập
         $validated['Ma_KH'] = $khachHang->Ma_KH;
+
+        // Parse datetime strings để đảm bảo đúng timezone (Asia/Ho_Chi_Minh)
+        // Format từ frontend: "YYYY-MM-DD HH:mm:ss" (local time, không có timezone)
+        if (isset($validated['Bat_Dau_Chup'])) {
+            try {
+                $validated['Bat_Dau_Chup'] = Carbon::createFromFormat('Y-m-d H:i:s', $validated['Bat_Dau_Chup'], 'Asia/Ho_Chi_Minh')
+                    ->format('Y-m-d H:i:s');
+            } catch (\Exception $e) {
+                // Nếu format không đúng, thử parse tự động
+                $validated['Bat_Dau_Chup'] = Carbon::parse($validated['Bat_Dau_Chup'], 'Asia/Ho_Chi_Minh')
+                    ->format('Y-m-d H:i:s');
+            }
+        }
+        if (isset($validated['Ket_Thuc_Chup'])) {
+            try {
+                $validated['Ket_Thuc_Chup'] = Carbon::createFromFormat('Y-m-d H:i:s', $validated['Ket_Thuc_Chup'], 'Asia/Ho_Chi_Minh')
+                    ->format('Y-m-d H:i:s');
+            } catch (\Exception $e) {
+                // Nếu format không đúng, thử parse tự động
+                $validated['Ket_Thuc_Chup'] = Carbon::parse($validated['Ket_Thuc_Chup'], 'Asia/Ho_Chi_Minh')
+                    ->format('Y-m-d H:i:s');
+            }
+        }
 
         // Parse JSON fields
         $theLoaiChup = json_decode($validated['The_Loai_Chup'], true);

@@ -508,6 +508,7 @@ class BuoiChupController extends Controller
             'location' => $booking->Dia_Diem,
             'date' => $start->toDateString(),
             'time' => $start->format('H:i'),
+            'startDateTime' => $start->toDateTimeString(),
             'endTime' => $end->format('H:i'),
             'endDate' => $end->toDateString(),
             'endDateTime' => $end->toDateTimeString(),

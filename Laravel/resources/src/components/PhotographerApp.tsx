@@ -8,7 +8,6 @@ import { PhotographerEditProfile } from "./photographer/PhotographerEditProfile"
 import { PhotographerChangePassword } from "./photographer/PhotographerChangePassword";
 import { BookingDetail } from "./photographer/BookingDetail";
 import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
-import React from "react";
 
 // ✅ Đổi prop từ onBack → onLogout để đồng bộ với App.tsx
 interface PhotographerAppProps {
@@ -29,6 +28,7 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
     const [user, setUser] = useState<any>(null);
     const [currentView, setCurrentView] = useState<PhotographerView>("home");
     const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+    const [chatBookingId, setChatBookingId] = useState<string | null>(null);
 
     // ✅ Đọc token và user từ localStorage khi mở lại trang
     useEffect(() => {
@@ -166,12 +166,22 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                             setCurrentView("bookings");
                             setSelectedBookingId(null);
                         }}
+                        onNavigate={(view: string, bookingId?: string) => {
+                            if (view === "messages") {
+                                setChatBookingId(bookingId || null);
+                                setCurrentView("messages");
+                            }
+                        }}
                     />
                 );
             case "messages":
                 return (
                     <PhotographerChat
-                        onBack={() => setCurrentView("home")}
+                        onBack={() => {
+                            setCurrentView("home");
+                            setChatBookingId(null);
+                        }}
+                        initialBookingId={chatBookingId || undefined}
                     />
                 );
             case "profile":

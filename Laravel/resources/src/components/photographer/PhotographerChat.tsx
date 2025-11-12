@@ -51,7 +51,8 @@ interface Message {
   Trang_Thai?: string;
 }
 
-export function PhotographerChat(_onBack: { onBack: () => void }) {
+export function PhotographerChat(_onBack: { onBack: () => void; initialBookingId?: string }) {
+  const { onBack, initialBookingId } = _onBack;
   const [selectedChat, setSelectedChat] = useState<ChatRoom | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [messageInput, setMessageInput] = useState("");
@@ -68,6 +69,16 @@ export function PhotographerChat(_onBack: { onBack: () => void }) {
   useEffect(() => {
     fetchChatRooms();
   }, []);
+
+  // Tự động chọn chat nếu có initialBookingId
+  useEffect(() => {
+    if (initialBookingId && chatRooms.length > 0 && !selectedChat) {
+      const targetRoom = chatRooms.find(room => room.bookingId === initialBookingId);
+      if (targetRoom) {
+        setSelectedChat(targetRoom);
+      }
+    }
+  }, [initialBookingId, chatRooms, selectedChat]);
 
   // Fetch tin nhắn khi chọn chat
   useEffect(() => {

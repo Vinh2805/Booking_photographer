@@ -30,9 +30,7 @@
     Camera,
     User,
     MessageCircle,
-    Phone,
     Edit3,
-    Star,
     Heart,
     Share2,
     CheckCircle,
@@ -41,7 +39,6 @@
     Image as ImageIcon,
     DollarSign,
     Upload,
-    FileX,
     PlayCircle,
     StopCircle,
     Loader,
@@ -54,6 +51,7 @@ import { toast } from "sonner";
     interface BookingDetailProps {
         bookingId: string;
         onBack: () => void;
+        onNavigate?: (view: string, bookingId?: string) => void;
     }
 
     export type BookingStatus = 
@@ -105,12 +103,13 @@ export interface BookingDetailData {
   totalPaid?: number;
   scheduledDateTime?: string;
   sessionEnded?: boolean; // Đánh dấu buổi chụp đã từng được kết thúc
+  startDateTime?: string; // YYYY-MM-DD HH:mm:ss
   endTime?: string; // HH:mm
   endDate?: string; // YYYY-MM-DD
   endDateTime?: string; // YYYY-MM-DD HH:mm:ss
 }
 
-    export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
+    export function BookingDetail({ bookingId, onBack, onNavigate }: BookingDetailProps) {
         const [booking, setBooking] = useState<BookingDetailData | null>(null);
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState<string | null>(null);
@@ -593,19 +592,19 @@ export interface BookingDetailData {
 
                             <Separator className="my-4" />
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <Button variant="outline" className="gap-2">
+                            <div>
+                                <Button 
+                                    variant="outline" 
+                                    className="gap-2 w-full"
+                                    onClick={() => {
+                                        if (onNavigate) {
+                                            onNavigate("messages", bookingId);
+                                        }
+                                    }}
+                                >
                                     <MessageCircle className="w-4 h-4" />
                                     Nhắn tin
                                 </Button>
-                                {booking.customer.phone && (
-                                    <Button variant="outline" className="gap-2" asChild>
-                                        <a href={`tel:${booking.customer.phone}`}>
-                                            <Phone className="w-4 h-4" />
-                                            Gọi điện
-                                        </a>
-                                    </Button>
-                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -1365,8 +1364,20 @@ export interface BookingDetailData {
                                     <div className="p-3 bg-muted rounded-md text-sm space-y-1">
                                         {booking ? (
                                             <>
-                                                <div><strong>Bắt đầu:</strong> {booking.date} {booking.time}</div>
-                                                <div><strong>Kết thúc:</strong> {booking.endDate || booking.date} {booking.endTime || "N/A"}</div>
+                                                <div><strong>Bắt đầu:</strong> {booking.startDateTime ? new Date(booking.startDateTime).toLocaleString('vi-VN', { 
+                                                    year: 'numeric', 
+                                                    month: '2-digit', 
+                                                    day: '2-digit', 
+                                                    hour: '2-digit', 
+                                                    minute: '2-digit' 
+                                                }) : `${booking.date} ${booking.time}`}</div>
+                                                <div><strong>Kết thúc:</strong> {booking.endDateTime ? new Date(booking.endDateTime).toLocaleString('vi-VN', { 
+                                                    year: 'numeric', 
+                                                    month: '2-digit', 
+                                                    day: '2-digit', 
+                                                    hour: '2-digit', 
+                                                    minute: '2-digit' 
+                                                }) : (booking.endDate && booking.endTime ? `${booking.endDate} ${booking.endTime}` : "N/A")}</div>
                                                 {booking.duration && (
                                                     <div className="text-xs text-muted-foreground mt-1">Thời lượng: {booking.duration}</div>
                                                 )}

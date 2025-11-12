@@ -31,6 +31,7 @@ import {
   ChevronDown,
   PlayCircle,
   XCircle,
+  MessageCircle,
 } from "lucide-react";
 import apiClient from "../services/apiClient";
 import { depositBooking, getFinalQuote, payFinal } from "../services/PaymentAPI";
@@ -75,6 +76,10 @@ interface Booking {
   location: string;
   date: string;
   time: string;
+  endDate?: string;
+  endTime?: string;
+  startDateTime?: string;
+  endDateTime?: string;
   price: number;
   description: string;
   services: string[];
@@ -115,7 +120,7 @@ const filterOptions: FilterOption[] = [
   { id: "cancelled", label: "Đã hủy", status: "cancelled", icon: XCircle, color: "bg-muted-foreground" },
 ];
 
-export function CustomerBookings({ onBack }: { onBack?: () => void }) {
+export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; onNavigate?: (view: string, bookingId?: string) => void }) {
   const [selectedStatus, setSelectedStatus] = useState<BookingStatus | "all">("all");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -423,6 +428,22 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                   const Icon = info.icon;
                   return <Badge className={info.color}><Icon className="w-4 h-4 mr-1" />{info.label}</Badge>;
                 })()}
+              </div>
+
+              {/* Nút Nhắn tin */}
+              <div className="pt-2">
+                <Button 
+                  variant="outline" 
+                  className="gap-2 w-full"
+                  onClick={() => {
+                    if (onNavigate) {
+                      onNavigate("messages", selectedBooking.id);
+                    }
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Nhắn tin
+                </Button>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -851,7 +872,7 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                     setChangeValidationError("");
                   }}
                 >
-                  <option value="time">Thời gian bắt đầu</option>
+                  <option value="time">Thời gian</option>
                   <option value="location">Địa điểm</option>
                 </select>
               </div>
@@ -863,8 +884,20 @@ export function CustomerBookings({ onBack }: { onBack?: () => void }) {
                   <div className="p-3 bg-muted rounded-md text-sm space-y-1">
                     {selectedBooking ? (
                       <>
-                        <div><strong>Bắt đầu:</strong> {selectedBooking.date} {selectedBooking.time}</div>
-                        <div><strong>Kết thúc:</strong> {(selectedBooking as any).endDate || selectedBooking.date} {(selectedBooking as any).endTime || "N/A"}</div>
+                        <div><strong>Bắt đầu:</strong> {selectedBooking.startDateTime ? new Date(selectedBooking.startDateTime).toLocaleString('vi-VN', { 
+                          year: 'numeric', 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        }) : `${selectedBooking.date} ${selectedBooking.time}`}</div>
+                        <div><strong>Kết thúc:</strong> {selectedBooking.endDateTime ? new Date(selectedBooking.endDateTime).toLocaleString('vi-VN', { 
+                          year: 'numeric', 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        }) : (selectedBooking.endDate && selectedBooking.endTime ? `${selectedBooking.endDate} ${selectedBooking.endTime}` : "N/A")}</div>
                         {selectedBooking.duration && (
                           <div className="text-xs text-muted-foreground mt-1">Thời lượng: {selectedBooking.duration}</div>
                         )}

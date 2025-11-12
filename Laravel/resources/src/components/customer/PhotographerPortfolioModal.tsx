@@ -9,13 +9,11 @@ import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { Button } from "../ui/button";
 import { Calendar, Upload, X } from "lucide-react";
 import apiClient from "../services/apiClient";
-import { createBooking, CreateBookingRequest } from "../services/BookingAPI";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Checkbox } from "../ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Badge } from "../ui/badge";
 import { toast } from "sonner";
 
 interface PhotographerPortfolioModalProps {
@@ -233,6 +231,18 @@ export function PhotographerPortfolioModal({
       return;
     }
 
+    // Convert datetime-local format (YYYY-MM-DDTHH:mm) to YYYY-MM-DD HH:mm:ss
+    // Không dùng toISOString() vì nó convert sang UTC, gây lệch múi giờ
+    const formatDateTimeForServer = (datetimeLocal: string): string => {
+      // datetime-local format: "YYYY-MM-DDTHH:mm"
+      // Convert to: "YYYY-MM-DD HH:mm:ss"
+      return datetimeLocal.replace('T', ' ') + ':00';
+    };
+
+    const startDateTimeStr = formatDateTimeForServer(bookingData.Bat_Dau_Chup);
+    const endDateTimeStr = formatDateTimeForServer(bookingData.Ket_Thuc_Chup);
+    
+    // Validate: Parse để kiểm tra nhưng không dùng để gửi
     const startDate = new Date(bookingData.Bat_Dau_Chup);
     const endDate = new Date(bookingData.Ket_Thuc_Chup);
     const now = new Date();
@@ -257,8 +267,8 @@ export function PhotographerPortfolioModal({
       formData.append("The_Loai_Chup", JSON.stringify(bookingData.The_Loai_Chup));
       formData.append("Boi_Canh_Chup", bookingData.Boi_Canh_Chup);
       formData.append("Dia_Diem", bookingData.Dia_Diem);
-      formData.append("Bat_Dau_Chup", startDate.toISOString());
-      formData.append("Ket_Thuc_Chup", endDate.toISOString());
+      formData.append("Bat_Dau_Chup", startDateTimeStr);
+      formData.append("Ket_Thuc_Chup", endDateTimeStr);
       formData.append("Ghi_Chu", bookingData.Ghi_Chu || "");
       formData.append("Dich_Vu", JSON.stringify(bookingData.Dich_Vu));
       formData.append("Tong_Tien", calculateTotalPrice().toString());

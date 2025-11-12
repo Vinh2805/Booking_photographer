@@ -8,7 +8,6 @@ import { CustomerProfile } from "./customer/CustomerProfile";
 import { CustomerEditProfile } from "./customer/CustomerEditProfile";
 import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
 import { toast } from "sonner";
-import React from "react";
 
 interface CustomerAppProps {
     onLogout: () => void; // ✅ đổi tên prop để khớp với App.tsx
@@ -27,6 +26,7 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [currentView, setCurrentView] = useState<CustomerView>("home");
+    const [chatBookingId, setChatBookingId] = useState<string | null>(null);
 
     // ✅ Load token và user khi mở lại trang
     useEffect(() => {
@@ -62,28 +62,61 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
         const transaction_id = searchParams.get("transaction_id");
 
         if (payment === "success") {
-            // Xóa query parameters để tránh hiển thị lại thông báo
-            navigate(location.pathname, { replace: true });
+            // Đảm bảo user đã được load trước khi xử lý
+            const token = localStorage.getItem("customer_token");
+            const userData = localStorage.getItem("customer_info");
             
+            if (token && userData && !isAuthenticated) {
+                try {
+                    const parsedUser = JSON.parse(userData);
+                    setUser(parsedUser);
+                    setIsAuthenticated(true);
+                } catch (error) {
+                    console.error("❌ CustomerApp - Lỗi parse user data:", error);
+                }
+            }
+            
+            // Chuyển về trang chủ (home) trước
+            setCurrentView("home");
+            
+            // Xóa query parameters để tránh hiển thị lại thông báo
+            navigate("/customer", { replace: true });
+            
+            // Hiển thị thông báo thành công
             const paymentType = type === "deposit" ? "Đặt cọc" : "Thanh toán phần còn lại";
             const successMessage = `${paymentType} thành công!${ma_bc ? ` Mã buổi chụp: ${ma_bc}` : ""}${amount ? ` Số tiền: ${amount}` : ""}${transaction_id ? ` Mã giao dịch: ${transaction_id}` : ""}`;
             
             toast.success(successMessage, {
                 duration: 5000,
             });
-            
-            // Chuyển đến trang bookings để xem buổi chụp
-            setCurrentView("bookings");
         } else if (payment === "failed") {
-            // Xóa query parameters để tránh hiển thị lại thông báo
-            navigate(location.pathname, { replace: true });
+            // Đảm bảo user đã được load trước khi xử lý
+            const token = localStorage.getItem("customer_token");
+            const userData = localStorage.getItem("customer_info");
             
+            if (token && userData && !isAuthenticated) {
+                try {
+                    const parsedUser = JSON.parse(userData);
+                    setUser(parsedUser);
+                    setIsAuthenticated(true);
+                } catch (error) {
+                    console.error("❌ CustomerApp - Lỗi parse user data:", error);
+                }
+            }
+            
+            // Chuyển về trang chủ (home)
+            setCurrentView("home");
+            
+            // Xóa query parameters để tránh hiển thị lại thông báo
+            navigate("/customer", { replace: true });
+            
+            // Hiển thị thông báo lỗi
             const errorMessage = message || "Thanh toán thất bại hoặc bị hủy";
             toast.error(errorMessage, {
                 duration: 5000,
             });
         }
-    }, [location.search, location.pathname, navigate]);
+    }, [location.search, isAuthenticated, navigate]);
 
     // ✅ Hàm đăng xuất
     const handleLogout = () => {
@@ -194,11 +227,25 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
                 return (
                     <CustomerBookings
                         onBack={() => setCurrentView("home")}
+                        onNavigate={(view: string, bookingId?: string) => {
+                            if (view === "messages") {
+                                setChatBookingId(bookingId || null);
+                                setCurrentView("messages");
+                            }
+                        }}
                     />
                 );
                 
             case "messages":
-                return <CustomerChat onBack={() => setCurrentView("home")} />;
+                return (
+                    <CustomerChat 
+                        onBack={() => {
+                            setCurrentView("home");
+                            setChatBookingId(null);
+                        }}
+                        initialBookingId={chatBookingId || undefined}
+                    />
+                );
             case "profile":
                 return (
                     <CustomerProfile

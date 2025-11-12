@@ -335,6 +335,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Cần chụp tại công viên vào buổi sáng',
                     'Trang_Thai' => 'Chờ xác nhận',
                     'Ti_Le_Coc' => 30.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(2),
                 ],
                 [
@@ -352,6 +353,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Cần studio có backdrop trắng',
                 'Trang_Thai' => 'Chờ xác nhận',
                     'Ti_Le_Coc' => 40.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(1),
                 ],
             
@@ -371,6 +373,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Chụp vào buổi sáng sớm',
                 'Trang_Thai' => 'Chờ đặt cọc',
                 'Ti_Le_Coc' => 35.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(3),
             ],
             
@@ -390,6 +393,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Chụp tại thác nước vào buổi sáng',
                 'Trang_Thai' => 'Chờ thanh toán',
                 'Ti_Le_Coc' => 30.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(5),
             ],
             
@@ -409,6 +413,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Chụp ảnh tình yêu',
                 'Trang_Thai' => 'Chờ thanh toán',
                 'Ti_Le_Coc' => 30.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(7),
             ],
             
@@ -428,6 +433,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Đã hoàn thành buổi chụp, đang xử lý ảnh',
                 'Trang_Thai' => 'Chờ xử lý ảnh',
                 'Ti_Le_Coc' => 40.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(10),
             ],
             
@@ -447,6 +453,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Đã upload ảnh hậu kỳ',
                 'Trang_Thai' => 'Đã xử lý ảnh',
                 'Ti_Le_Coc' => 30.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(12),
             ],
             
@@ -466,6 +473,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Đã thanh toán đầy đủ',
                 'Trang_Thai' => 'Đã hoàn thành',
                     'Ti_Le_Coc' => 35.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(20),
                 ],
                 [
@@ -483,6 +491,7 @@ class DatabaseSeeder extends Seeder
                 'Ghi_Chu' => 'Chụp tại bãi biển vào buổi sáng',
                     'Trang_Thai' => 'Đã hoàn thành',
                 'Ti_Le_Coc' => 30.00,
+                'Ly_Do_Huy' => null,
                 'Ngay_Tao' => $now->copy()->subDays(25),
             ],
             

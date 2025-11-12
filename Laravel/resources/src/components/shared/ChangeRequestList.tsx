@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -162,19 +162,42 @@ export function ChangeRequestList({ onRefresh }: ChangeRequestListProps) {
                   <div key={field} className="p-3 bg-muted rounded border">
                     <div className="flex items-center gap-2 mb-2">
                       {field === 'Bat_Dau_Chup' && <Calendar className="w-4 h-4 text-primary" />}
+                      {field === 'Ket_Thuc_Chup' && <Clock className="w-4 h-4 text-primary" />}
                       {field === 'Dia_Diem' && <MapPin className="w-4 h-4 text-primary" />}
                       <span className="text-sm font-medium">
-                        {field === 'Bat_Dau_Chup' ? 'Thời gian' : field === 'Dia_Diem' ? 'Địa điểm' : field}
+                        {field === 'Bat_Dau_Chup' ? 'Thời gian bắt đầu' : 
+                         field === 'Ket_Thuc_Chup' ? 'Thời gian kết thúc' : 
+                         field === 'Dia_Diem' ? 'Địa điểm' : field}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="space-y-2 text-sm">
                       <div>
-                        <span className="text-muted-foreground">Cũ: </span>
-                        <span className="line-through">{change.cu || 'N/A'}</span>
+                        <span className="text-muted-foreground text-xs">Giá trị cũ: </span>
+                        <span className="line-through text-xs">
+                          {field === 'Bat_Dau_Chup' || field === 'Ket_Thuc_Chup' 
+                            ? (change.cu ? new Date(change.cu).toLocaleString('vi-VN', { 
+                                year: 'numeric', 
+                                month: '2-digit', 
+                                day: '2-digit', 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              }) : 'N/A')
+                            : (change.cu || 'N/A')}
+                        </span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Mới: </span>
-                        <span className="font-medium text-green-600">{change.moi || 'N/A'}</span>
+                        <span className="text-muted-foreground text-xs">Giá trị mới: </span>
+                        <span className="font-medium text-green-600 text-xs">
+                          {field === 'Bat_Dau_Chup' || field === 'Ket_Thuc_Chup' 
+                            ? (change.moi ? new Date(change.moi).toLocaleString('vi-VN', { 
+                                year: 'numeric', 
+                                month: '2-digit', 
+                                day: '2-digit', 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              }) : 'N/A')
+                            : (change.moi || 'N/A')}
+                        </span>
                       </div>
                     </div>
                   </div>

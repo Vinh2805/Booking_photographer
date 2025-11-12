@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
@@ -12,9 +12,9 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
+  Clock,
   MapPin,
   Loader,
-  RefreshCw,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -149,23 +149,73 @@ export function ChangeRequestSidebar({ onRefresh }: ChangeRequestSidebarProps) {
                   <CardContent className="p-3 pt-0 space-y-2">
                     <div className="text-xs">
                       <Label className="text-xs text-muted-foreground">Thay đổi:</Label>
-                      <div className="mt-1 space-y-1">
+                      <div className="mt-1 space-y-2">
                         {Object.entries(request.changes).slice(0, 2).map(([field, change]: [string, any]) => (
                           <div key={field} className="text-xs">
                             {field === 'Bat_Dau_Chup' && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                <span className="line-through text-muted-foreground">{change.cu?.substring(0, 10)}</span>
-                                <span>→</span>
-                                <span className="font-medium text-green-600">{change.moi?.substring(0, 10)}</span>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  <span className="font-medium">Bắt đầu:</span>
+                                </div>
+                                <div className="flex items-center gap-1 pl-4">
+                                  <span className="line-through text-muted-foreground text-[10px]">
+                                    {change.cu ? new Date(change.cu).toLocaleString('vi-VN', { 
+                                      year: 'numeric', 
+                                      month: '2-digit', 
+                                      day: '2-digit', 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    }) : 'N/A'}
+                                  </span>
+                                  <span>→</span>
+                                  <span className="font-medium text-green-600 text-[10px]">
+                                    {change.moi ? new Date(change.moi).toLocaleString('vi-VN', { 
+                                      year: 'numeric', 
+                                      month: '2-digit', 
+                                      day: '2-digit', 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    }) : 'N/A'}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            {field === 'Ket_Thuc_Chup' && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  <span className="font-medium">Kết thúc:</span>
+                                </div>
+                                <div className="flex items-center gap-1 pl-4">
+                                  <span className="line-through text-muted-foreground text-[10px]">
+                                    {change.cu ? new Date(change.cu).toLocaleString('vi-VN', { 
+                                      year: 'numeric', 
+                                      month: '2-digit', 
+                                      day: '2-digit', 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    }) : 'N/A'}
+                                  </span>
+                                  <span>→</span>
+                                  <span className="font-medium text-green-600 text-[10px]">
+                                    {change.moi ? new Date(change.moi).toLocaleString('vi-VN', { 
+                                      year: 'numeric', 
+                                      month: '2-digit', 
+                                      day: '2-digit', 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    }) : 'N/A'}
+                                  </span>
+                                </div>
                               </div>
                             )}
                             {field === 'Dia_Diem' && (
                               <div className="flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
-                                <span className="line-through text-muted-foreground truncate">{change.cu}</span>
+                                <span className="line-through text-muted-foreground truncate text-[10px]">{change.cu}</span>
                                 <span>→</span>
-                                <span className="font-medium text-green-600 truncate">{change.moi}</span>
+                                <span className="font-medium text-green-600 truncate text-[10px]">{change.moi}</span>
                               </div>
                             )}
                           </div>

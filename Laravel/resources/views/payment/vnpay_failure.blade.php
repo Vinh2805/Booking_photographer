@@ -5,8 +5,13 @@
   <title>Thanh toán thất bại</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   @php
-      $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
-      $redirectUrl = "{$frontendUrl}/customer?payment=failed&message=" . urlencode($message ?? 'Thanh toán thất bại hoặc bị hủy');
+      // Sử dụng APP_URL từ Laravel để redirect về Laravel app (không phải Vite dev server)
+      $frontendUrl = env('APP_URL', 'http://127.0.0.1:8000');
+      $redirectUrl = $frontendUrl . '/customer-auth-login?' . http_build_query([
+          'payment' => 'failed',
+          'message' => $message ?? 'Thanh toán thất bại hoặc bị hủy',
+          'ma_bc' => $ma_bc ?? null
+      ]);
   @endphp
   <meta http-equiv="refresh" content="3;url={{ $redirectUrl }}">
   <style>

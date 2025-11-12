@@ -751,7 +751,7 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
                       <div className="flex flex-wrap gap-1 mb-4">
                         {photographer.specialties
                           .slice(0, 2)
-                          .map((specialty) => (
+                          .map((specialty: string) => (
                             <Badge
                               key={specialty}
                               variant="secondary"
@@ -885,7 +885,7 @@ export function CustomerHome({ onNavigate, user }: CustomerHomeProps) {
                           </p>
 
                           <div className="flex flex-wrap gap-2 mb-4">
-                            {photographer.specialties.map((specialty) => (
+                            {photographer.specialties.map((specialty: string) => (
                               <Badge key={specialty} variant="secondary">
                                 {specialty}
                               </Badge>
