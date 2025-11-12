@@ -17,7 +17,7 @@ class NhiepAnhGia extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'Ma_NAG', 'Ma_TK', 'Dia_Diem_Hoat_Dong', 'Kinh_Nghiem', 'Gia_Trung_Binh',
+        'Ma_NAG', 'Ma_TK', 'Loai_TK', 'Dia_Diem_Hoat_Dong', 'Kinh_Nghiem', 'Gia_Trung_Binh',
         'Anh_Bia', 'Boi_Canh_Chup', 'Thiet_Bi', 'Portfolio', 'Gia_Toi_Thieu', 'Gia_Toi_Da'
     ];
 

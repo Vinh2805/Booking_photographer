@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\KhachHang;
+use App\Models\NhiepAnhGia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -20,24 +23,43 @@ class AuthController extends Controller
             'Mat_Khau' => 'required|min:8|confirmed',
         ]);
 
-        $maTK = 'TK' . str_pad(User::count() + 1, 4, '0', STR_PAD_LEFT);
+        DB::beginTransaction();
+        try {
+            $maTK = 'TK' . str_pad(User::count() + 1, 4, '0', STR_PAD_LEFT);
+            $maKH = 'KH' . str_pad(KhachHang::count() + 1, 3, '0', STR_PAD_LEFT);
 
-        $user = User::create([
-            'Ma_TK' => $maTK,
-            'Ho_Ten' => $data['Ho_Ten'],
-            'Email_TK' => $data['Email_TK'],
-            'Mat_Khau' => Hash::make($data['Mat_Khau']),
-            'Loai_TK' => 'Khách hàng',
-            'Hinh_Thuc_Dang_Nhap' => 'User-registered',
-        ]);
+            // Tạo tài khoản
+            $user = User::create([
+                'Ma_TK' => $maTK,
+                'Ho_Ten' => $data['Ho_Ten'],
+                'Email_TK' => $data['Email_TK'],
+                'Mat_Khau' => Hash::make($data['Mat_Khau']),
+                'Loai_TK' => 'Khách hàng',
+                'Hinh_Thuc_Dang_Nhap' => 'User-registered',
+            ]);
 
-        $token = $user->createToken('customer_token')->plainTextToken;
+            // Tạo khách hàng với Loai_TK
+            KhachHang::create([
+                'Ma_KH' => $maKH,
+                'Ma_TK' => $maTK,
+                'Loai_TK' => 'Khách hàng',
+            ]);
 
-        return response()->json([
-            'message' => 'Đăng ký khách hàng thành công!',
-            'user' => $this->userResponse($user),
-            'token' => $token,
-        ], 201);
+            DB::commit();
+
+            $token = $user->createToken('customer_token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'Đăng ký khách hàng thành công!',
+                'user' => $this->userResponse($user),
+                'token' => $token,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Đăng ký thất bại: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // =============================
@@ -78,24 +100,43 @@ class AuthController extends Controller
             'Mat_Khau' => 'required|min:8|confirmed',
         ]);
 
-        $maTK = 'TK' . str_pad(User::count() + 1, 4, '0', STR_PAD_LEFT);
+        DB::beginTransaction();
+        try {
+            $maTK = 'TK' . str_pad(User::count() + 1, 4, '0', STR_PAD_LEFT);
+            $maNAG = 'NAG' . str_pad(NhiepAnhGia::count() + 1, 3, '0', STR_PAD_LEFT);
 
-        $user = User::create([
-            'Ma_TK' => $maTK,
-            'Ho_Ten' => $data['Ho_Ten'],
-            'Email_TK' => $data['Email_TK'],
-            'Mat_Khau' => Hash::make($data['Mat_Khau']),
-            'Loai_TK' => 'Nhiếp ảnh gia',
-            'Hinh_Thuc_Dang_Nhap' => 'User-registered',
-        ]);
+            // Tạo tài khoản
+            $user = User::create([
+                'Ma_TK' => $maTK,
+                'Ho_Ten' => $data['Ho_Ten'],
+                'Email_TK' => $data['Email_TK'],
+                'Mat_Khau' => Hash::make($data['Mat_Khau']),
+                'Loai_TK' => 'Nhiếp ảnh gia',
+                'Hinh_Thuc_Dang_Nhap' => 'User-registered',
+            ]);
 
-        $token = $user->createToken('photographer_token')->plainTextToken;
+            // Tạo nhiếp ảnh gia với Loai_TK
+            NhiepAnhGia::create([
+                'Ma_NAG' => $maNAG,
+                'Ma_TK' => $maTK,
+                'Loai_TK' => 'Nhiếp ảnh gia',
+            ]);
 
-        return response()->json([
-            'message' => 'Đăng ký nhiếp ảnh gia thành công!',
-            'user' => $this->userResponse($user),
-            'token' => $token,
-        ], 201);
+            DB::commit();
+
+            $token = $user->createToken('photographer_token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'Đăng ký nhiếp ảnh gia thành công!',
+                'user' => $this->userResponse($user),
+                'token' => $token,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Đăng ký thất bại: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // =============================
