@@ -33,8 +33,8 @@ class PhotographerController extends Controller
     public function bookings($Ma_TK)
     {
         $upcoming = BuoiChup::where('Ma_NAG', $Ma_TK)
-            ->whereDate('Ngay_Chup', '>=', now())
-            ->orderBy('Ngay_Chup', 'asc')
+            ->whereDate('Bat_Dau_Chup', '>=', now())
+            ->orderBy('Bat_Dau_Chup', 'asc')
             ->take(5)
             ->get();
 
