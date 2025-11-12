@@ -35,13 +35,17 @@ return [
     |
     */
 
-    'guards' => [
-        'web' => [
-            'driver' => 'session',
-            'provider' => 'users',
-        ],
+   'guards' => [
+    'web' => [
+        'driver' => 'session',
+        'provider' => 'Email_TK',
     ],
 
+    'api' => [
+        'driver' => 'sanctum',     // PHẢI LÀ SANCTUM
+        'provider' => 'Email_TK',     // hoặc 'tai_khoan' nếu bạn đổi
+    ],
+],
     /*
     |--------------------------------------------------------------------------
     | User Providers
