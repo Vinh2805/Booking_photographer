@@ -22,7 +22,7 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
       // Debug: chỉ log trong development
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log(`🔑 [${config.method?.toUpperCase()}] ${config.url} - Token: ${token.substring(0, 20)}...`);
       }
     } else {
