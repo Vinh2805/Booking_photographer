@@ -38,6 +38,9 @@ class BookingController extends Controller
             'Dich_Vu' => 'nullable|string', // JSON string
             'Tong_Tien' => 'required|numeric|min:0',
             'Anh_Minh_Hoa' => 'nullable|image|mimes:jpeg,jpg,png|max:5120',
+        ], [
+            'Bat_Dau_Chup.after' => 'Thời gian bắt đầu phải trong tương lai. Không thể đặt lịch ở quá khứ.',
+            'Ket_Thuc_Chup.after' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
         ]);
 
         // Tự động lấy Ma_KH từ user đã đăng nhập
@@ -57,9 +60,11 @@ class BookingController extends Controller
             }
         }
 
-        // Check for conflicting bookings
+        // Check for conflicting bookings - chỉ kiểm tra các trạng thái bận
+        // Các trạng thái trống (có thể đặt): "Chờ xác nhận", "Đã hủy"
+        // Các trạng thái bận (không thể đặt): tất cả các trạng thái khác
         $conflictingBooking = BuoiChup::where('Ma_NAG', $validated['Ma_NAG'])
-            ->where('Trang_Thai', '!=', 'Đã hủy')
+            ->whereNotIn('Trang_Thai', ['Chờ xác nhận', 'Đã hủy'])
             ->where(function ($query) use ($validated) {
                 $query->whereBetween('Bat_Dau_Chup', [$validated['Bat_Dau_Chup'], $validated['Ket_Thuc_Chup']])
                     ->orWhereBetween('Ket_Thuc_Chup', [$validated['Bat_Dau_Chup'], $validated['Ket_Thuc_Chup']])

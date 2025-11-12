@@ -308,4 +308,132 @@ class PhotographerController extends Controller
             'completedBookings' => $completedBookings,
         ]);
     }
+
+    /**
+     * Lấy lịch trống của nhiếp ảnh gia
+     * Trả về danh sách các khoảng thời gian đã bận (để frontend có thể tính toán lịch trống)
+     * 
+     * @param Request $request
+     * @param string $Ma_NAG Mã nhiếp ảnh gia
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAvailableSchedule(Request $request, $Ma_NAG)
+    {
+        try {
+            // Validate Ma_NAG
+            $nag = NhiepAnhGia::where('Ma_NAG', $Ma_NAG)->first();
+            if (!$nag) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy nhiếp ảnh gia'
+                ], 404);
+            }
+
+            // Lấy các tham số từ request
+            $startDate = $request->get('start_date', now()->toDateString());
+            $endDate = $request->get('end_date', now()->addMonths(1)->toDateString());
+
+            // Lấy tất cả các buổi chụp bận (không phải trạng thái "Chờ xác nhận" hoặc "Đã hủy")
+            $busyBookings = BuoiChup::where('Ma_NAG', $Ma_NAG)
+                ->whereNotIn('Trang_Thai', ['Chờ xác nhận', 'Đã hủy'])
+                ->whereDate('Bat_Dau_Chup', '>=', $startDate)
+                ->whereDate('Bat_Dau_Chup', '<=', $endDate)
+                ->orderBy('Bat_Dau_Chup', 'asc')
+                ->get(['Ma_BC', 'Bat_Dau_Chup', 'Ket_Thuc_Chup', 'Trang_Thai']);
+
+            // Format dữ liệu trả về
+            $busySlots = $busyBookings->map(function ($booking) {
+                return [
+                    'ma_bc' => $booking->Ma_BC,
+                    'bat_dau' => $booking->Bat_Dau_Chup,
+                    'ket_thuc' => $booking->Ket_Thuc_Chup,
+                    'trang_thai' => $booking->Trang_Thai,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'ma_nag' => $Ma_NAG,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'busy_slots' => $busySlots,
+                    'message' => 'Lịch trống được tính bằng cách loại trừ các khoảng thời gian bận ở trên'
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy lịch trống',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Kiểm tra thời gian có trống không
+     * Helper method để kiểm tra một khoảng thời gian cụ thể có thể đặt được không
+     * 
+     * @param Request $request
+     * @param string $Ma_NAG Mã nhiếp ảnh gia
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function checkTimeSlot(Request $request, $Ma_NAG)
+    {
+        try {
+            $validated = $request->validate([
+                'bat_dau' => 'required|date|after:now',
+                'ket_thuc' => 'required|date|after:bat_dau',
+            ], [
+                'bat_dau.after' => 'Thời gian bắt đầu phải trong tương lai. Không thể đặt lịch ở quá khứ.',
+                'ket_thuc.after' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
+            ]);
+
+            // Validate Ma_NAG
+            $nag = NhiepAnhGia::where('Ma_NAG', $Ma_NAG)->first();
+            if (!$nag) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy nhiếp ảnh gia'
+                ], 404);
+            }
+
+            // Kiểm tra xem có buổi chụp bận nào trùng với thời gian này không
+            $conflictingBooking = BuoiChup::where('Ma_NAG', $Ma_NAG)
+                ->whereNotIn('Trang_Thai', ['Chờ xác nhận', 'Đã hủy'])
+                ->where(function ($query) use ($validated) {
+                    $query->whereBetween('Bat_Dau_Chup', [$validated['bat_dau'], $validated['ket_thuc']])
+                        ->orWhereBetween('Ket_Thuc_Chup', [$validated['bat_dau'], $validated['ket_thuc']])
+                        ->orWhere(function ($q) use ($validated) {
+                            $q->where('Bat_Dau_Chup', '<=', $validated['bat_dau'])
+                              ->where('Ket_Thuc_Chup', '>=', $validated['ket_thuc']);
+                        });
+                })
+                ->first();
+
+            $isAvailable = !$conflictingBooking;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'is_available' => $isAvailable,
+                    'conflicting_booking' => $conflictingBooking ? [
+                        'ma_bc' => $conflictingBooking->Ma_BC,
+                        'bat_dau' => $conflictingBooking->Bat_Dau_Chup,
+                        'ket_thuc' => $conflictingBooking->Ket_Thuc_Chup,
+                        'trang_thai' => $conflictingBooking->Trang_Thai,
+                    ] : null,
+                    'message' => $isAvailable 
+                        ? 'Thời gian này có thể đặt được' 
+                        : 'Thời gian này đã được đặt'
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi kiểm tra thời gian',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

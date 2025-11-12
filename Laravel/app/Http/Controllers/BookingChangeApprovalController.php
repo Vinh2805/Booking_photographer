@@ -53,6 +53,56 @@ class BookingChangeApprovalController extends Controller
             return response()->json(['message' => 'Bạn không có quyền duyệt yêu cầu thay đổi này'], 403);
         }
 
+        // Kiểm tra lịch trống nếu có thay đổi thời gian
+        if (isset($changes['Bat_Dau_Chup']) || isset($changes['Ket_Thuc_Chup'])) {
+            // Xác định thời gian mới
+            $batDauMoi = isset($changes['Bat_Dau_Chup']) 
+                ? Carbon::parse($changes['Bat_Dau_Chup']['moi'])
+                : Carbon::parse($booking->Bat_Dau_Chup);
+            $ketThucMoi = isset($changes['Ket_Thuc_Chup'])
+                ? Carbon::parse($changes['Ket_Thuc_Chup']['moi'])
+                : Carbon::parse($booking->Ket_Thuc_Chup);
+
+            // Kiểm tra thời gian phải trong tương lai
+            if ($batDauMoi->isPast()) {
+                return response()->json([
+                    'message' => 'Thời gian bắt đầu phải trong tương lai. Không thể đặt lịch ở quá khứ.'
+                ], 422);
+            }
+
+            if ($ketThucMoi->isPast()) {
+                return response()->json([
+                    'message' => 'Thời gian kết thúc phải trong tương lai. Không thể đặt lịch ở quá khứ.'
+                ], 422);
+            }
+
+            // Kiểm tra xem thời gian mới có trùng với buổi chụp bận khác không (loại trừ buổi chụp hiện tại)
+            $conflictingBooking = BuoiChup::where('Ma_NAG', $booking->Ma_NAG)
+                ->where('Ma_BC', '!=', $booking->Ma_BC) // Loại trừ buổi chụp hiện tại
+                ->whereNotIn('Trang_Thai', ['Chờ xác nhận', 'Đã hủy']) // Chỉ kiểm tra các trạng thái bận
+                ->where(function ($query) use ($batDauMoi, $ketThucMoi) {
+                    $query->whereBetween('Bat_Dau_Chup', [$batDauMoi, $ketThucMoi])
+                        ->orWhereBetween('Ket_Thuc_Chup', [$batDauMoi, $ketThucMoi])
+                        ->orWhere(function ($q) use ($batDauMoi, $ketThucMoi) {
+                            $q->where('Bat_Dau_Chup', '<=', $batDauMoi)
+                              ->where('Ket_Thuc_Chup', '>=', $ketThucMoi);
+                        });
+                })
+                ->first();
+
+            if ($conflictingBooking) {
+                return response()->json([
+                    'message' => 'Thời gian mới đã được đặt bởi buổi chụp khác. Vui lòng chọn thời gian khác.',
+                    'conflicting_booking' => [
+                        'ma_bc' => $conflictingBooking->Ma_BC,
+                        'bat_dau' => $conflictingBooking->Bat_Dau_Chup,
+                        'ket_thuc' => $conflictingBooking->Ket_Thuc_Chup,
+                        'trang_thai' => $conflictingBooking->Trang_Thai,
+                    ]
+                ], 409);
+            }
+        }
+
         DB::transaction(function () use ($booking, $changes, $yeuCau) {
             foreach ($changes as $field => $pair) {
                 if (isset($pair['moi'])) {

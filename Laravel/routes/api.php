@@ -94,6 +94,8 @@ Route::post('/nhiep-anh-gia/dang-nhap', [AuthController::class, 'loginPhotograph
 // Route::get('/customer/dashboard/{id}', [DashboardController::class, 'customer']);
 Route::get('/nhiep-anh-gia/noi-bat', [PhotographerController::class, 'featured']);
 Route::get('/nhiep-anh-gia/{id}', [PhotographerController::class, 'show']); // Public endpoint để xem thông tin photographer
+Route::get('/nhiep-anh-gia/{Ma_NAG}/lich-trong', [PhotographerController::class, 'getAvailableSchedule']); // Public endpoint để lấy lịch trống
+Route::post('/nhiep-anh-gia/{Ma_NAG}/kiem-tra-thoi-gian', [PhotographerController::class, 'checkTimeSlot']); // Public endpoint để kiểm tra thời gian có trống không
 Route::get('/dich-vu', [BookingController::class, 'getServices']); // Public endpoint để lấy danh sách dịch vụ
 
 

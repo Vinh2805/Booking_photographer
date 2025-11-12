@@ -216,6 +216,20 @@ class BookingChangeController extends Controller
         if (isset($changes['Bat_Dau_Chup']) && isset($changes['Ket_Thuc_Chup'])) {
             $batDau = Carbon::parse($changes['Bat_Dau_Chup']['moi']);
             $ketThuc = Carbon::parse($changes['Ket_Thuc_Chup']['moi']);
+            
+            // Kiểm tra thời gian phải trong tương lai
+            if ($batDau->isPast()) {
+                return response()->json([
+                    'message' => 'Thời gian bắt đầu phải trong tương lai. Không thể đặt lịch ở quá khứ.'
+                ], 422);
+            }
+            
+            if ($ketThuc->isPast()) {
+                return response()->json([
+                    'message' => 'Thời gian kết thúc phải trong tương lai. Không thể đặt lịch ở quá khứ.'
+                ], 422);
+            }
+            
             if ($ketThuc->lte($batDau)) {
                 return response()->json([
                     'message' => 'Thời gian kết thúc phải sau thời gian bắt đầu'
@@ -225,6 +239,14 @@ class BookingChangeController extends Controller
             // Nếu chỉ thay đổi Ket_Thuc_Chup, kiểm tra với Bat_Dau_Chup hiện tại
             $batDau = Carbon::parse($booking->Bat_Dau_Chup);
             $ketThuc = Carbon::parse($changes['Ket_Thuc_Chup']['moi']);
+            
+            // Kiểm tra thời gian kết thúc phải trong tương lai
+            if ($ketThuc->isPast()) {
+                return response()->json([
+                    'message' => 'Thời gian kết thúc phải trong tương lai. Không thể đặt lịch ở quá khứ.'
+                ], 422);
+            }
+            
             if ($ketThuc->lte($batDau)) {
                 return response()->json([
                     'message' => 'Thời gian kết thúc phải sau thời gian bắt đầu'
@@ -234,6 +256,14 @@ class BookingChangeController extends Controller
             // Nếu chỉ thay đổi Bat_Dau_Chup, kiểm tra với Ket_Thuc_Chup hiện tại
             $batDau = Carbon::parse($changes['Bat_Dau_Chup']['moi']);
             $ketThuc = Carbon::parse($booking->Ket_Thuc_Chup);
+            
+            // Kiểm tra thời gian bắt đầu phải trong tương lai
+            if ($batDau->isPast()) {
+                return response()->json([
+                    'message' => 'Thời gian bắt đầu phải trong tương lai. Không thể đặt lịch ở quá khứ.'
+                ], 422);
+            }
+            
             if ($ketThuc->lte($batDau)) {
                 return response()->json([
                     'message' => 'Thời gian kết thúc phải sau thời gian bắt đầu'
