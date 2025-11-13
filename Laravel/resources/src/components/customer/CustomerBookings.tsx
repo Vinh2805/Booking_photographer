@@ -638,10 +638,10 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
             </DialogHeader>
             <div className="space-y-4">
               <RadioGroup value={depositMethod} onValueChange={(v) => setDepositMethod(v as "card" | "bank")}>
-                <div className="flex items-center space-x-2">
+                {/* <div className="flex items-center space-x-2">
                   <RadioGroupItem value="card" id="card" />
                   <Label htmlFor="card">Ví cá nhân</Label>
-                </div>
+                </div> */}
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="bank" id="bank" />
                   <Label htmlFor="bank">VNPay</Label>
@@ -1149,10 +1149,10 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
                       // Quote sẽ được reload tự động bởi useEffect khi finalPaymentMethod thay đổi
                     }}
                   >
-                    <div className="flex items-center space-x-2 mt-2">
+                    {/* <div className="flex items-center space-x-2 mt-2">
                       <RadioGroupItem value="card" id="final-card" />
                       <Label htmlFor="final-card">Ví cá nhân</Label>
-                    </div>
+                    </div> */}
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="bank" id="final-bank" />
                       <Label htmlFor="final-bank">VNPay</Label>
