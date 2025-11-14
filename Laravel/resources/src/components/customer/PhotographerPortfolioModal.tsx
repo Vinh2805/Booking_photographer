@@ -389,7 +389,6 @@ export function PhotographerPortfolioModal({
                 return (
                   <div className="text-center py-8 text-muted-foreground">
                     <p>Chưa có portfolio</p>
-                    <p className="text-xs mt-2">Debug: portfolio = {JSON.stringify(portfolio)}</p>
                   </div>
                 );
               }
