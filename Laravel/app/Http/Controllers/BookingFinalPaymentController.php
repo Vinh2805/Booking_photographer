@@ -7,6 +7,8 @@ use App\Models\BuoiChup;
 use App\Models\ThanhToan;
 use App\Models\TransactionLog;
 use App\Models\KhachHang;
+use App\Models\NhiepAnhGia;
+use App\Models\WalletTransaction;
 use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -265,11 +267,30 @@ class BookingFinalPaymentController extends Controller
         try {
             DB::beginTransaction();
 
+            // Tạo mã thanh toán trước (tối đa 20 ký tự: TT + YmdHis + 2 số random)
+            $maTT = 'TT' . now()->format('YmdHis') . rand(10,99);
+
             // Trừ tiền từ ví
+            $soDuTruoc = $walletBalance;
             $khachHang->So_Du = max(0, $walletBalance - $totalCharge);
             $khachHang->save();
 
-            $maTT = 'TT' . now()->format('YmdHisv') . rand(100,999);
+            // Lưu vào lịch sử giao dịch
+            WalletTransaction::createTransaction(
+                'khach_hang',
+                $khachHang->Ma_KH,
+                'thanh_toan',
+                $totalCharge,
+                $soDuTruoc,
+                (float) $khachHang->So_Du,
+                $ma_bc,
+                $maTT,
+                "Thanh toán phần còn lại buổi chụp {$ma_bc}: " . number_format($totalCharge, 0, ',', '.') . ' đ',
+                null,
+                null,
+                null,
+                $charge['transaction_id'] ?? null
+            );
 
             ThanhToan::create([
                 'Ma_TT'     => $maTT,
@@ -292,6 +313,35 @@ class BookingFinalPaymentController extends Controller
             ]);
 
             TransactionLog::record($ma_bc, 'Thanh toan', "Thanh toán phần còn lại {$remaining} qua ví cá nhân – Mã giao dịch {$charge['transaction_id']}");
+
+            // Tự động cộng tiền cho nhiếp ảnh gia (trừ 20% chiết khấu)
+            if ($booking->Ma_NAG) {
+                $nag = NhiepAnhGia::where('Ma_NAG', $booking->Ma_NAG)->first();
+                if ($nag) {
+                    // NAG nhận 80% số tiền phần còn lại (trừ 20% chiết khấu)
+                    $nagAmount = round($remaining * 0.8, 2);
+                    $soDuTruocNAG = (float) ($nag->So_Du ?? 0);
+                    $nag->So_Du = $soDuTruocNAG + $nagAmount;
+                    $nag->save();
+
+                    // Lưu vào lịch sử giao dịch
+                    WalletTransaction::createTransaction(
+                        'nhiep_anh_gia',
+                        $nag->Ma_NAG,
+                        'nhan_tien',
+                        $nagAmount,
+                        $soDuTruocNAG,
+                        (float) $nag->So_Du,
+                        $ma_bc,
+                        $maTT,
+                        "Nhận tiền thanh toán phần còn lại từ buổi chụp {$ma_bc}: " . number_format($nagAmount, 0, ',', '.') . ' đ (đã trừ 20% chiết khấu)',
+                        null,
+                        null,
+                        null,
+                        $charge['transaction_id'] ?? null
+                    );
+                }
+            }
 
             // Cập nhật trạng thái buổi chụp
             $booking->Trang_Thai = 'Chờ xử lý ảnh';

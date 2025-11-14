@@ -17,18 +17,6 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import {
-  Wallet,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  Copy,
-  CheckCircle,
-  AlertCircle,
-  ChevronLeft,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-} from "lucide-react";
-import {
   Table,
   TableBody,
   TableCell,
@@ -36,24 +24,43 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import {
+  Wallet,
+  ArrowUpCircle,
+  AlertCircle,
+  ChevronLeft,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+} from "lucide-react";
 import apiClient from "../services/apiClient";
 import { toast } from "sonner";
 
-interface CustomerWalletProps {
+interface PhotographerWalletProps {
   onBack?: () => void;
 }
 
-export function CustomerWallet({ onBack }: CustomerWalletProps) {
+interface WalletTransaction {
+  id: number;
+  Loai_Giao_Dich: string;
+  So_Tien: number;
+  So_Du_Truoc: number;
+  So_Du_Sau: number;
+  Ma_BC: string | null;
+  Ghi_Chu: string | null;
+  So_Tai_Khoan: string | null;
+  Ten_Ngan_Hang: string | null;
+  Ten_Chu_Tai_Khoan: string | null;
+  Transaction_ID: string | null;
+  Thoi_Gian: string;
+}
+
+export function PhotographerWallet({ onBack }: PhotographerWalletProps) {
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
-  const [depositAmount, setDepositAmount] = useState<string>("");
-  const [qrUrl, setQrUrl] = useState<string>("");
-  const [qrLoading, setQrLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [transactionId, setTransactionId] = useState<string>("");
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
 
   // Withdrawal form
   const [withdrawAmount, setWithdrawAmount] = useState<string>("");
@@ -61,8 +68,6 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
   const [bankName, setBankName] = useState<string>("");
   const [accountHolderName, setAccountHolderName] = useState<string>("");
   const [withdrawLoading, setWithdrawLoading] = useState(false);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [transactionsLoading, setTransactionsLoading] = useState(false);
 
   // Load wallet balance and transactions
   useEffect(() => {
@@ -93,91 +98,6 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
       toast.error(error.response?.data?.message || "Không thể tải lịch sử giao dịch");
     } finally {
       setTransactionsLoading(false);
-    }
-  };
-
-  const handleDeposit = async () => {
-    const amount = parseFloat(depositAmount);
-    if (!amount || amount < 10000) {
-      toast.error("Số tiền nạp tối thiểu là 10,000 đ");
-      return;
-    }
-
-    try {
-      setQrLoading(true);
-      const response = await apiClient.post("/wallet/deposit", {
-        amount: amount,
-      });
-
-      setQrUrl(response.data.qr_url);
-      setTransactionId(response.data.transaction_id || "");
-      toast.success("Mã QR đã được tạo. Vui lòng quét và chuyển khoản.");
-    } catch (error: any) {
-      console.error("Lỗi tạo yêu cầu nạp tiền:", error);
-      toast.error(
-        error.response?.data?.message || "Không thể tạo yêu cầu nạp tiền"
-      );
-    } finally {
-      setQrLoading(false);
-    }
-  };
-
-  const handleConfirmDeposit = async () => {
-    const amount = parseFloat(depositAmount);
-    if (!amount || isNaN(amount) || amount < 10000) {
-      toast.error("Số tiền không hợp lệ. Vui lòng nhập số tiền tối thiểu 10,000 đ");
-      return;
-    }
-
-    if (!qrUrl) {
-      toast.error("Vui lòng tạo mã QR trước");
-      return;
-    }
-
-    try {
-      setConfirming(true);
-      
-      const payload: any = {
-        amount: amount,
-      };
-      
-      if (transactionId) {
-        payload.transaction_id = transactionId;
-      }
-
-      const response = await apiClient.post("/wallet/deposit/confirm", payload);
-
-      toast.success(response.data.message || "Nạp tiền thành công!");
-      setDepositModalOpen(false);
-      setDepositAmount("");
-      setQrUrl("");
-      setTransactionId("");
-      loadBalance(); // Reload balance
-      loadTransactions(); // Reload transactions
-    } catch (error: any) {
-      console.error("Lỗi xác nhận nạp tiền:", error);
-      console.error("Error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
-      
-      let errorMessage = "Không thể xác nhận nạp tiền";
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.data?.errors) {
-        // Laravel validation errors
-        const errors = error.response.data.errors;
-        const firstError = Object.values(errors)[0];
-        errorMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage);
-    } finally {
-      setConfirming(false);
     }
   };
 
@@ -233,13 +153,6 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast.success("Đã sao chép!");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -269,9 +182,9 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
   };
 
   const getTransactionIcon = (type: string) => {
-    if (type === "nhan_tien" || type === "nap_tien") {
+    if (type === "nhan_tien") {
       return <TrendingUp className="w-4 h-4 text-green-500" />;
-    } else if (type === "rut_tien" || type === "thanh_toan") {
+    } else if (type === "rut_tien") {
       return <TrendingDown className="w-4 h-4 text-red-500" />;
     }
     return <Clock className="w-4 h-4 text-blue-500" />;
@@ -314,151 +227,12 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
         </CardHeader>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-4">
-        <Dialog open={depositModalOpen} onOpenChange={setDepositModalOpen}>
-          <DialogTrigger asChild>
-            <Button
-              className="h-auto py-6 flex flex-col gap-2"
-              variant="outline"
-              onClick={() => {
-                setDepositAmount("");
-                setQrUrl("");
-                setTransactionId("");
-              }}
-            >
-              <ArrowDownCircle className="w-6 h-6" />
-              <span>Nạp tiền</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Nạp tiền vào ví</DialogTitle>
-              <DialogDescription>
-                Nhập số tiền bạn muốn nạp vào ví cá nhân
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              {!qrUrl ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="deposit-amount">Số tiền (VNĐ)</Label>
-                    <Input
-                      id="deposit-amount"
-                      type="number"
-                      placeholder="Nhập số tiền (tối thiểu 10,000 đ)"
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      min="10000"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleDeposit}
-                    disabled={qrLoading}
-                    className="w-full"
-                  >
-                    {qrLoading ? "Đang tạo mã QR..." : "Tạo mã QR"}
-                  </Button>
-                </>
-              ) : (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Quét mã QR để chuyển khoản
-                    </p>
-                    <div className="flex justify-center p-4 bg-muted rounded-lg">
-                      <img
-                        src={qrUrl}
-                        alt="QR Code"
-                        className="w-64 h-64 object-contain"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Sau khi quét mã QR và chuyển khoản thành công, vui lòng bấm nút xác nhận bên dưới
-                    </p>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Ngân hàng:</span>
-                      <span className="font-medium">VIB</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Số tài khoản:</span>
-                      <span className="font-medium">335757499</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Chủ tài khoản:</span>
-                      <span className="font-medium">Admin</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Số tiền:</span>
-                      <span className="font-medium text-primary">
-                        {formatCurrency(parseFloat(depositAmount))}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Nút xác nhận đã chuyển khoản */}
-                  <Button
-                    onClick={handleConfirmDeposit}
-                    disabled={confirming}
-                    className="w-full bg-primary hover:bg-primary/90"
-                  >
-                    {confirming ? (
-                      <>
-                        <span className="animate-spin mr-2">⏳</span>
-                        Đang xác nhận...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Xác nhận đã chuyển khoản
-                      </>
-                    )}
-                  </Button>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setQrUrl("");
-                        setDepositAmount("");
-                        setTransactionId("");
-                      }}
-                      className="flex-1"
-                    >
-                      Hủy
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        copyToClipboard(qrUrl);
-                      }}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      {copied ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Đã sao chép
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Sao chép link QR
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-
+      {/* Action Button - Chỉ có rút tiền */}
+      <div className="flex justify-center">
         <Dialog open={withdrawModalOpen} onOpenChange={setWithdrawModalOpen}>
           <DialogTrigger asChild>
             <Button
-              className="h-auto py-6 flex flex-col gap-2"
+              className="h-auto py-6 px-8 flex flex-col gap-2"
               variant="outline"
               onClick={() => {
                 setWithdrawAmount("");
@@ -566,14 +340,10 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Wallet className="w-4 h-4" />
+            <TrendingUp className="w-4 h-4" />
             <span>
-              Ví cá nhân cho phép bạn thanh toán nhanh chóng cho các buổi chụp
+              Tiền sẽ tự động được cộng vào ví khi khách hàng thanh toán (đã trừ 20% chiết khấu)
             </span>
-          </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <ArrowDownCircle className="w-4 h-4" />
-            <span>Nạp tiền qua mã QR hoặc chuyển khoản trực tiếp</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <ArrowUpCircle className="w-4 h-4" />
@@ -620,14 +390,14 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
                       </TableCell>
                       <TableCell
                         className={
-                          tx.Loai_Giao_Dich === "nhan_tien" || tx.Loai_Giao_Dich === "nap_tien"
+                          tx.Loai_Giao_Dich === "nhan_tien"
                             ? "text-green-600 font-medium"
-                            : tx.Loai_Giao_Dich === "rut_tien" || tx.Loai_Giao_Dich === "thanh_toan"
+                            : tx.Loai_Giao_Dich === "rut_tien"
                             ? "text-red-600 font-medium"
                             : ""
                         }
                       >
-                        {(tx.Loai_Giao_Dich === "nhan_tien" || tx.Loai_Giao_Dich === "nap_tien") ? "+" : "-"}
+                        {tx.Loai_Giao_Dich === "nhan_tien" ? "+" : "-"}
                         {formatCurrency(tx.So_Tien)}
                       </TableCell>
                       <TableCell className="text-muted-foreground">

@@ -6,6 +6,7 @@ import { PhotographerChat } from "./photographer/PhotographerChat";
 import { PhotographerProfile } from "./photographer/PhotographerProfile";
 import { PhotographerEditProfile } from "./photographer/PhotographerEditProfile";
 import { PhotographerChangePassword } from "./photographer/PhotographerChangePassword";
+import { PhotographerWallet } from "./photographer/PhotographerWallet";
 import { BookingDetail } from "./photographer/BookingDetail";
 import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
 
@@ -21,7 +22,8 @@ type PhotographerView =
     | "messages"
     | "profile"
     | "edit-profile"
-    | "change-password";
+    | "change-password"
+    | "wallet";
 
 export function PhotographerApp({ onLogout }: PhotographerAppProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -85,6 +87,10 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                 setCurrentView("profile");
                 setSelectedBookingId(null);
                 break;
+            case "wallet":
+                setCurrentView("wallet");
+                setSelectedBookingId(null);
+                break;
             case "logout":
                 handleLogout();
                 break;
@@ -110,6 +116,8 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                 return "Chỉnh sửa hồ sơ";
             case "change-password":
                 return "Đổi mật khẩu";
+            case "wallet":
+                return "Ví cá nhân";
             default:
                 return "Momentia Pro";
         }
@@ -201,6 +209,12 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                 return (
                     <PhotographerChangePassword
                         onBack={() => setCurrentView("profile")}
+                    />
+                );
+            case "wallet":
+                return (
+                    <PhotographerWallet
+                        onBack={() => setCurrentView("home")}
                     />
                 );
             default:

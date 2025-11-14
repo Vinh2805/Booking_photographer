@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\ThanhToan;
 use App\Models\BuoiChup;
 use App\Models\TransactionLog;
+use App\Models\NhiepAnhGia;
+use App\Models\KhachHang;
+use App\Models\WalletTransaction;
 use App\Services\VNPayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -111,7 +114,8 @@ class VNPayCallbackController extends Controller
             $serviceFee  = round($payAmount * $feeRate, 2);
             $totalCharge = $payAmount + $serviceFee;
 
-            $maTT = 'TT' . now()->format('YmdHis') . rand(100, 999);
+            // Tạo mã thanh toán (tối đa 20 ký tự: TT + YmdHis + 2 số random)
+            $maTT = 'TT' . now()->format('YmdHis') . rand(10, 99);
 
             ThanhToan::create([
                 'Ma_TT'     => $maTT,
@@ -135,6 +139,59 @@ class VNPayCallbackController extends Controller
             $booking->save();
 
             TransactionLog::record($ma_bc, $logAction, $logDesc);
+
+            // Lưu giao dịch VNPay vào lịch sử ví của khách hàng
+            if ($booking->Ma_KH) {
+                $khachHang = KhachHang::where('Ma_KH', $booking->Ma_KH)->first();
+                if ($khachHang) {
+                    $soDuHienTai = (float) ($khachHang->So_Du ?? 0);
+                    // Lưu giao dịch thanh toán VNPay (không trừ từ ví, nhưng vẫn lưu lịch sử)
+                    WalletTransaction::createTransaction(
+                        'khach_hang',
+                        $khachHang->Ma_KH,
+                        'thanh_toan',
+                        $totalCharge,
+                        $soDuHienTai, // Số dư không đổi vì thanh toán qua VNPay
+                        $soDuHienTai, // Số dư không đổi
+                        $ma_bc,
+                        $maTT,
+                        ($type === 'deposit' ? 'Đặt cọc' : 'Thanh toán phần còn lại') . " buổi chụp {$ma_bc} qua VNPay: " . number_format($totalCharge, 0, ',', '.') . ' đ',
+                        null,
+                        null,
+                        null,
+                        $data['vnp_TransactionNo'] ?? null
+                    );
+                }
+            }
+
+            // Tự động cộng tiền cho nhiếp ảnh gia (trừ 20% chiết khấu)
+            if ($booking->Ma_NAG) {
+                $nag = NhiepAnhGia::where('Ma_NAG', $booking->Ma_NAG)->first();
+                if ($nag) {
+                    // NAG nhận 80% số tiền (trừ 20% chiết khấu)
+                    $nagAmount = round($payAmount * 0.8, 2);
+                    $soDuTruocNAG = (float) ($nag->So_Du ?? 0);
+                    $nag->So_Du = $soDuTruocNAG + $nagAmount;
+                    $nag->save();
+
+                    // Lưu vào lịch sử giao dịch
+                    WalletTransaction::createTransaction(
+                        'nhiep_anh_gia',
+                        $nag->Ma_NAG,
+                        'nhan_tien',
+                        $nagAmount,
+                        $soDuTruocNAG,
+                        (float) $nag->So_Du,
+                        $ma_bc,
+                        $maTT,
+                        "Nhận tiền từ buổi chụp {$ma_bc} ({$logAction}): " . number_format($nagAmount, 0, ',', '.') . ' đ (đã trừ 20% chiết khấu)',
+                        null,
+                        null,
+                        null,
+                        $data['vnp_TransactionNo'] ?? null
+                    );
+                }
+            }
 
             DB::commit();
         } catch (\Throwable $e) {

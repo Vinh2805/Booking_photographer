@@ -217,7 +217,9 @@ export function MomentiaSidebar({
             badgeColor: "bg-red-500",
         },
         { id: "profile", title: "Hồ sơ", icon: User },
-        ...(userRole === "customer" ? [{ id: "wallet", title: "Ví cá nhân", icon: Wallet }] : []),
+        ...(userRole === "customer" || userRole === "photographer" 
+            ? [{ id: "wallet", title: "Ví cá nhân", icon: Wallet }] 
+            : []),
     ];
 
     return (

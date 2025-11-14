@@ -530,7 +530,7 @@ Quản lý ví cá nhân cho khách hàng, cho phép nạp tiền, rút tiền v
 
 ### 6.4. Luồng hoạt động
 
-#### Nạp tiền vào ví
+#### Nạp tiền (Chỉ khách hàng) vào ví
 ```
 1. Khách hàng vào trang "Ví cá nhân"
 2. Khách hàng click "Nạp tiền"
@@ -549,7 +549,7 @@ Quản lý ví cá nhân cho khách hàng, cho phép nạp tiền, rút tiền v
 13. Frontend hiển thị thông báo thành công và cập nhật số dư
 ```
 
-#### Rút tiền từ ví
+#### Rút tiền (Khách hàng và Nhiếp ảnh gia) từ ví
 ```
 1. Khách hàng vào trang "Ví cá nhân"
 2. Khách hàng click "Rút tiền"
@@ -566,7 +566,17 @@ Quản lý ví cá nhân cho khách hàng, cho phép nạp tiền, rút tiền v
 9. Frontend hiển thị thông báo thành công và cập nhật số dư
 ```
 
-#### Thanh toán bằng ví cá nhân
+#### Nhận tiền tự động (Nhiếp ảnh gia)
+```
+1. Khách hàng thanh toán đặt cọc hoặc phần còn lại
+2. Backend tự động tính toán:
+   - Số tiền NAG nhận = Số tiền thanh toán × 80% (trừ 20% chiết khấu)
+3. Backend cộng tiền vào ví NAG (So_Du = So_Du + nagAmount)
+4. Backend lưu giao dịch vào wallet_transactions với loại 'nhan_tien'
+5. NAG có thể xem số dư và lịch sử giao dịch trong ví cá nhân
+```
+
+#### Thanh toán bằng ví (Khách hàng) cá nhân
 ```
 1. Khách hàng chọn phương thức "Ví cá nhân" khi đặt cọc hoặc thanh toán
 2. Backend tự động lấy số dư từ database (không cần nhập thủ công)

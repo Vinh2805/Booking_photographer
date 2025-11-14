@@ -141,12 +141,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/profile/photographer/portfolio', [ProfileController::class, 'uploadPhotographerPortfolio']);
     });
 
-    // === Wallet Management (chỉ khách hàng) ===
+    // === Wallet Management (khách hàng và nhiếp ảnh gia) ===
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/wallet/balance', [WalletController::class, 'getBalance']);
-        Route::post('/wallet/deposit', [WalletController::class, 'createDepositRequest']);
-        Route::post('/wallet/deposit/confirm', [WalletController::class, 'confirmDeposit']);
-        Route::post('/wallet/withdraw', [WalletController::class, 'createWithdrawalRequest']);
+        Route::get('/wallet/transactions', [WalletController::class, 'getTransactions']);
+        Route::post('/wallet/deposit', [WalletController::class, 'createDepositRequest']); // Chỉ khách hàng
+        Route::post('/wallet/deposit/confirm', [WalletController::class, 'confirmDeposit']); // Chỉ khách hàng
+        Route::post('/wallet/withdraw', [WalletController::class, 'createWithdrawalRequest']); // Cả khách hàng và NAG
     });
 
     // Serve files from private storage - PUBLIC ACCESS (không cần auth để xem ảnh của người khác)
