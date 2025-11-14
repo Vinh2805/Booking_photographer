@@ -45,6 +45,7 @@ class CustomerController extends Controller
             'bookings' => $bookingsCount,
             'unreadMessages' => $unreadMessagesCount,
             'favoritePhotographers' => $favoritePhotographers,
+            'walletBalance' => (float)($khachHang->So_Du ?? 0),
         ]);
     }
 }

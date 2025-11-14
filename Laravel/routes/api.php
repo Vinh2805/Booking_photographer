@@ -20,6 +20,7 @@ use App\Http\Controllers\PhotographerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\WalletController;
 
 
     
@@ -138,6 +139,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/profile/photographer/avatar', [ProfileController::class, 'uploadPhotographerAvatar']);
         Route::post('/profile/photographer/cover', [ProfileController::class, 'uploadPhotographerCover']);
         Route::post('/profile/photographer/portfolio', [ProfileController::class, 'uploadPhotographerPortfolio']);
+    });
+
+    // === Wallet Management (chỉ khách hàng) ===
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/wallet/balance', [WalletController::class, 'getBalance']);
+        Route::post('/wallet/deposit', [WalletController::class, 'createDepositRequest']);
+        Route::post('/wallet/deposit/confirm', [WalletController::class, 'confirmDeposit']);
+        Route::post('/wallet/withdraw', [WalletController::class, 'createWithdrawalRequest']);
     });
 
     // Serve files from private storage - PUBLIC ACCESS (không cần auth để xem ảnh của người khác)

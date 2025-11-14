@@ -236,7 +236,10 @@ class BookingFinalPaymentController extends Controller
 }
 
         // 5️⃣ Nếu là ví cá nhân → xử lý nội bộ
-    $charge = $payment->charge('vi_ca_nhan', $totalCharge, $ma_bc, ['type' => 'final'], $validated['available'] ?? null);
+        // Lấy số dư ví từ database
+        $walletBalance = (float)($khachHang->So_Du ?? 0);
+        
+        $charge = $payment->charge('vi_ca_nhan', $totalCharge, $ma_bc, ['type' => 'final'], $walletBalance);
         if (!$charge['success']) {
             ThanhToan::create([
                 'Ma_TT'     => 'TT' . now()->format('YmdHis') . rand(100,999),
@@ -262,6 +265,10 @@ class BookingFinalPaymentController extends Controller
         try {
             DB::beginTransaction();
 
+            // Trừ tiền từ ví
+            $khachHang->So_Du = max(0, $walletBalance - $totalCharge);
+            $khachHang->save();
+
             $maTT = 'TT' . now()->format('YmdHisv') . rand(100,999);
 
             ThanhToan::create([
@@ -279,6 +286,8 @@ class BookingFinalPaymentController extends Controller
                     'method_raw'     => $validated['payment_method'],
                     'transaction_id' => $charge['transaction_id'] ?? null,
                     'paid_at'        => $charge['paid_at'] ?? now()->toDateTimeString(),
+                    'wallet_balance_before' => $walletBalance,
+                    'wallet_balance_after' => $khachHang->So_Du,
                 ], JSON_UNESCAPED_UNICODE),
             ]);
 

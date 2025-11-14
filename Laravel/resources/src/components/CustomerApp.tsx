@@ -6,6 +6,7 @@ import { CustomerBookings } from "./customer/CustomerBookings";
 import { CustomerChat } from "./customer/CustomerChat";
 import { CustomerProfile } from "./customer/CustomerProfile";
 import { CustomerEditProfile } from "./customer/CustomerEditProfile";
+import { CustomerWallet } from "./customer/CustomerWallet";
 import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
 import { toast } from "sonner";
 
@@ -18,7 +19,8 @@ type CustomerView =
     | "bookings"
     | "messages"
     | "profile"
-    | "edit-profile";
+    | "edit-profile"
+    | "wallet";
 
 export function CustomerApp({ onLogout }: CustomerAppProps) {
     const location = useLocation();
@@ -172,8 +174,10 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
                 break;
             case "profile":
             case "settings":
-            case "wallet":
                 setCurrentView("profile");
+                break;
+            case "wallet":
+                setCurrentView("wallet");
                 break;
             case "logout":
                 handleLogout(); // ✅ Gọi hàm đăng xuất thật sự
@@ -196,6 +200,8 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
                 return "Hồ sơ";
             case "edit-profile":
                 return "Chỉnh sửa hồ sơ";
+            case "wallet":
+                return "Ví cá nhân";
             default:
                 return "Momentia";
         }
@@ -259,6 +265,12 @@ export function CustomerApp({ onLogout }: CustomerAppProps) {
                 return (
                     <CustomerEditProfile
                         onBack={() => setCurrentView("profile")}
+                    />
+                );
+            case "wallet":
+                return (
+                    <CustomerWallet
+                        onBack={() => setCurrentView("home")}
                     />
                 );
             default:
