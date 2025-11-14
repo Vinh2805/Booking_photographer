@@ -6,6 +6,7 @@ use App\Mail\DepositReceiptMail;
 use App\Models\BuoiChup;
 use App\Models\ThanhToan;
 use App\Models\TransactionLog;
+use App\Models\KhachHang;
 use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,7 +70,12 @@ if ($validated['payment_method'] === 'vnpay') {
 }
 
         // 5️⃣ Nếu là ví cá nhân → xử lý nội bộ và lưu DB
-    $charge = $payment->charge('vi_ca_nhan', $totalCharge, $ma_bc, ['type' => 'deposit'], $validated['available'] ?? null);
+        // Lấy số dư ví từ database
+        $user = $request->user();
+        $khachHang = $user ? KhachHang::where('Ma_TK', $user->Ma_TK)->first() : null;
+        $walletBalance = $khachHang ? (float)($khachHang->So_Du ?? 0) : 0;
+        
+        $charge = $payment->charge('vi_ca_nhan', $totalCharge, $ma_bc, ['type' => 'deposit'], $walletBalance);
 
         if (!$charge['success']) {
             Log::warning('Deposit failed', [
@@ -103,6 +109,12 @@ if ($validated['payment_method'] === 'vnpay') {
         try {
             DB::beginTransaction();
 
+            // Trừ tiền từ ví
+            if ($khachHang) {
+                $khachHang->So_Du = max(0, $walletBalance - $totalCharge);
+                $khachHang->save();
+            }
+
             $maTT = 'TT' . now()->format('YmdHis') . rand(100,999);
 
             ThanhToan::create([
@@ -118,6 +130,8 @@ if ($validated['payment_method'] === 'vnpay') {
                     'fee_rate'        => $feeRate,
                     'method_raw'      => $validated['payment_method'],
                     'transaction_id'  => $charge['transaction_id'],
+                    'wallet_balance_before' => $walletBalance,
+                    'wallet_balance_after' => $khachHang ? $khachHang->So_Du : null,
                 ], JSON_UNESCAPED_UNICODE),
             ]);
 

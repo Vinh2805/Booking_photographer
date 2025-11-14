@@ -15,13 +15,14 @@ class KhachHang extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'Ma_KH', 'Ma_TK', 'Loai_TK', 'Dia_Chi', 'Ngay_Sinh', 'Gioi_Tinh', 'So_Thich_The_Loai', 'So_Thich_Dia_Diem'
+        'Ma_KH', 'Ma_TK', 'Loai_TK', 'So_Du', 'Dia_Chi', 'Ngay_Sinh', 'Gioi_Tinh', 'So_Thich_The_Loai', 'So_Thich_Dia_Diem'
     ];
 
     public $timestamps = false;
 
     protected $casts = [
         'Ngay_Sinh' => 'date',
+        'So_Du' => 'decimal:2',
     ];
 
     public function taiKhoan()

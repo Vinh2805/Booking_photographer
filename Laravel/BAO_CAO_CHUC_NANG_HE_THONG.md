@@ -6,12 +6,13 @@
 3. [Nhóm chức năng Profile Management](#3-nhóm-chức-năng-profile-management)
 4. [Nhóm chức năng Booking Management](#4-nhóm-chức-năng-booking-management)
 5. [Nhóm chức năng Payment Processing](#5-nhóm-chức-năng-payment-processing)
-6. [Nhóm chức năng Photo Management](#6-nhóm-chức-năng-photo-management)
-7. [Nhóm chức năng Chat/Messaging](#7-nhóm-chức-năng-chatmessaging)
-8. [Nhóm chức năng Review & Rating](#8-nhóm-chức-năng-review--rating)
-9. [Nhóm chức năng Photographer Discovery](#9-nhóm-chức-năng-photographer-discovery)
-10. [Nhóm chức năng Dashboard & Statistics](#10-nhóm-chức-năng-dashboard--statistics)
-11. [Nhóm chức năng Admin Management](#11-nhóm-chức-năng-admin-management)
+6. [Nhóm chức năng Wallet Management (Ví cá nhân)](#6-nhóm-chức-năng-wallet-management-ví-cá-nhân)
+7. [Nhóm chức năng Photo Management](#7-nhóm-chức-năng-photo-management)
+8. [Nhóm chức năng Chat/Messaging](#8-nhóm-chức-năng-chatmessaging)
+9. [Nhóm chức năng Review & Rating](#9-nhóm-chức-năng-review--rating)
+10. [Nhóm chức năng Photographer Discovery](#10-nhóm-chức-năng-photographer-discovery)
+11. [Nhóm chức năng Dashboard & Statistics](#11-nhóm-chức-năng-dashboard--statistics)
+12. [Nhóm chức năng Admin Management](#12-nhóm-chức-năng-admin-management)
 
 ---
 
@@ -421,18 +422,22 @@ Xử lý thanh toán đặt cọc và thanh toán phần còn lại, tích hợp
 1. Khách hàng vào chi tiết buổi chụp "Chờ đặt cọc"
 2. Khách hàng click "Đặt cọc"
 3. Chọn phương thức "Ví cá nhân"
-4. Nhập số tiền có sẵn
-5. Frontend gửi POST /api/buoi-chup/{ma_bc}/dat-coc
-6. Backend tính toán:
+4. Frontend gửi POST /api/buoi-chup/{ma_bc}/dat-coc
+5. Backend tính toán:
    - Số tiền đặt cọc = Tổng tiền × Tỷ lệ cọc (30%)
-   - Phí dịch vụ = Số tiền đặt cọc × Phí dịch vụ
+   - Phí dịch vụ = Số tiền đặt cọc × Phí dịch vụ (1%)
    - Tổng thanh toán = Số tiền đặt cọc + Phí dịch vụ
-7. Backend kiểm tra số dư ví
-8. Backend tạo bản ghi ThanhToan
-9. Backend cập nhật Trang_Thai buổi chụp = "Chờ thanh toán"
-10. Backend gửi email biên nhận
-11. Backend trả về kết quả
-12. Frontend hiển thị thông báo thành công
+6. Backend tự động lấy số dư ví từ database (So_Du)
+7. Backend kiểm tra số dư có đủ không
+8. Nếu đủ:
+   - Backend trừ tiền từ ví (So_Du = So_Du - totalCharge)
+   - Backend tạo bản ghi ThanhToan
+   - Backend cập nhật Trang_Thai buổi chụp = "Chờ thanh toán"
+   - Backend gửi email biên nhận
+   - Backend trả về kết quả
+9. Nếu không đủ:
+   - Backend trả về lỗi "Số dư không đủ"
+10. Frontend hiển thị thông báo thành công hoặc lỗi
 ```
 
 #### Đặt cọc (VNPay)
@@ -456,18 +461,149 @@ Xử lý thanh toán đặt cọc và thanh toán phần còn lại, tích hợp
 3. Frontend gửi GET /api/buoi-chup/{ma_bc}/thanh-toan/quote để xem số tiền
 4. Khách hàng chọn phương thức thanh toán
 5. Frontend gửi POST /api/buoi-chup/{ma_bc}/thanh-toan
-6. Backend xử lý tương tự đặt cọc
-7. Sau khi thanh toán thành công, Trang_Thai = "Đã hoàn thành"
+6. Nếu chọn "Ví cá nhân":
+   - Backend tự động lấy số dư ví từ database
+   - Backend kiểm tra số dư có đủ không
+   - Nếu đủ: Backend trừ tiền từ ví và tạo bản ghi ThanhToan
+   - Nếu không đủ: Trả về lỗi "Số dư không đủ"
+7. Nếu chọn "VNPay": Xử lý tương tự đặt cọc qua VNPay
+8. Sau khi thanh toán thành công, Trang_Thai = "Chờ xử lý ảnh"
 ```
 
 ---
 
-## 6. NHÓM CHỨC NĂNG: PHOTO MANAGEMENT
+## 6. NHÓM CHỨC NĂNG: WALLET MANAGEMENT (VÍ CÁ NHÂN)
 
 ### 6.1. Mô tả chức năng
-Upload và download ảnh gốc/hậu kỳ cho buổi chụp. Nhiếp ảnh gia upload file ZIP, khách hàng download.
+Quản lý ví cá nhân cho khách hàng, cho phép nạp tiền, rút tiền và sử dụng số dư để thanh toán các buổi chụp. Khi thanh toán bằng ví cá nhân, tiền sẽ tự động được trừ từ số dư.
 
 ### 6.2. File Backend
+
+#### Controllers
+- **`app/Http/Controllers/WalletController.php`**
+  - `getBalance()` - Lấy số dư ví hiện tại của khách hàng
+  - `createDepositRequest()` - Tạo yêu cầu nạp tiền và tạo mã QR
+  - `confirmDeposit()` - Xác nhận nạp tiền (khách hàng tự xác nhận sau khi chuyển khoản)
+  - `createWithdrawalRequest()` - Tạo yêu cầu rút tiền (trừ tiền ngay lập tức)
+
+#### Models
+- **`app/Models/KhachHang.php`**
+  - Trường `So_Du` - Số dư ví cá nhân (decimal 15,2, default 0)
+
+#### Migrations
+- **`database/migrations/2025_11_14_091825_add_so_du_to_khach_hang_table.php`**
+  - Thêm trường `So_Du` vào bảng `khach_hang`
+
+#### Routes
+- `GET /api/wallet/balance` - Lấy số dư ví (cần auth)
+- `POST /api/wallet/deposit` - Tạo yêu cầu nạp tiền (tạo QR code)
+- `POST /api/wallet/deposit/confirm` - Xác nhận nạp tiền
+- `POST /api/wallet/withdraw` - Rút tiền từ ví
+
+### 6.3. File Frontend
+
+#### Components
+- **`resources/src/components/customer/CustomerWallet.tsx`**
+  - Hiển thị số dư ví
+  - Form nạp tiền với mã QR (VietQR)
+  - Form rút tiền với thông tin tài khoản ngân hàng
+  - Modal xác nhận nạp tiền
+
+#### Integration
+- **`resources/src/components/CustomerApp.tsx`**
+  - Thêm view "wallet" vào navigation
+  - Route điều hướng đến wallet
+
+- **`resources/src/components/MomentiaSidebar.tsx`**
+  - Thêm menu "Ví cá nhân" cho khách hàng
+
+- **`app/Http/Controllers/BookingDepositController.php`**
+  - Tự động lấy số dư từ database khi thanh toán bằng ví cá nhân
+  - Tự động trừ tiền từ ví khi thanh toán thành công
+
+- **`app/Http/Controllers/BookingFinalPaymentController.php`**
+  - Tự động lấy số dư từ database khi thanh toán bằng ví cá nhân
+  - Tự động trừ tiền từ ví khi thanh toán thành công
+
+- **`app/Http/Controllers/CustomerController.php`**
+  - Thêm `walletBalance` vào response của dashboard
+
+### 6.4. Luồng hoạt động
+
+#### Nạp tiền vào ví
+```
+1. Khách hàng vào trang "Ví cá nhân"
+2. Khách hàng click "Nạp tiền"
+3. Nhập số tiền muốn nạp (tối thiểu 10,000 đ)
+4. Frontend gửi POST /api/wallet/deposit
+5. Backend tạo mã QR code từ VietQR API:
+   - URL: https://img.vietqr.io/image/VIB-335757499-compact2.png
+   - Parameters: amount, addInfo, accountName
+6. Backend trả về QR code URL và transaction_id
+7. Frontend hiển thị mã QR và thông tin ngân hàng
+8. Khách hàng quét QR và chuyển khoản
+9. Sau khi chuyển khoản, khách hàng bấm "Xác nhận đã chuyển khoản"
+10. Frontend gửi POST /api/wallet/deposit/confirm
+11. Backend cập nhật số dư ví (So_Du = So_Du + amount)
+12. Backend log giao dịch vào file log
+13. Frontend hiển thị thông báo thành công và cập nhật số dư
+```
+
+#### Rút tiền từ ví
+```
+1. Khách hàng vào trang "Ví cá nhân"
+2. Khách hàng click "Rút tiền"
+3. Điền thông tin:
+   - Số tiền muốn rút (tối thiểu 50,000 đ)
+   - Số tài khoản ngân hàng
+   - Tên ngân hàng (tùy chọn)
+   - Tên chủ tài khoản
+4. Frontend gửi POST /api/wallet/withdraw
+5. Backend kiểm tra số dư đủ không
+6. Backend trừ tiền ngay lập tức (So_Du = So_Du - amount)
+7. Backend log giao dịch vào file log
+8. Backend trả về kết quả với số dư mới
+9. Frontend hiển thị thông báo thành công và cập nhật số dư
+```
+
+#### Thanh toán bằng ví cá nhân
+```
+1. Khách hàng chọn phương thức "Ví cá nhân" khi đặt cọc hoặc thanh toán
+2. Backend tự động lấy số dư từ database (không cần nhập thủ công)
+3. Backend kiểm tra số dư có đủ không
+4. Nếu đủ:
+   - Backend trừ tiền từ ví (So_Du = So_Du - totalCharge)
+   - Backend tạo bản ghi ThanhToan
+   - Backend cập nhật trạng thái buổi chụp
+   - Backend log giao dịch
+5. Nếu không đủ:
+   - Backend trả về lỗi "Số dư không đủ"
+   - Frontend hiển thị thông báo lỗi
+```
+
+### 6.5. Tính năng đặc biệt
+
+- **Tự động trừ tiền**: Khi thanh toán bằng ví cá nhân, tiền được trừ tự động từ số dư, không cần nhập số dư thủ công
+- **Nạp tiền tự xác nhận**: Khách hàng tự xác nhận sau khi chuyển khoản, không cần chờ admin
+- **Rút tiền tức thì**: Tiền được trừ ngay khi khách hàng xác nhận, không cần chờ duyệt
+- **QR Code động**: Mã QR được tạo động với số tiền khách hàng muốn nạp
+- **Hiển thị số dư**: Số dư ví được hiển thị trên dashboard và trang ví cá nhân
+
+### 6.6. Thông tin ngân hàng nạp tiền
+
+- **Ngân hàng**: VIB
+- **Số tài khoản**: 335757499
+- **Chủ tài khoản**: Admin
+- **API QR Code**: VietQR.io
+
+---
+
+## 7. NHÓM CHỨC NĂNG: PHOTO MANAGEMENT
+
+### 7.1. Mô tả chức năng
+Upload và download ảnh gốc/hậu kỳ cho buổi chụp. Nhiếp ảnh gia upload file ZIP, khách hàng download.
+
+### 12.2. File Backend
 
 #### Controllers
 - **`app/Http/Controllers/PhotoUploadController.php`**
@@ -480,7 +616,7 @@ Upload và download ảnh gốc/hậu kỳ cho buổi chụp. Nhiếp ảnh gia 
 - `POST /api/photos/{type}/{ma_bc}/upload` - Upload ảnh (type: original/edited)
 - `GET /api/photos/{type}/{ma_bc}/download` - Download ảnh
 
-### 6.3. File Frontend
+### 12.3. File Frontend
 
 #### Components
 - **`resources/src/components/photographer/BookingDetail.tsx`**
@@ -495,7 +631,7 @@ Upload và download ảnh gốc/hậu kỳ cho buổi chụp. Nhiếp ảnh gia 
 - **`resources/src/components/services/PhotoAPI.ts`**
   - Các hàm API cho photo operations
 
-### 6.4. Luồng hoạt động
+### 11.4. Luồng hoạt động
 
 #### Upload ảnh
 ```
@@ -524,12 +660,12 @@ Upload và download ảnh gốc/hậu kỳ cho buổi chụp. Nhiếp ảnh gia 
 
 ---
 
-## 7. NHÓM CHỨC NĂNG: CHAT/MESSAGING
+## 8. NHÓM CHỨC NĂNG: CHAT/MESSAGING
 
-### 7.1. Mô tả chức năng
+### 8.1. Mô tả chức năng
 Chat realtime giữa khách hàng và nhiếp ảnh gia theo từng buổi chụp. Hỗ trợ đánh dấu đã đọc, tin nhắn chưa đọc.
 
-### 7.2. File Backend
+### 12.2. File Backend
 
 #### Controllers
 - **`app/Http/Controllers/ChatController.php`**
@@ -555,7 +691,7 @@ Chat realtime giữa khách hàng và nhiếp ảnh gia theo từng buổi chụ
   - `chat.booking.{Ma_BC}` - Channel cho buổi chụp
   - `chat.{Ma_TK}` - Channel cho user
 
-### 7.3. File Frontend
+### 12.3. File Frontend
 
 #### Components
 - **`resources/src/components/customer/CustomerChat.tsx`**
@@ -578,7 +714,7 @@ Chat realtime giữa khách hàng và nhiếp ảnh gia theo từng buổi chụ
   - Cấu hình Laravel Echo + Pusher
   - Subscribe channels
 
-### 7.4. Luồng hoạt động
+### 11.4. Luồng hoạt động
 
 #### Gửi tin nhắn
 ```
@@ -612,12 +748,12 @@ Chat realtime giữa khách hàng và nhiếp ảnh gia theo từng buổi chụ
 
 ---
 
-## 8. NHÓM CHỨC NĂNG: REVIEW & RATING
+## 9. NHÓM CHỨC NĂNG: REVIEW & RATING
 
-### 8.1. Mô tả chức năng
+### 9.1. Mô tả chức năng
 Khách hàng đánh giá nhiếp ảnh gia sau khi buổi chụp hoàn thành (1-5 sao + nhận xét).
 
-### 8.2. File Backend
+### 12.2. File Backend
 
 #### Controllers
 - **`app/Http/Controllers/ReviewController.php`**
@@ -628,7 +764,7 @@ Khách hàng đánh giá nhiếp ảnh gia sau khi buổi chụp hoàn thành (1
 - `POST /api/booking/{ma_bc}/review` - Tạo đánh giá
 - `GET /api/booking/{ma_bc}/review` - Lấy đánh giá
 
-### 8.3. File Frontend
+### 12.3. File Frontend
 
 #### Components
 - **`resources/src/components/customer/CustomerBookings.tsx`**
@@ -637,7 +773,7 @@ Khách hàng đánh giá nhiếp ảnh gia sau khi buổi chụp hoàn thành (1
 - **`resources/src/components/photographer/components/ReviewsSection.tsx`**
   - Hiển thị danh sách đánh giá của nhiếp ảnh gia
 
-### 8.4. Luồng hoạt động
+### 11.4. Luồng hoạt động
 
 #### Tạo đánh giá
 ```
@@ -654,12 +790,12 @@ Khách hàng đánh giá nhiếp ảnh gia sau khi buổi chụp hoàn thành (1
 
 ---
 
-## 9. NHÓM CHỨC NĂNG: PHOTOGRAPHER DISCOVERY
+## 10. NHÓM CHỨC NĂNG: PHOTOGRAPHER DISCOVERY
 
-### 9.1. Mô tả chức năng
+### 10.1. Mô tả chức năng
 Khách hàng tìm kiếm, xem danh sách nhiếp ảnh gia, xem portfolio, đánh giá, và đặt lịch.
 
-### 9.2. File Backend
+### 12.2. File Backend
 
 #### Controllers
 - **`app/Http/Controllers/PhotographerController.php`**
@@ -670,7 +806,7 @@ Khách hàng tìm kiếm, xem danh sách nhiếp ảnh gia, xem portfolio, đán
 - `GET /api/nhiep-anh-gia/noi-bat` - Lấy nhiếp ảnh gia nổi bật
 - `GET /api/nhiep-anh-gia/{id}` - Chi tiết nhiếp ảnh gia
 
-### 9.3. File Frontend
+### 12.3. File Frontend
 
 #### Components
 - **`resources/src/components/LandingPage.tsx`**
@@ -689,7 +825,7 @@ Khách hàng tìm kiếm, xem danh sách nhiếp ảnh gia, xem portfolio, đán
 - **`resources/src/components/customer/PhotographerPortfolioModal.tsx`**
   - Modal xem portfolio và đặt lịch
 
-### 9.4. Luồng hoạt động
+### 11.4. Luồng hoạt động
 
 #### Xem danh sách nhiếp ảnh gia
 ```
@@ -712,12 +848,12 @@ Khách hàng tìm kiếm, xem danh sách nhiếp ảnh gia, xem portfolio, đán
 
 ---
 
-## 10. NHÓM CHỨC NĂNG: DASHBOARD & STATISTICS
+## 11. NHÓM CHỨC NĂNG: DASHBOARD & STATISTICS
 
-### 10.1. Mô tả chức năng
+### 11.1. Mô tả chức năng
 Dashboard hiển thị thống kê, số liệu cho khách hàng và nhiếp ảnh gia.
 
-### 10.2. File Backend
+### 12.2. File Backend
 
 #### Controllers
 - **`app/Http/Controllers/CustomerController.php`**
@@ -732,7 +868,7 @@ Dashboard hiển thị thống kê, số liệu cho khách hàng và nhiếp ả
 - `GET /api/photographer/dashboard/{Ma_TK}` - Dashboard nhiếp ảnh gia
 - `GET /api/photographer/{Ma_TK}/bookings` - Buổi chụp sắp tới
 
-### 10.3. File Frontend
+### 12.3. File Frontend
 
 #### Components
 - **`resources/src/components/customer/CustomerHome.tsx`**
@@ -743,7 +879,7 @@ Dashboard hiển thị thống kê, số liệu cho khách hàng và nhiếp ả
   - Dashboard nhiếp ảnh gia
   - Hiển thị thống kê, biểu đồ
 
-### 10.4. Luồng hoạt động
+### 11.4. Luồng hoạt động
 
 #### Xem Dashboard
 ```
@@ -758,15 +894,15 @@ Dashboard hiển thị thống kê, số liệu cho khách hàng và nhiếp ả
 
 ---
 
-## 11. NHÓM CHỨC NĂNG: ADMIN MANAGEMENT
+## 12. NHÓM CHỨC NĂNG: ADMIN MANAGEMENT
 
-### 11.1. Mô tả chức năng
+### 12.1. Mô tả chức năng
 Quản lý hệ thống cho admin: quản lý khách hàng, nhiếp ảnh gia, buổi chụp, cài đặt hệ thống.
 
-### 11.2. File Backend
+### 12.2. File Backend
 *(Có thể chưa được implement đầy đủ)*
 
-### 11.3. File Frontend
+### 12.3. File Frontend
 
 #### Components
 - **`resources/src/components/AdminApp.tsx`**

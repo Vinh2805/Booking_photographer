@@ -59,7 +59,7 @@ export function AppLayoutWithSidebar({
                 onNavigate("settings");
                 break;
             case "wallet":
-                onNavigate("profile");
+                onNavigate("wallet");
                 break;
             case "logout":
                 // ✅ gọi đúng hàm onLogout được truyền từ trên xuống
