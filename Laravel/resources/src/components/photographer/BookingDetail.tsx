@@ -1335,13 +1335,13 @@ export interface BookingDetailData {
                 {/* Change Request Dialog */}
                 <Dialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
                     <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Yêu cầu thay đổi buổi chụp</DialogTitle>
+                        <DialogHeader className="p-2">
+                            <DialogTitle className="text-2xl">Yêu cầu thay đổi buổi chụp</DialogTitle>
                             <DialogDescription>
                                 Vui lòng điền thông tin cần thay đổi và lý do
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4">
+                        <div className="space-y-6 p-2">
                             <div>
                                 <Label>Loại thay đổi</Label>
                                 <select

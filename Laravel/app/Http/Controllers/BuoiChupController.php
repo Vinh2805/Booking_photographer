@@ -79,7 +79,7 @@ class BuoiChupController extends Controller
 
             // Sắp xếp và phân trang
             $query->orderBy($sortBy, $sortOrder)
-                  ->with(['khachHang.taiKhoan', 'nhaNhiepAnh', 'anh']);
+                  ->with(['khachHang.taiKhoan', 'nhaNhiepAnh']);
 
             $paginator = $query->paginate($perPage)->appends($request->query());
 
@@ -115,7 +115,7 @@ class BuoiChupController extends Controller
             // Tự động cập nhật trạng thái trước khi lấy chi tiết
             $this->autoUpdateBookingStatus();
             
-            $booking = BuoiChup::with(['khachHang.taiKhoan', 'nhaNhiepAnh', 'anh'])
+            $booking = BuoiChup::with(['khachHang.taiKhoan', 'nhaNhiepAnh'])
                 ->where('Ma_BC', $id)
                 ->firstOrFail();
 
@@ -517,14 +517,9 @@ class BuoiChupController extends Controller
             'duration' => $this->calculateDuration($booking->Bat_Dau_Chup, $booking->Ket_Thuc_Chup),
             'guestCount' => '1', // Sửa: Chưa có cột
             'specialRequests' => $this->extractOriginalNote($booking->Ghi_Chu) ?? '',
-            'uploadedRaw' => $booking->anh && $booking->anh->where('Loai', 'raw')->isNotEmpty(),
-            'uploadedEdited' => $booking->anh && $booking->anh->where('Loai', 'edited')->isNotEmpty(),
-            'images' => $booking->anh ? $booking->anh->map(function ($image) {
-                return [
-                    'type' => $image->Loai,
-                    'url' => $image->Duong_Dan
-                ];
-            })->toArray() : [],
+            'uploadedRaw' => false, // TODO: Check filesystem
+            'uploadedEdited' => false,
+            'images' => [],
             'createdAt' => ($booking->Ngay_Tao instanceof Carbon) ? $booking->Ngay_Tao->toDateTimeString() : Carbon::parse($booking->Ngay_Tao)->toDateTimeString(),
             'depositRate' => (float) $booking->Ti_Le_Coc,
             'cancelReason' => $booking->Ly_Do_Huy,

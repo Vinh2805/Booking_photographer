@@ -126,6 +126,33 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/customer/bookings/{id}', [CustomerBookingController::class, 'show']);
     });
 
+    // === Admin Routes ===
+Route::prefix('admin')->middleware(['auth:sanctum', 'abilities:admin'])->group(function () {
+    Route::post('/login', [App\Http\Controllers\AdminController::class, 'login'])->withoutMiddleware(['auth:sanctum', 'abilities:admin']); 
+    Route::post('/logout', [App\Http\Controllers\AdminController::class, 'logout']); // Add this
+    Route::get('/dashboard', [App\Http\Controllers\AdminController::class, 'getDashboardStats']);
+    Route::get('/activities', [App\Http\Controllers\AdminController::class, 'getRecentActivities']);
+    
+    // Management Routes
+    Route::get('/photographers', [App\Http\Controllers\AdminManagementController::class, 'getPhotographers']);
+    Route::put('/photographers/{id}/status', [App\Http\Controllers\AdminManagementController::class, 'updatePhotographerStatus']);
+    Route::delete('/photographers/{id}', [App\Http\Controllers\AdminManagementController::class, 'deletePhotographer']);
+    
+    Route::get('/customers', [App\Http\Controllers\AdminManagementController::class, 'getCustomers']);
+    Route::put('/customers/{id}/status', [App\Http\Controllers\AdminManagementController::class, 'updateCustomerStatus']);
+    Route::delete('/customers/{id}', [App\Http\Controllers\AdminManagementController::class, 'deleteCustomer']);
+    
+    Route::get('/bookings', [App\Http\Controllers\AdminManagementController::class, 'getBookings']);
+    Route::put('/bookings/{id}/status', [App\Http\Controllers\AdminManagementController::class, 'updateBookingStatus']);
+    
+    Route::get('/wallet', [App\Http\Controllers\AdminManagementController::class, 'getWalletInfo']);
+
+    Route::post('/wallet/withdraw', [App\Http\Controllers\AdminManagementController::class, 'withdraw']);
+    
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+}); 
     // === Profile Management ===
     Route::middleware('auth:sanctum')->group(function () {
         // Customer profile
@@ -148,6 +175,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/wallet/deposit', [WalletController::class, 'createDepositRequest']); // Chỉ khách hàng
         Route::post('/wallet/deposit/confirm', [WalletController::class, 'confirmDeposit']); // Chỉ khách hàng
         Route::post('/wallet/withdraw', [WalletController::class, 'createWithdrawalRequest']); // Cả khách hàng và NAG
+    });
+
+    // === Notifications ===
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index']);
     });
 
     // Serve files from private storage - PUBLIC ACCESS (không cần auth để xem ảnh của người khác)

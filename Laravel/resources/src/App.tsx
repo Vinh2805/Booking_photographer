@@ -56,6 +56,11 @@ const SidebarDemo = lazy(() =>
     default: m.SidebarDemo,
   }))
 );
+const AdminApp = lazy(() =>
+  import("./components/AdminApp").then((m) => ({
+    default: m.AdminApp,
+  }))
+);
 
 // ✅ Loading UI
 function Loading() {
@@ -179,6 +184,10 @@ function AppContent() {
         <Route
           path="/sidebar-demo"
           element={<SidebarDemo onBack={() => navigate("/")} />}
+        />
+        <Route
+          path="/admin"
+          element={<AdminApp onBack={() => navigate("/")} />}
         />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

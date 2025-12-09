@@ -527,7 +527,7 @@ export function PhotographerBookings({
               Bạn có chắc chắn muốn từ chối buổi chụp này? Vui lòng nhập lý do từ chối.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 p-2">
             {selectedBookingForReject && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">Buổi chụp:</p>

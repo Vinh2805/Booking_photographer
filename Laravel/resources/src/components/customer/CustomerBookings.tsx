@@ -630,18 +630,18 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
         {/* Deposit Dialog */}
         <Dialog open={showDepositDialog} onOpenChange={setShowDepositDialog}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Đặt cọc buổi chụp</DialogTitle>
+            <DialogHeader className="p-2">
+              <DialogTitle className="text-2xl">Đặt cọc buổi chụp</DialogTitle>
               <DialogDescription>
                 Vui lòng chọn phương thức thanh toán và đồng ý với điều khoản
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-6 p-2">
               <RadioGroup value={depositMethod} onValueChange={(v) => setDepositMethod(v as "card" | "bank")}>
-                {/* <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2">
                   <RadioGroupItem value="card" id="card" />
                   <Label htmlFor="card">Ví cá nhân</Label>
-                </div> */}
+                </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="bank" id="bank" />
                   <Label htmlFor="bank">VNPay</Label>
@@ -859,7 +859,7 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
                 Vui lòng điền thông tin cần thay đổi và lý do
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-6 p-2">
               <div>
                 <Label htmlFor="change-type">Loại thay đổi</Label>
                 <select
@@ -1077,8 +1077,8 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
           }
         }}>
           <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Thanh toán phần còn lại</DialogTitle>
+            <DialogHeader className="p-2">
+              <DialogTitle className="text-2xl">Thanh toán phần còn lại</DialogTitle>
               <DialogDescription>
                 Vui lòng kiểm tra thông tin thanh toán và đồng ý với điều khoản
               </DialogDescription>
@@ -1114,7 +1114,7 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
                 </Button>
               </div>
             ) : finalQuote ? (
-              <div className="space-y-4">
+              <div className="space-y-6 p-2">
                 <div className="bg-muted p-4 rounded-lg space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Tổng tiền:</span>

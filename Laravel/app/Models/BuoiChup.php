@@ -51,10 +51,7 @@ class BuoiChup extends Model
         return $this->belongsTo(NhiepAnhGia::class, 'Ma_NAG', 'Ma_NAG');
     }
 
-    public function anh()
-    {
-        return $this->hasMany(Anh::class, 'Ma_BC', 'Ma_BC');
-    }
+
 
     public function dichVu()
     {

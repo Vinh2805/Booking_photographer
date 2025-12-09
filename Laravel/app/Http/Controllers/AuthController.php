@@ -120,6 +120,7 @@ class AuthController extends Controller
                 'Ma_NAG' => $maNAG,
                 'Ma_TK' => $maTK,
                 'Loai_TK' => 'Nhiếp ảnh gia',
+                'Trang_Thai' => 'Pending', // Mặc định chờ duyệt
             ]);
 
             DB::commit();
@@ -155,6 +156,19 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($credentials['Mat_Khau'], $user->Mat_Khau)) {
             return response()->json(['message' => 'Email hoặc mật khẩu không chính xác!'], 401);
+        }
+
+        // Kiểm tra trạng thái duyệt của Nhiếp ảnh gia
+        $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+        if ($nag && $nag->Trang_Thai !== 'Approved') {
+            $status = $nag->Trang_Thai ?? 'Pending';
+            $msg = match ($status) {
+                'Pending' => 'Tài khoản của bạn đang chờ Admin duyệt. Vui lòng chờ!',
+                'Rejected' => 'Tài khoản của bạn đã bị từ chối. Vui lòng liên hệ Admin.',
+                'Locked' => 'Tài khoản của bạn đã bị khóa.',
+                default => 'Tài khoản chưa được kích hoạt.'
+            };
+            return response()->json(['message' => $msg], 403);
         }
 
         $token = $user->createToken('photographer_token')->plainTextToken;

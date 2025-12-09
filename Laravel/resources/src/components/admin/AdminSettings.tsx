@@ -990,7 +990,7 @@ export function AdminSettings({ onLogout }: AdminSettingsProps) {
   };
 
   return (
-    <div className="p-4 space-y-6 pb-24 bg-slate-50 dark:bg-slate-900">
+    <div className="p-4 space-y-6 pb-40 bg-slate-50 dark:bg-slate-900">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
           Cài đặt hệ thống

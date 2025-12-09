@@ -112,195 +112,76 @@ export function AdminBookings({
     "all" | "high" | "medium" | "low"
   >(filterPriority);
 
-  // Mock data
-  const bookings: AdminBooking[] = [
-    {
-      id: "BK001",
-      status: "disputed",
-      title: "Chụp ảnh pre-wedding",
-      customer: {
-        id: "CUST001",
-        name: "Nguyễn Văn A",
-        avatar:
-          "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=150&h=150&fit=crop&crop=face",
-        phone: "0901234567",
-        email: "nguyenvana@gmail.com",
-      },
-      photographer: {
-        id: "PHOTO001",
-        name: "Minh Tuấn",
-        avatar:
-          "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=face",
-        phone: "0987654321",
-        rating: 4.9,
-      },
-      type: "Cưới",
-      location: "Hồ Gươm, Hà Nội",
-      date: "2025-01-15",
-      time: "08:00",
-      price: 3000000,
-      description: "Chụp ảnh cưới tại khu vực hồ Gươm với concept cổ điển.",
-      createdAt: "2025-01-10",
-      lastUpdate: "2025-01-12",
-      priority: "high",
-      flags: ["disputed", "late_payment"],
-    },
-    {
-      id: "BK002",
-      status: "pending_confirmation",
-      title: "Chụp ảnh gia đình",
-      customer: {
-        id: "CUST002",
-        name: "Trần Thị B",
-        avatar:
-          "https://images.unsplash.com/photo-1494790108755-2616b5ba5948?w=150&h=150&fit=crop&crop=face",
-        phone: "0912345678",
-        email: "tranthib@gmail.com",
-      },
-      photographer: {
-        id: "PHOTO002",
-        name: "Đức Anh",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-        phone: "0976543210",
-        rating: 4.8,
-      },
-      type: "Gia đình",
-      location: "Công viên Thống Nhất",
-      date: "2025-01-20",
-      time: "14:00",
-      price: 1500000,
-      description: "Chụp ảnh gia đình với 4 thành viên.",
-      createdAt: "2025-01-12",
-      lastUpdate: "2025-01-12",
-      priority: "medium",
-      flags: ["new_customer"],
-    },
-    {
-      id: "BK003",
-      status: "completed",
-      title: "Chụp ảnh maternity",
-      customer: {
-        id: "CUST003",
-        name: "Hoàng Thị C",
-        avatar:
-          "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-        phone: "0923456789",
-        email: "hoangthic@gmail.com",
-      },
-      photographer: {
-        id: "PHOTO003",
-        name: "Lan Hương",
-        avatar:
-          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face",
-        phone: "0965432109",
-        rating: 4.7,
-      },
-      type: "Maternity",
-      location: "Bờ hồ Tây, Hà Nội",
-      date: "2025-01-08",
-      time: "16:30",
-      price: 1800000,
-      description: "Chụp ảnh thai sản với concept nhẹ nhàng.",
-      createdAt: "2025-01-05",
-      lastUpdate: "2025-01-09",
-      priority: "low",
-      flags: ["completed_early"],
-    },
-    {
-      id: "BK004",
-      status: "processing_photos",
-      title: "Chụp ảnh công ty",
-      customer: {
-        id: "CUST004",
-        name: "Lê Văn D",
-        avatar:
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-        phone: "0934567890",
-        email: "levand@company.com",
-      },
-      photographer: {
-        id: "PHOTO004",
-        name: "Thu Hà",
-        avatar:
-          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop&crop=face",
-        phone: "0954321098",
-        rating: 4.9,
-      },
-      type: "Sự kiện",
-      location: "Khách sạn Sheraton, Hà Nội",
-      date: "2025-01-05",
-      time: "18:00",
-      price: 5000000,
-      description: "Chụp ảnh sự kiện ra mắt sản phẩm.",
-      createdAt: "2025-01-01",
-      lastUpdate: "2025-01-06",
-      priority: "high",
-      flags: ["corporate", "high_value"],
-    },
-    {
-      id: "BK005",
-      status: "pending_payment",
-      title: "Chụp ảnh thời trang",
-      customer: {
-        id: "CUST005",
-        name: "Phạm Thị E",
-        avatar:
-          "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=150&h=150&fit=crop&crop=face",
-        phone: "0945678901",
-        email: "phamthie@gmail.com",
-      },
-      photographer: {
-        id: "PHOTO005",
-        name: "Hoàng Nam",
-        avatar:
-          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face",
-        phone: "0943210987",
-        rating: 4.6,
-      },
-      type: "Thời trang",
-      location: "Studio ABC, Hà Nội",
-      date: "2025-01-12",
-      time: "10:00",
-      price: 2500000,
-      description: "Chụp ảnh lookbook thời trang xuân.",
-      createdAt: "2025-01-08",
-      lastUpdate: "2025-01-13",
-      priority: "medium",
-      flags: ["payment_overdue"],
-    },
-    {
-      id: "BK007",
-      status: "disputed",
-      title: "Chụp ảnh sản phẩm",
-      customer: {
-        id: "CUST007",
-        name: "Vũ Thị G",
-        avatar:
-          "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face",
-        phone: "0967890123",
-        email: "vuthig@business.com",
-      },
-      photographer: {
-        id: "PHOTO007",
-        name: "Bảo Long",
-        avatar:
-          "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop&crop=face",
-        phone: "0921098765",
-        rating: 4.4,
-      },
-      type: "Sản phẩm",
-      location: "Studio XYZ, TP.HCM",
-      date: "2025-01-09",
-      time: "09:00",
-      price: 1200000,
-      description: "Chụp ảnh sản phẩm trang sức.",
-      createdAt: "2025-01-06",
-      lastUpdate: "2025-01-11",
-      priority: "high",
-      flags: ["quality_complaint", "refund_request"],
-    },
-  ];
+  // API Data
+  const [bookings, setBookings] = useState<AdminBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const mapStatus = (dbStatus: string): BookingStatus => {
+      const map: Record<string, BookingStatus> = {
+          'Chờ xác nhận': 'pending_confirmation',
+          'Chờ đặt cọc': 'pending_deposit',
+          'Sắp diễn ra': 'upcoming',
+          'Đang diễn ra': 'ongoing',
+          'Chờ thanh toán': 'pending_payment',
+          'Đang xử lý': 'processing_photos',
+          'Hoàn thành': 'completed',
+          'Đã hủy': 'cancelled',
+          'Tranh chấp': 'disputed'
+      };
+      return map[dbStatus] || 'pending_confirmation';
+  };
+
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+        const token = localStorage.getItem("admin_token");
+        const res = await fetch("/api/admin/bookings", {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        if (data.data) {
+            const transformed = data.data.map((item: any) => ({
+                id: `BK${item.Ma_BC}`,
+                status: mapStatus(item.Trang_Thai),
+                title: `Booking #${item.Ma_BC}`, // Or derive from type/date
+                customer: {
+                    id: `CUST${item.Ma_KH}`,
+                    name: item.khach_hang?.tai_khoan?.Ho_Ten || "Unknown",
+                    avatar: item.khach_hang?.tai_khoan?.Avatar ? `/storage/avatars/${item.khach_hang.tai_khoan.Avatar}` : "",
+                    phone: item.khach_hang?.tai_khoan?.So_Dien_Thoai || "",
+                    email: item.khach_hang?.tai_khoan?.Email_TK || "",
+                },
+                photographer: {
+                    id: `PHOTO${item.Ma_NAG}`,
+                    name: item.nha_nhiep_anh?.tai_khoan?.Ho_Ten || "Unknown",
+                    avatar: item.nha_nhiep_anh?.tai_khoan?.Avatar ? `/storage/avatars/${item.nha_nhiep_anh.tai_khoan.Avatar}` : "",
+                    phone: item.nha_nhiep_anh?.tai_khoan?.So_Dien_Thoai || "",
+                    rating: 5.0, // Mock or fetch if available
+                },
+                type: "Chụp ảnh", // Could extract from description or add category field
+                location: item.Dia_Diem,
+                date: item.Bat_Dau_Chup || item.Ngay_Tao, // Fallback to Ngay_Tao if Bat_Dau_Chup is null
+                time: item.Bat_Dau_Chup ? new Date(item.Bat_Dau_Chup).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : "00:00",
+                price: parseFloat(item.Tong_Tien) || 0,
+                description: item.Yeu_Cau_Cu_The || "",
+                createdAt: item.Ngay_Tao,
+                lastUpdate: item.Ngay_Tao, // Or updated_at if available
+                priority: "medium", // Logic to determine priority
+                flags: []
+            }));
+            setBookings(transformed);
+        }
+    } catch (err) {
+        console.error("Failed to fetch bookings", err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
 
   // mở chi tiết theo id
   useEffect(() => {
@@ -442,28 +323,60 @@ export function AdminBookings({
     return list;
   }, [bookings, selectedStatus, filterPriority, searchQuery, sortBy]);
 
-  const handleAction = (action: string, bookingId: string) => {
+  const handleAction = async (action: string, bookingId: string) => {
+    const token = localStorage.getItem("admin_token");
+    let newStatus = "";
+
     switch (action) {
       case "approve":
-        alert(`Phê duyệt booking ${bookingId}`);
+        newStatus = "Sắp diễn ra"; // or 'pending_deposit' based on logic
         break;
       case "reject":
-        alert(`Từ chối booking ${bookingId}`);
-        break;
-      case "suspend":
-        alert(`Tạm dừng booking ${bookingId}`);
+        newStatus = "Đã hủy";
         break;
       case "resolve":
-        alert(`Giải quyết tranh chấp ${bookingId}`);
+        newStatus = "Hoàn thành"; // Example resolution
+        break;
+      case "cancel":
+        newStatus = "Đã hủy";
         break;
       case "contact_customer":
         alert(`Liên hệ khách hàng booking ${bookingId}`);
-        break;
+        return;
       case "contact_photographer":
         alert(`Liên hệ nhiếp ảnh gia booking ${bookingId}`);
-        break;
+        return;
       default:
-        break;
+        return;
+    }
+
+    if (newStatus) {
+        try {
+            const res = await fetch(`/api/admin/bookings/${bookingId.replace('BK', '')}/status`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
+
+            if (res.ok) {
+                fetchBookings();
+                if (selectedBooking) {
+                    setSelectedBooking({
+                        ...selectedBooking,
+                        status: mapStatus(newStatus)
+                    });
+                }
+                alert("Đã cập nhật trạng thái booking");
+            } else {
+                alert("Cập nhật thất bại");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Lỗi hệ thống");
+        }
     }
   };
 
@@ -473,6 +386,17 @@ export function AdminBookings({
   };
 
   // === Detail view ===
+  if (loading) {
+    return (
+        <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+            <Clock className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+            <p className="text-gray-500">Đang tải dữ liệu...</p>
+        </div>
+        </div>
+    );
+  }
+
   if (selectedBooking) {
     const statusInfo = getStatusInfo(selectedBooking.status);
     const priorityInfo = getPriorityInfo(selectedBooking.priority);
@@ -810,20 +734,23 @@ export function AdminBookings({
                       Tạm dừng booking
                     </Button>
 
+                    {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && selectedBooking.status !== 'disputed' && (
+                        <Button
+                            variant="destructive"
+                            className="w-full bg-red-600 hover:bg-red-700"
+                            onClick={() => handleAction("cancel", selectedBooking.id)}
+                        >
+                            <X className="w-4 h-4 mr-2" />
+                            Hủy Booking
+                        </Button>
+                    )}
+
                     <Button
                       variant="outline"
                       className="w-full hover:bg-slate-50 dark:hover:bg-slate-700"
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Xuất báo cáo
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full hover:bg-slate-50 dark:hover:bg-slate-700"
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Chỉnh sửa thông tin
                     </Button>
                   </div>
                 </CardContent>
@@ -960,7 +887,19 @@ export function AdminBookings({
                     </div>
                   </div>
                 </div>
+
               </CardContent>
+              {/* Quick Actions Footer */}
+              <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedBooking(booking)}>
+                      <Eye className="w-4 h-4 mr-1" /> Chi tiết
+                  </Button>
+                  {booking.status !== 'cancelled' && booking.status !== 'completed' && (
+                       <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleAction("cancel", booking.id)}>
+                           <X className="w-4 h-4 mr-1" /> Hủy
+                       </Button>
+                  )}
+              </div>
             </Card>
           );
         })}

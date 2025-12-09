@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -16,15 +16,17 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  CheckCircle,
   Clock,
   RefreshCw,
-  UserPlus,
-  RotateCcw,
   Activity,
   FileText,
   ExternalLink,
+  CheckCircle,
+  Plus, // Newly added
+  Minus, // Newly added
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Input } from "../ui/input";
 
 interface DashboardMetric {
   label: string;
@@ -50,142 +52,103 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ onNavigateToBookings }: AdminDashboardProps) {
-  const [timePeriod, setTimePeriod] = useState<"day" | "week" | "month">(
-    "month"
-  );
+  const [timePeriod, setTimePeriod] = useState<"day" | "week" | "month">("month");
+  const [metrics, setMetrics] = useState<DashboardMetric[]>([]);
+  const [quickStats, setQuickStats] = useState({
+    processing: "0",
+    processedToday: "0",
+    urgent: "0"
+  });
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [wallet, setWallet] = useState<{balance: number, transactions: any[]}>({balance: 0, transactions: []});
+  const [loading, setLoading] = useState(true);
 
-  // Enhanced dashboard metrics based on time period
-  const getMetricsForPeriod = (period: string) => {
-    const baseMetrics = {
-      day: {
-        totalBookings: { value: "89", change: "+12%" },
-        processingBookings: { value: "23", change: "+5%" },
-        revenue: { value: "45M VNĐ", change: "+18%" },
-        completionRate: { value: "94.2%", change: "+2.1%" },
-        refunds: { value: "2", change: "-50%" },
-        newCustomers: { value: "15", change: "+25%" },
-      },
-      week: {
-        totalBookings: { value: "627", change: "+8%" },
-        processingBookings: { value: "89", change: "+12%" },
-        revenue: { value: "315M VNĐ", change: "+15%" },
-        completionRate: { value: "92.8%", change: "+1.5%" },
-        refunds: { value: "8", change: "-30%" },
-        newCustomers: { value: "127", change: "+22%" },
-      },
-      month: {
-        totalBookings: { value: "2,847", change: "+12.5%" },
-        processingBookings: { value: "142", change: "+8%" },
-        revenue: { value: "890M VNĐ", change: "+15.3%" },
-        completionRate: { value: "91.2%", change: "+3.2%" },
-        refunds: { value: "28", change: "-15%" },
-        newCustomers: { value: "456", change: "+18%" },
-      },
-    };
-    return baseMetrics[period as keyof typeof baseMetrics];
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+        const token = localStorage.getItem("admin_token");
+        if (!token) return;
+
+        // 1. Fetch Stats
+        const statsRes = await fetch(`/api/admin/dashboard?period=${timePeriod}`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const statsData = await statsRes.json();
+
+        if (statsData.stats) {
+            const newMetrics: DashboardMetric[] = [
+                {
+                    label: "Tổng buổi chụp",
+                    value: statsData.stats.bookings.value,
+                    change: statsData.stats.bookings.change,
+                    changeType: statsData.stats.bookings.trend,
+                    icon: Calendar,
+                    color: "text-blue-600",
+                },
+                {
+                    label: "Doanh thu",
+                    value: statsData.stats.revenue.value,
+                    change: statsData.stats.revenue.change,
+                    changeType: statsData.stats.revenue.trend,
+                    icon: DollarSign,
+                    color: "text-green-600",
+                },
+                {
+                    label: "Khách hàng mới",
+                    value: statsData.stats.customers.value,
+                    change: statsData.stats.customers.change,
+                    changeType: statsData.stats.customers.trend,
+                    icon: Users,
+                    color: "text-pink-600",
+                },
+                {
+                    label: "Đang xử lý",
+                    value: statsData.stats.processing.value,
+                    change: "Active",
+                    changeType: "neutral",
+                    icon: Clock,
+                    color: "text-orange-600",
+                }
+            ];
+            setMetrics(newMetrics);
+            setQuickStats({
+                processing: statsData.stats.processing.value,
+                processedToday: statsData.stats.processed_today || "0",
+                urgent: statsData.stats.urgent_count || "0"
+            });
+        }
+
+        // 2. Fetch Activities
+        const actRes = await fetch(`/api/admin/activities`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const actData = await actRes.json();
+        if (actData.activities) {
+            setRecentActivities(actData.activities);
+        }
+
+        // 3. Fetch Wallet
+        const walletRes = await fetch(`/api/admin/wallet`, {
+             headers: { "Authorization": `Bearer ${token}` }
+        });
+        const walletData = await walletRes.json();
+        if (walletData) {
+             setWallet({
+                 balance: parseFloat(walletData.balance),
+                 transactions: walletData.transactions || []
+             });
+        }
+
+    } catch (error) {
+        console.error("Failed to fetch admin dashboard", error);
+    } finally {
+        setLoading(false);
+    }
   };
 
-  const currentMetrics = getMetricsForPeriod(timePeriod);
-
-  const metrics: DashboardMetric[] = [
-    {
-      label: "Tổng buổi chụp",
-      value: currentMetrics.totalBookings.value,
-      change: currentMetrics.totalBookings.change,
-      changeType: "positive",
-      icon: Calendar,
-      color: "text-blue-600",
-    },
-    {
-      label: "Đang xử lý",
-      value: currentMetrics.processingBookings.value,
-      change: currentMetrics.processingBookings.change,
-      changeType: "positive",
-      icon: Clock,
-      color: "text-orange-600",
-    },
-    {
-      label: "Doanh thu",
-      value: currentMetrics.revenue.value,
-      change: currentMetrics.revenue.change,
-      changeType: "positive",
-      icon: DollarSign,
-      color: "text-green-600",
-    },
-    {
-      label: "Tỉ lệ hoàn thành",
-      value: currentMetrics.completionRate.value,
-      change: currentMetrics.completionRate.change,
-      changeType: "positive",
-      icon: CheckCircle,
-      color: "text-purple-600",
-    },
-    {
-      label: "Hoàn tiền",
-      value: currentMetrics.refunds.value,
-      change: currentMetrics.refunds.change,
-      changeType: "positive",
-      icon: RotateCcw,
-      color: "text-red-600",
-    },
-    {
-      label: "Khách hàng mới",
-      value: currentMetrics.newCustomers.value,
-      change: currentMetrics.newCustomers.change,
-      changeType: "positive",
-      icon: UserPlus,
-      color: "text-pink-600",
-    },
-  ];
-
-  // Mock recent activities with booking IDs
-  const recentActivities: RecentActivity[] = [
-    {
-      id: "1",
-      type: "alert",
-      title: "Cảnh báo đánh giá thấp",
-      description: "Nhiếp ảnh gia Minh Tuấn nhận đánh giá 2 sao từ khách hàng",
-      time: "5 phút trước",
-      status: "warning",
-      bookingId: "BK003",
-    },
-    {
-      id: "2",
-      type: "booking",
-      title: "Buổi chụp cần xử lý",
-      description: "Yêu cầu thay đổi địa điểm cho booking BK001",
-      time: "15 phút trước",
-      status: "pending",
-      bookingId: "BK001",
-    },
-    {
-      id: "3",
-      type: "payment",
-      title: "Thanh toán bất thường",
-      description: "Giao dịch 5,000,000 VNĐ cần xác minh",
-      time: "1 giờ trước",
-      status: "alert",
-      bookingId: "BK005",
-    },
-    {
-      id: "4",
-      type: "booking",
-      title: "Khiếu nại khách hàng",
-      description: "Khách hàng không hài lòng với chất lượng ảnh",
-      time: "2 giờ trước",
-      status: "alert",
-      bookingId: "BK007",
-    },
-    {
-      id: "5",
-      type: "booking",
-      title: "Booking trễ hạn",
-      description: "Buổi chụp đã quá thời gian hoàn thành",
-      time: "3 giờ trước",
-      status: "alert",
-      bookingId: "BK002",
-    },
-  ];
+  useEffect(() => {
+    fetchDashboardData();
+  }, [timePeriod]);
 
   const getTimePeriodLabel = (period: string) => {
     switch (period) {
@@ -278,6 +241,7 @@ export function AdminDashboard({ onNavigateToBookings }: AdminDashboardProps) {
           Tổng quan hệ thống
         </h1>
         <div className="flex items-center gap-2">
+            {loading && <span className="text-sm text-slate-500 animate-pulse">Đang tải...</span>}
           <Select
             value={timePeriod}
             onValueChange={(value: any) => setTimePeriod(value)}
@@ -371,7 +335,7 @@ export function AdminDashboard({ onNavigateToBookings }: AdminDashboardProps) {
               <AlertTriangle className="w-6 h-6 text-white" />
             </div>
             <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mb-1">
-              5
+              {quickStats.processing}
             </p>
             <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
               Cần xử lý
@@ -385,7 +349,7 @@ export function AdminDashboard({ onNavigateToBookings }: AdminDashboardProps) {
               <CheckCircle className="w-6 h-6 text-white" />
             </div>
             <p className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-              142
+              {quickStats.processedToday}
             </p>
             <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
               Đã xử lý hôm nay
@@ -399,13 +363,145 @@ export function AdminDashboard({ onNavigateToBookings }: AdminDashboardProps) {
               <AlertTriangle className="w-6 h-6 text-white" />
             </div>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400 mb-1">
-              2
+              {quickStats.urgent}
             </p>
             <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
               Khẩn cấp
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Wallet Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Balance Card */}
+          <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-0 shadow-lg">
+              <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-medium text-indigo-100">Số dư khả dụng</h3>
+                      <div className="p-2 bg-white/20 rounded-lg">
+                          <DollarSign className="w-5 h-5 text-white" />
+                      </div>
+                  </div>
+                  <div className="mb-6">
+                      <p className="text-3xl font-bold">{wallet.balance.toLocaleString('vi-VN')} VNĐ</p>
+                      <p className="text-sm text-indigo-100 mt-1 flex items-center">
+                          <TrendingUp className="w-4 h-4 mr-1" />
+                          +15.3% so với tháng trước
+                      </p>
+                  </div>
+                  <div className="flex gap-2">
+
+
+                       {/* Withdraw Dialog */}
+                       <Dialog>
+                           <DialogTrigger asChild>
+                               <Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10" size="sm">
+                                   <Minus className="w-4 h-4 mr-1" /> Rút tiền
+                               </Button>
+                           </DialogTrigger>
+                           <DialogContent className="bg-white dark:bg-slate-800">
+                               <DialogHeader>
+                                   <DialogTitle>Rút tiền từ ví</DialogTitle>
+                               </DialogHeader>
+                               <div className="space-y-4 py-4">
+                                   <div className="space-y-2">
+                                       <label className="text-sm font-medium">Số tiền rút (VNĐ)</label>
+                                       <Input 
+                                            type="number" 
+                                            placeholder="Tối thiểu 50.000..." 
+                                            max={wallet.balance}
+                                            onChange={(e) => window.walletAmount = parseFloat(e.target.value)}
+                                       />
+                                       <p className="text-xs text-gray-500">Số dư khả dụng: {wallet.balance.toLocaleString('vi-VN')} VNĐ</p>
+                                   </div>
+                                   <div className="space-y-2">
+                                       <label className="text-sm font-medium">Ngân hàng</label>
+                                       <Input placeholder="VIB, Vietcombank..." onChange={(e) => window.bankName = e.target.value} />
+                                   </div>
+                                   <div className="space-y-2">
+                                       <label className="text-sm font-medium">Số tài khoản</label>
+                                       <Input placeholder="0000xxxx" onChange={(e) => window.bankAccount = e.target.value} />
+                                   </div>
+                                   <div className="space-y-2">
+                                       <label className="text-sm font-medium">Tên người thụ hưởng</label>
+                                       <Input placeholder="NGUYEN VAN A" onChange={(e) => window.accountHolder = e.target.value} />
+                                   </div>
+
+                                    <Button variant="destructive" className="w-full" onClick={async () => {
+                                        const amount = window.walletAmount;
+                                        if (!amount || !window.bankAccount || !window.accountHolder) {
+                                            alert("Vui lòng điền đầy đủ thông tin");
+                                            return;
+                                        }
+                                        try {
+                                            const token = localStorage.getItem("admin_token");
+                                            const res = await fetch('/api/admin/wallet/withdraw', {
+                                                method: 'POST',
+                                                headers: { 
+                                                    'Content-Type': 'application/json',
+                                                    'Accept': 'application/json',
+                                                    'Authorization': `Bearer ${token}` 
+                                                },
+                                                body: JSON.stringify({ 
+                                                    amount,
+                                                    bank_account: window.bankAccount,
+                                                    bank_name: window.bankName || 'Unknown',
+                                                    account_holder_name: window.accountHolder
+                                                })
+                                            });
+                                            const data = await res.json();
+                                            if (res.ok) {
+                                                alert("Rút tiền thành công!");
+                                                fetchDashboardData();
+                                            } else {
+                                                alert(data.message || "Lỗi khi rút tiền");
+                                            }
+                                        } catch(e) { console.error(e); alert("Lỗi hệ thống"); }
+                                    }}>
+                                       Xác nhận rút
+                                    </Button>
+                               </div>
+                           </DialogContent>
+                       </Dialog>
+                  </div>
+              </CardContent>
+          </Card>
+
+          {/* Recent Transactions */}
+          <Card className="lg:col-span-2 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+              <CardHeader>
+                  <CardTitle className="text-lg text-slate-800 dark:text-slate-100 flex items-center justify-between">
+                      <span>Giao dịch gần đây</span>
+                  </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2">
+                      {wallet.transactions.length === 0 ? (
+                          <p className="text-center text-gray-500 py-4">Chưa có giao dịch</p>
+                      ) : (
+                          wallet.transactions.map((tx: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                  <div className="flex items-center gap-3">
+                                      <div className={`p-2 rounded-full ${tx.Loai_Giao_Dich === 'cong_money' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                          {tx.Loai_Giao_Dich === 'cong_money' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                                      </div>
+                                      <div>
+                                          <p className="font-medium text-slate-800 dark:text-slate-100">
+                                              {tx.Mo_Ta || (tx.Loai_Giao_Dich === 'cong_money' ? 'Nhận tiền' : 'Rút tiền')}
+                                          </p>
+                                          <p className="text-xs text-slate-500">{new Date(tx.Thoi_Gian).toLocaleString('vi-VN')}</p>
+                                      </div>
+                                  </div>
+                                  <span className={`font-bold ${tx.Loai_Giao_Dich === 'cong_money' ? 'text-green-600' : 'text-red-600'}`}>
+                                      {tx.Loai_Giao_Dich === 'cong_money' ? '+' : '-'}{parseFloat(tx.So_Tien).toLocaleString('vi-VN')}
+                                  </span>
+                              </div>
+                          ))
+                      )}
+                  </div>
+              </CardContent>
+          </Card>
       </div>
 
       {/* Recent Activities */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
@@ -72,7 +72,7 @@ export function AdminCustomers() {
   const [showActionDialog, setShowActionDialog] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [actionType, setActionType] = useState<
-    "warn" | "suspend" | "ban" | null
+    "warn" | "suspend" | "ban" | "delete" | null
   >(null);
   const [actionReason, setActionReason] = useState("");
   const [sortBy, setSortBy] = useState<"joinDate" | "totalSpent" | "riskLevel">(
@@ -91,104 +91,54 @@ export function AdminCustomers() {
     hasFlags: false,
   });
 
-  // Mock customer data
-  const customers: AdminCustomer[] = [
-    {
-      id: "CUST001",
-      name: "Nguyễn Văn A",
-      email: "nguyenvana@gmail.com",
-      phone: "0901234567",
-      avatar:
-        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=50&h=50&fit=crop&crop=face",
-      status: "active",
-      joinDate: "2024-03-15",
-      lastActive: "2025-01-12",
-      location: "Hà Nội",
-      totalBookings: 8,
-      completedBookings: 6,
-      totalSpent: 15000000,
-      averageRating: 4.8,
-      flags: ["vip_customer"],
-      warningCount: 0,
-      riskLevel: "low",
-    },
-    {
-      id: "CUST002",
-      name: "Trần Thị B",
-      email: "tranthib@gmail.com",
-      phone: "0912345678",
-      avatar:
-        "https://images.unsplash.com/photo-1494790108755-2616b85bb44?w=50&h=50&fit=crop&crop=face",
-      status: "new",
-      joinDate: "2025-01-10",
-      lastActive: "2025-01-12",
-      location: "TP.HCM",
-      totalBookings: 1,
-      completedBookings: 0,
-      totalSpent: 0,
-      averageRating: 0,
-      flags: ["new_user"],
-      warningCount: 0,
-      riskLevel: "low",
-    },
-    {
-      id: "CUST003",
-      name: "Hoàng Thị C",
-      email: "hoangthic@gmail.com",
-      phone: "0923456789",
-      avatar:
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
-      status: "suspended",
-      joinDate: "2024-08-20",
-      lastActive: "2025-01-05",
-      location: "Đà Nẵng",
-      totalBookings: 12,
-      completedBookings: 8,
-      totalSpent: 8500000,
-      averageRating: 3.2,
-      flags: ["payment_issues", "multiple_complaints"],
-      warningCount: 2,
-      riskLevel: "high",
-    },
-    {
-      id: "CUST004",
-      name: "Lê Văn D",
-      email: "levand@company.com",
-      phone: "0934567890",
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face",
-      status: "active",
-      joinDate: "2024-01-10",
-      lastActive: "2025-01-11",
-      location: "Hà Nội",
-      totalBookings: 25,
-      completedBookings: 23,
-      totalSpent: 45000000,
-      averageRating: 4.9,
-      flags: ["corporate_client", "high_value"],
-      warningCount: 0,
-      riskLevel: "low",
-    },
-    {
-      id: "CUST005",
-      name: "Phạm Thị E",
-      email: "phamthie@gmail.com",
-      phone: "0945678901",
-      avatar:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=50&h=50&fit=crop&crop=face",
-      status: "inactive",
-      joinDate: "2024-05-15",
-      lastActive: "2024-11-20",
-      location: "Hải Phòng",
-      totalBookings: 3,
-      completedBookings: 3,
-      totalSpent: 4200000,
-      averageRating: 4.5,
-      flags: ["inactive_user"],
-      warningCount: 0,
-      riskLevel: "medium",
-    },
-  ];
+  // API Data
+  const [customers, setCustomers] = useState<AdminCustomer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch customers from API
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+        const token = localStorage.getItem("admin_token");
+        const res = await fetch("/api/admin/customers", {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        
+        // Transform API data to AdminCustomer shape
+        if (data.data) {
+            const transformed = data.data.map((item: any) => ({
+                id: `CUST${item.Ma_KH}`,
+                name: item.tai_khoan?.Ho_Ten || "N/A",
+                email: item.tai_khoan?.Email_TK || "N/A",
+                phone: item.tai_khoan?.So_Dien_Thoai || "N/A",
+                avatar: item.tai_khoan?.Avatar ? `/storage/avatars/${item.tai_khoan.Avatar}` : "https://github.com/shadcn.png",
+                status: item.tai_khoan?.Trang_Thai === "Active" ? "active" : "active", // Default active if not handled
+                joinDate: item.tai_khoan?.created_at || "2024-01-01",
+                lastActive: "2024-01-01",
+                location: item.Dia_Chi || "Chưa cập nhật",
+                totalBookings: 0,
+                completedBookings: 0,
+                totalSpent: 0,
+                averageRating: 0,
+                flags: [],
+                warningCount: 0,
+                riskLevel: "low",
+            }));
+            setCustomers(transformed);
+        }
+    } catch (err) {
+        console.error("Failed to fetch customers", err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   const getStatusInfo = (status: CustomerStatus) => {
     const statusMap = {
@@ -307,7 +257,7 @@ export function AdminCustomers() {
   });
 
   const handleAction = (
-    action: "warn" | "suspend" | "ban",
+    action: "warn" | "suspend" | "ban" | "delete",
     customer: AdminCustomer
   ) => {
     setSelectedCustomer(customer);
@@ -315,22 +265,52 @@ export function AdminCustomers() {
     setShowActionDialog(true);
   };
 
-  const executeAction = () => {
+  const executeAction = async () => {
     if (!selectedCustomer || !actionType) return;
 
-    const actionLabels = {
-      warn: "Gửi cảnh báo",
-      suspend: "Tạm khóa",
-      ban: "Cấm vĩnh viễn",
-    };
+    try {
+        const token = localStorage.getItem("admin_token");
+        
+        if (actionType === 'delete') {
+            const res = await fetch(`/api/admin/customers/${selectedCustomer.id.replace('CUST', '')}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+             if (res.ok) {
+                fetchCustomers();
+                setSelectedCustomer(null);
+             } else {
+                 alert("Xóa thất bại");
+             }
+        } else if (actionType === 'suspend' || actionType === 'ban') {
+             // Treat both as Lock for now
+             const res = await fetch(`/api/admin/customers/${selectedCustomer.id.replace('CUST', '')}/status`, {
+                method: "PUT",
+                 headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'Locked' })
+             });
+             if (res.ok) {
+                fetchCustomers();
+                // Update local status if keeping selected
+                 setSelectedCustomer({...selectedCustomer, status: 'suspended'});
+             } else {
+                 alert("Cập nhật thất bại");
+             }
+        } else {
+            // Warn - just alert for now or implement notification API
+             alert(`Đã gửi cảnh báo: ${actionReason}`);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Lỗi hệ thống");
+    }
 
-    alert(
-      `${actionLabels[actionType]} tài khoản ${selectedCustomer.name}\nLý do: ${actionReason}`
-    );
     setShowActionDialog(false);
     setActionType(null);
     setActionReason("");
-    setSelectedCustomer(null);
   };
 
   const clearFilters = () => {
@@ -362,6 +342,17 @@ export function AdminCustomers() {
       filters.hasFlags
     );
   };
+
+  if (loading) {
+    return (
+        <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+            <Clock className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+            <p className="text-gray-500">Đang tải dữ liệu...</p>
+        </div>
+        </div>
+    );
+  }
 
   // Customer detail view
   if (selectedCustomer && !showActionDialog) {
@@ -647,7 +638,16 @@ export function AdminCustomers() {
                       onClick={() => handleAction("ban", selectedCustomer)}
                     >
                       <UserX className="w-4 h-4 mr-2" />
-                      Cấm vĩnh viễn
+                      Cấm vĩnh viễn (Khóa)
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => handleAction("delete", selectedCustomer)}
+                    >
+                      <UserX className="w-4 h-4 mr-2" />
+                      Xóa tài khoản
                     </Button>
 
                     <Button variant="outline" className="w-full">

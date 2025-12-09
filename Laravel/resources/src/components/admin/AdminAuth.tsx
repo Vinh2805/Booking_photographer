@@ -23,9 +23,40 @@ export function AdminAuth({ onLogin }: AdminAuthProps) {
     password: "",
   });
   const [rememberMe, setRememberMe] = useState(false);
-  const handleLogin = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    setLoading(true);
+    setError(null);
+
+    try {
+        const response = await fetch("/api/admin/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(loginForm)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Save token
+            localStorage.setItem("admin_token", data.token);
+            localStorage.setItem("admin_info", JSON.stringify(data.user));
+            onLogin();
+        } else {
+            setError(data.message || "Đăng nhập thất bại");
+        }
+    } catch (err) {
+        setError("Lỗi kết nối server");
+        console.error(err);
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
@@ -46,6 +77,11 @@ export function AdminAuth({ onLogin }: AdminAuthProps) {
           <CardDescription>Truy cập bảng điều khiển quản trị</CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mb-4">
+                {error}
+            </div>
+          )}
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="admin-email">Email</Label>
@@ -54,7 +90,7 @@ export function AdminAuth({ onLogin }: AdminAuthProps) {
                 <Input
                   id="admin-email"
                   type="email"
-                  placeholder="admin@momentia.com"
+                  placeholder="Nhập email quản trị"
                   className="pl-10"
                   value={loginForm.email}
                   onChange={(e) =>
@@ -115,8 +151,9 @@ export function AdminAuth({ onLogin }: AdminAuthProps) {
             <Button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700"
+              disabled={loading}
             >
-              Đăng nhập
+              {loading ? "Đang xử lý..." : "Đăng nhập"}
             </Button>
           </form>
 

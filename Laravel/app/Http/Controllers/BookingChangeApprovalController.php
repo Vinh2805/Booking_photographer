@@ -122,7 +122,8 @@ class BookingChangeApprovalController extends Controller
                 }
             }
             $booking->Ly_Do_Thay_Doi = $yeuCau->Ly_Do;
-            $booking->Trang_Thai = 'Thay đổi';
+            // Giữ nguyên trạng thái cũ (không thay đổi Trang_Thai)
+            // $booking->Trang_Thai = '...'; 
             $booking->save();
 
             DB::table('yeu_cau_thay_doi')->where('id', $yeuCau->id)->update([

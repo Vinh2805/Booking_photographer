@@ -318,13 +318,22 @@ class BookingFinalPaymentController extends Controller
             if ($booking->Ma_NAG) {
                 $nag = NhiepAnhGia::where('Ma_NAG', $booking->Ma_NAG)->first();
                 if ($nag) {
-                    // NAG nhận 80% số tiền phần còn lại (trừ 20% chiết khấu)
-                    $nagAmount = round($remaining * 0.8, 2);
+                    // Logic tính toán: Admin nhận 20%, NAG nhận 80% của số tiền thanh toán (remaining)
+                    // Lưu ý: remaining là phần còn lại khách trả. Tùy user yêu cầu, 20% này là trên tổng bill hay trên phần này?
+                    // User request: "phần tiền mà khách hàng đã trả đã có 80% gửi vào tk nag rồi thì còn 20% còn lại này sẽ vào tài khoản của admin"
+                    // Hiểu là: Mỗi lần thanh toán, chia 80-20.
+                    
+                    $sharePercent = 0.8; 
+                    $adminPercent = 0.2;
+
+                    $nagAmount = round($remaining * $sharePercent, 2);
+                    $adminAmount = round($remaining * $adminPercent, 2);
+
+                    // 1. Cộng tiền cho NAG
                     $soDuTruocNAG = (float) ($nag->So_Du ?? 0);
                     $nag->So_Du = $soDuTruocNAG + $nagAmount;
                     $nag->save();
 
-                    // Lưu vào lịch sử giao dịch
                     WalletTransaction::createTransaction(
                         'nhiep_anh_gia',
                         $nag->Ma_NAG,
@@ -334,12 +343,33 @@ class BookingFinalPaymentController extends Controller
                         (float) $nag->So_Du,
                         $ma_bc,
                         $maTT,
-                        "Nhận tiền thanh toán phần còn lại từ buổi chụp {$ma_bc}: " . number_format($nagAmount, 0, ',', '.') . ' đ (đã trừ 20% chiết khấu)',
-                        null,
-                        null,
-                        null,
-                        $charge['transaction_id'] ?? null
+                        "Nhận tiền thanh toán còn lại từ buổi chụp {$ma_bc} (80%)",
+                        null, null, null, $charge['transaction_id'] ?? null
                     );
+
+                    // 2. Cộng tiền cho Admin
+                    // Tìm tài khoản Admin (giả sử có 1 admin chính hoặc tìm bất kỳ admin nào, ở đây lấy Admin đầu tiên hoặc theo config)
+                    $admin = \App\Models\Admin::first();
+                    if ($admin) {
+                        $soDuTruocAdmin = (float) ($admin->So_Du ?? 0);
+                        $admin->So_Du = $soDuTruocAdmin + $adminAmount;
+                        $admin->save();
+
+                         WalletTransaction::createTransaction(
+                            'admin',
+                            $admin->Ma_Admin,
+                            'nhan_tien',
+                            $adminAmount,
+                            $soDuTruocAdmin,
+                            (float) $admin->So_Du,
+                            $ma_bc,
+                            $maTT,
+                            "Hoa hồng 20% từ buổi chụp {$ma_bc}",
+                            null, null, null, $charge['transaction_id'] ?? null
+                        );
+                    } else {
+                        Log::warning("Không tìm thấy Admin để cộng tiền hoa hồng!");
+                    }
                 }
             }
 

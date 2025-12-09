@@ -16,6 +16,13 @@ Route::get('/photographer', fn() => view('photographer'));
 Route::get('/photographer/detail/{id}', fn($id) => view('photographer_detail', ['id' => $id]));
 
 // -----------------------------
+// 🔑 ROUTE LOGIN (Fallback cho Auth Middleware)
+// -----------------------------
+Route::get('/login', function () {
+    return response()->json(['message' => 'Unauthenticated'], 401);
+})->name('login');
+
+// -----------------------------
 // 🧠 KIỂM TRA KẾT NỐI DATABASE
 // -----------------------------
 Route::get('/check-db', function () {

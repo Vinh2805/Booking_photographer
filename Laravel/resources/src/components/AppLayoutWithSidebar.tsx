@@ -10,10 +10,10 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "./ui/breadcrumb";
-import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { ThemeToggle } from "./ui/theme-toggle";
-import { Bell, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 interface AppLayoutWithSidebarProps {
     children: React.ReactNode;
@@ -122,19 +122,7 @@ export function AppLayoutWithSidebar({
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="relative"
-                            >
-                                <Bell className="w-5 h-5 text-black dark:text-slate-200" />
-                                <Badge
-                                    variant="destructive"
-                                    className="absolute -top-1 -right-1 w-5 h-5 text-xs flex items-center justify-center p-0"
-                                >
-                                    {userRole === "photographer" ? "12" : "5"}
-                                </Badge>
-                            </Button>
+                            <NotificationDropdown />
                             <ThemeToggle />
                         </div>
                     </div>

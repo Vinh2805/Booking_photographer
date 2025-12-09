@@ -66,10 +66,6 @@ class CustomerBookingController extends Controller
     }
 
     $query = BuoiChup::with(['nhaNhiepAnh.taiKhoan'])
-        ->withCount([
-            'anh as raw_photos_count' => fn($q) => $q->where('Loai', 'raw'),
-            'anh as edited_photos_count' => fn($q) => $q->where('Loai', 'edited'),
-        ])
         ->where('Ma_KH', $khachHang->Ma_KH);
 
     if ($request->status && $request->status !== 'all') {
@@ -139,8 +135,8 @@ class CustomerBookingController extends Controller
             'guestCount' => $bc->So_Nguoi ?: '—',
             'specialRequests' => $bc->Yeu_Cau_Dac_Biet ?? '',
             'photos' => [
-                'rawPhotos' => $bc->raw_photos_count ?? 0,
-                'editedPhotos' => $bc->edited_photos_count ?? 0,
+                'rawPhotos' => 0, // TODO: Count from filesystem
+                'editedPhotos' => 0, // TODO: Count from filesystem
             ],
         ];
     }));
@@ -161,7 +157,7 @@ class CustomerBookingController extends Controller
         $khachHang = KhachHang::where('Ma_TK', $user->Ma_TK)->first();
         if (!$khachHang) return response()->json(['message' => 'Khách hàng không tồn tại'], 404);
 
-        $bc = BuoiChup::with(['nhaNhiepAnh.taiKhoan', 'anh'])
+        $bc = BuoiChup::with(['nhaNhiepAnh.taiKhoan'])
             ->where('Ma_KH', $khachHang->Ma_KH)
             ->where('Ma_BC', $id)
             ->first();
@@ -209,8 +205,8 @@ class CustomerBookingController extends Controller
             'guestCount' => $bc->So_Nguoi ?? '—',
             'specialRequests' => $bc->Yeu_Cau_Dac_Biet ?? '',
             'photos' => [
-                'rawPhotos' => $bc->anh()->where('Loai', 'raw')->count(),
-                'editedPhotos' => $bc->anh()->where('Loai', 'edited')->count(),
+                'rawPhotos' => 0,
+                'editedPhotos' => 0,
             ],
         ]);
     }

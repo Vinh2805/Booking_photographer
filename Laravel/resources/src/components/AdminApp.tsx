@@ -6,6 +6,7 @@ import { AdminPhotographers } from "./admin/AdminPhotographers";
 import { AdminBookings } from "./admin/AdminBookings";
 import { AdminSettings } from "./admin/AdminSettings";
 import { ThemeToggle } from "./ui/theme-toggle";
+import { NotificationDropdown } from "./NotificationDropdown";
 import { Button } from "./ui/button";
 import {
   ArrowLeft,
@@ -14,6 +15,7 @@ import {
   Camera,
   Calendar,
   Settings,
+  LogOut,
 } from "lucide-react";
 
 interface AdminAppProps {
@@ -34,7 +36,19 @@ export function AdminApp({ onBack }: AdminAppProps) {
     string | undefined
   >();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+        const token = localStorage.getItem("admin_token");
+        await fetch('/api/logout', { // Or /api/admin/logout if you separate them
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
+        });
+    } catch(e) { console.error("Logout failed", e); }
+    
+    localStorage.removeItem("admin_token");
     setIsAuthenticated(false);
     setActiveTab("dashboard");
     onBack();
@@ -109,7 +123,19 @@ export function AdminApp({ onBack }: AdminAppProps) {
         <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
           Admin Dashboard
         </h1>
-        <ThemeToggle />
+        <div className="flex items-center gap-4">
+            <NotificationDropdown />
+            <ThemeToggle />
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleLogout} 
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                title="Đăng xuất"
+            >
+                <LogOut className="w-5 h-5" />
+            </Button>
+        </div>
       </div>
 
       {/* Content */}
