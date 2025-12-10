@@ -90,6 +90,7 @@ interface Booking {
     rawPhotos?: number;
     editedPhotos?: number;
   };
+  depositRate?: number;
 }
 
 interface ChangeRequest {
@@ -629,7 +630,7 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
 
         {/* Deposit Dialog */}
         <Dialog open={showDepositDialog} onOpenChange={setShowDepositDialog}>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader className="p-2">
               <DialogTitle className="text-2xl">Đặt cọc buổi chụp</DialogTitle>
               <DialogDescription>
@@ -637,34 +638,58 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 p-2">
-              <RadioGroup value={depositMethod} onValueChange={(v) => setDepositMethod(v as "card" | "bank")}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="card" id="card" />
-                  <Label htmlFor="card">Ví cá nhân</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="bank" id="bank" />
-                  <Label htmlFor="bank">VNPay</Label>
-                </div>
-              </RadioGroup>
+              {/* Summary Section */}
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                 <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold text-foreground">{selectedBooking?.title}</span>
+                 </div>
+                 <div className="flex justify-between text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {selectedBooking ? new Date(selectedBooking.date).toLocaleDateString("vi-VN") : ""}</span>
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {selectedBooking?.time}</span>
+                 </div>
+                 <Separator className="my-2" />
+                 <div className="flex justify-between text-sm">
+                    <span>Tổng giá trị:</span>
+                    <span className="font-medium text-foreground">{selectedBooking?.price.toLocaleString("vi-VN")}₫</span>
+                 </div>
+                 {/* Note: If we had deposit percentage, we could show deposit amount here */}
+                 <div className="flex justify-between text-sm">
+                    <span>Số tiền đặt cọc (dự kiến):</span>
+                    <span className="font-medium text-primary">{(selectedBooking ? selectedBooking.price * ((selectedBooking.depositRate || 30) / 100) : 0).toLocaleString("vi-VN")}₫ ({selectedBooking?.depositRate || 30}%)</span>
+                 </div>
+               </div>
+
+              <div>
+                  <Label className="mb-2 block">Phương thức thanh toán</Label>
+                  <RadioGroup value={depositMethod} onValueChange={(v) => setDepositMethod(v as "card" | "bank")}>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <RadioGroupItem value="card" id="card" />
+                      <Label htmlFor="card">Ví cá nhân</Label>
+                    </div>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <RadioGroupItem value="bank" id="bank" />
+                      <Label htmlFor="bank">VNPay</Label>
+                    </div>
+                  </RadioGroup>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
                   id="agree"
                   checked={agreePolicy}
                   onChange={(e) => setAgreePolicy(e.target.checked)}
-                  className="w-4 h-4"
-                  placeholder="term"
+                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
                 />
-                <Label htmlFor="agree" className="text-sm">
+                <Label htmlFor="agree" className="text-sm cursor-pointer select-none">
                   Tôi đồng ý với điều khoản đặt cọc và chính sách hoàn tiền
                 </Label>
               </div>
               {payError && (
-                <div className="text-sm text-destructive">{payError}</div>
+                <div className="text-sm text-destructive font-medium bg-destructive/10 p-2 rounded">{payError}</div>
               )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="p-2">
               <Button variant="outline" onClick={() => setShowDepositDialog(false)}>
                 Hủy
               </Button>
@@ -1149,10 +1174,10 @@ export function CustomerBookings({ onBack, onNavigate }: { onBack?: () => void; 
                       // Quote sẽ được reload tự động bởi useEffect khi finalPaymentMethod thay đổi
                     }}
                   >
-                    {/* <div className="flex items-center space-x-2 mt-2">
+                   <div className="flex items-center space-x-2 mt-2">
                       <RadioGroupItem value="card" id="final-card" />
                       <Label htmlFor="final-card">Ví cá nhân</Label>
-                    </div> */}
+                    </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="bank" id="final-bank" />
                       <Label htmlFor="final-bank">VNPay</Label>

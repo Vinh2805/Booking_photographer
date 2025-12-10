@@ -15,11 +15,17 @@ class DichVu extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'Ma_DV', 'Ten_DV', 'Mo_Ta', 'Gia', 'Hoat_Dong'
+        'Ma_DV', 'Ten_DV', 'Mo_Ta', 'Hoat_Dong', 'Loai_DV'
     ];
 
     protected $casts = [
-        'Gia' => 'decimal:2',
         'Hoat_Dong' => 'boolean',
+        'Loai_DV' => 'integer',
     ];
+    public function nhiepAnhGia()
+    {
+        return $this->belongsToMany(NhiepAnhGia::class, 'nhiep_anh_gia_dich_vu', 'Ma_DV', 'Ma_NAG')
+                    ->withPivot('Gia')
+                    ->withTimestamps();
+    }
 }

@@ -24,6 +24,7 @@ class User extends Authenticatable
         'Ma_TK',
         'Ho_Ten',
         'Email_TK',
+        'So_ĐT',
         'Mat_Khau',
         'Loai_TK',
         'Hinh_Thuc_Dang_Nhap',
@@ -38,4 +39,31 @@ class User extends Authenticatable
     {
         return $this->Mat_Khau;
     }
+
+    /**
+     * Get the fully qualified User Avatar URL
+     */
+    public function getAvatarUrlAttribute()
+    {
+        if (empty($this->Avatar)) {
+            return null;
+        }
+
+        // If it's already a full URL (e.g. from Google login)
+        if (str_starts_with($this->Avatar, 'http')) {
+            return $this->Avatar;
+        }
+
+        // If it's a storage path
+        if (str_starts_with($this->Avatar, '/storage/avatars/')) {
+            $fileName = basename($this->Avatar);
+            return url('/api/storage/avatars/' . $fileName);
+        }
+
+        // Fallback or other path
+        return $this->Avatar;
+    }
+
+    // Append this attribute to JSON arrays
+    protected $appends = ['avatar_url'];
 }

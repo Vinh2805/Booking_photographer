@@ -65,6 +65,8 @@ use App\Http\Controllers\WalletController;
     
     // Chat routes - cần authentication
     Route::middleware('auth:sanctum')->group(function () {
+        //Lấy lịch sử chat support
+        Route::get('/chat/support', [ChatController::class, 'getSupportHistory']);
         //Get unread - phải đặt trước /chat/{Ma_BC} để tránh conflict
         Route::get('/chat/unread', [ChatController::class, 'unread']); 
         //post mark read
@@ -97,6 +99,7 @@ Route::get('/nhiep-anh-gia/noi-bat', [PhotographerController::class, 'featured']
 Route::get('/nhiep-anh-gia/{id}', [PhotographerController::class, 'show']); // Public endpoint để xem thông tin photographer
 Route::get('/nhiep-anh-gia/{Ma_NAG}/lich-trong', [PhotographerController::class, 'getAvailableSchedule']); // Public endpoint để lấy lịch trống
 Route::post('/nhiep-anh-gia/{Ma_NAG}/kiem-tra-thoi-gian', [PhotographerController::class, 'checkTimeSlot']); // Public endpoint để kiểm tra thời gian có trống không
+Route::get('/nhiep-anh-gia/{id}/dich-vu', [PhotographerController::class, 'getServices']); // Public endpoint để lấy danh sách dịch vụ và giá
 Route::get('/dich-vu', [BookingController::class, 'getServices']); // Public endpoint để lấy danh sách dịch vụ
 
 
@@ -147,6 +150,16 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'abilities:admin'])->group(f
     
     Route::get('/wallet', [App\Http\Controllers\AdminManagementController::class, 'getWalletInfo']);
 
+    // Service Management
+    Route::get('/services', [App\Http\Controllers\AdminManagementController::class, 'getServices']);
+    Route::post('/services', [App\Http\Controllers\AdminManagementController::class, 'storeService']);
+    Route::put('/services/{id}', [App\Http\Controllers\AdminManagementController::class, 'updateService']);
+    Route::delete('/services/{id}', [App\Http\Controllers\AdminManagementController::class, 'deleteService']);
+
+    // Admin Chat Routes
+    Route::get('/conversations', [ChatController::class, 'getConversations']);
+    Route::get('/messages/{userId}', [ChatController::class, 'getMessagesByUser']);
+
     Route::post('/wallet/withdraw', [App\Http\Controllers\AdminManagementController::class, 'withdraw']);
     
     Route::get('/user', function (Request $request) {
@@ -166,6 +179,10 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'abilities:admin'])->group(f
         Route::post('/profile/photographer/avatar', [ProfileController::class, 'uploadPhotographerAvatar']);
         Route::post('/profile/photographer/cover', [ProfileController::class, 'uploadPhotographerCover']);
         Route::post('/profile/photographer/portfolio', [ProfileController::class, 'uploadPhotographerPortfolio']);
+        
+        // Quản lý bảng giá dịch vụ
+        Route::get('/profile/photographer/services', [PhotographerController::class, 'getMyServices']);
+        Route::post('/profile/photographer/services', [PhotographerController::class, 'updateMyServices']);
     });
 
     // === Wallet Management (khách hàng và nhiếp ảnh gia) ===

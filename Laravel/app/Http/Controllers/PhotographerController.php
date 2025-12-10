@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BuoiChup;
 use App\Models\ThanhToan;
 use App\Models\TinNhan;
+use App\Models\DichVu;
 use App\Models\NhiepAnhGia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -116,21 +117,20 @@ class PhotographerController extends Controller
                 // Process avatar URL - file is stored in storage/app/private/public/avatars/
                 $avatarUrl = null;
                 if ($p->avatar && !empty($p->avatar)) {
-                    $filePath = str_replace('/storage/', 'public/', $p->avatar);
-                    if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
-                        $fileName = basename($p->avatar);
-                        $avatarUrl = url('/api/storage/avatars/' . $fileName);
+                    // Check if it's already a URL
+                    if (str_starts_with($p->avatar, 'http')) {
+                         $avatarUrl = $p->avatar;
+                    } else {
+                         $fileName = basename($p->avatar);
+                         $avatarUrl = url('/api/storage/avatars/' . $fileName);
                     }
                 }
 
                 // Process cover image URL - file is stored in storage/app/private/public/covers/
                 $coverImageUrl = null;
                 if ($p->coverImage && !empty($p->coverImage)) {
-                    $filePath = str_replace('/storage/', 'public/', $p->coverImage);
-                    if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
-                        $fileName = basename($p->coverImage);
-                        $coverImageUrl = url('/api/storage/covers/' . $fileName);
-                    }
+                    $fileName = basename($p->coverImage);
+                    $coverImageUrl = url('/api/storage/covers/' . $fileName);
                 }
 
                 // Process portfolio URLs - files are stored in storage/app/private/public/portfolio/
@@ -140,11 +140,8 @@ class PhotographerController extends Controller
                     if (is_array($portfolio)) {
                         foreach ($portfolio as $portfolioUrl) {
                             if ($portfolioUrl && !empty($portfolioUrl)) {
-                                $filePath = str_replace('/storage/', 'public/', $portfolioUrl);
-                                if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
-                                    $fileName = basename($portfolioUrl);
-                                    $portfolioImages[] = url('/api/storage/portfolio/' . $fileName);
-                                }
+                                $fileName = basename($portfolioUrl);
+                                $portfolioImages[] = url('/api/storage/portfolio/' . $fileName);
                             }
                         }
                     }
@@ -227,21 +224,20 @@ class PhotographerController extends Controller
         // Process avatar URL
         $avatarUrl = null;
         if ($nag->avatar && !empty($nag->avatar)) {
-            $filePath = str_replace('/storage/', 'public/', $nag->avatar);
-            if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
-                $fileName = basename($nag->avatar);
-                $avatarUrl = url('/api/storage/avatars/' . $fileName);
+            // Check if it's already a URL
+            if (str_starts_with($nag->avatar, 'http')) {
+                 $avatarUrl = $nag->avatar;
+            } else {
+                 $fileName = basename($nag->avatar);
+                 $avatarUrl = url('/api/storage/avatars/' . $fileName);
             }
         }
 
         // Process cover image URL
         $coverImageUrl = null;
         if ($nag->coverImage && !empty($nag->coverImage)) {
-            $filePath = str_replace('/storage/', 'public/', $nag->coverImage);
-            if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
-                $fileName = basename($nag->coverImage);
-                $coverImageUrl = url('/api/storage/covers/' . $fileName);
-            }
+            $fileName = basename($nag->coverImage);
+            $coverImageUrl = url('/api/storage/covers/' . $fileName);
         }
 
         // Process portfolio URLs
@@ -251,21 +247,8 @@ class PhotographerController extends Controller
             if (is_array($portfolio) && !empty($portfolio)) {
                 foreach ($portfolio as $portfolioUrl) {
                     if ($portfolioUrl && !empty($portfolioUrl)) {
-                        // Extract filename from URL (could be /storage/portfolio/... or full URL)
                         $fileName = basename($portfolioUrl);
-                        
-                        // Try to find the file in storage
-                        $filePath = 'public/portfolio/' . $fileName;
-                        
-                        // Check if file exists in local storage
-                        if (\Illuminate\Support\Facades\Storage::disk('local')->exists($filePath)) {
-                            // File exists, generate serve URL
-                            $portfolioImages[] = url('/api/storage/portfolio/' . $fileName);
-                        } else {
-                            // File might not exist or path is different, but still try to serve it
-                            // The serve endpoint will handle 404 if file doesn't exist
-                            $portfolioImages[] = url('/api/storage/portfolio/' . $fileName);
-                        }
+                        $portfolioImages[] = url('/api/storage/portfolio/' . $fileName);
                     }
                 }
             }
@@ -435,5 +418,109 @@ class PhotographerController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Lấy danh sách dịch vụ và giá của nhiếp ảnh gia
+     */
+    public function getServices($id)
+    {
+        $nag = NhiepAnhGia::find($id);
+
+        if (!$nag) {
+            return response()->json(['message' => 'Không tìm thấy nhiếp ảnh gia'], 404);
+        }
+
+        // Lấy dịch vụ qua relationship, bao gồm Gia từ pivot table
+        $services = $nag->dichVu()->where('Hoat_Dong', true)->get();
+
+        // Format lại dữ liệu để phù hợp với frontend
+        $formattedServices = $services->map(function ($service) {
+            return [
+                'Ma_DV' => $service->Ma_DV,
+                'Ten_DV' => $service->Ten_DV,
+                'Mo_Ta' => $service->Mo_Ta,
+                'Loai_DV' => $service->Loai_DV,
+                'Gia' => (float) $service->pivot->Gia, // Lấy giá từ bảng pivot
+            ];
+        });
+
+        return response()->json($formattedServices);
+    }
+
+
+    /**
+     * Lấy danh sách toàn bộ dịch vụ kèm trạng thái và giá của NAG hiện tại (để quản lý)
+     */
+    public function getMyServices(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+
+            if (!$nag) {
+                return response()->json(['message' => 'Bạn không phải là nhiếp ảnh gia'], 403);
+            }
+
+            // Lấy tất cả dịch vụ master
+            $allServices = DichVu::where('Hoat_Dong', true)->get();
+
+            // Lấy dịch vụ riêng của NAG
+            $myServices = $nag->dichVu()->get()->keyBy('Ma_DV');
+
+            $result = $allServices->map(function ($service) use ($myServices) {
+                $is_active = $myServices->has($service->Ma_DV);
+                $serviceItem = $myServices->get($service->Ma_DV);
+                $price = ($is_active && $serviceItem && $serviceItem->pivot) ? $serviceItem->pivot->Gia : 0;
+
+                return [
+                    'Ma_DV' => $service->Ma_DV,
+                    'Ten_DV' => $service->Ten_DV,
+                    'Mo_Ta' => $service->Mo_Ta,
+                    'Loai_DV' => $service->Loai_DV,
+                    'is_active' => $is_active,
+                    'price' => (float) $price,
+                ];
+            });
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            \Log::error("getMyServices error: " . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Cập nhật danh sách dịch vụ và giá cho NAG hiện tại
+     */
+    public function updateMyServices(Request $request)
+    {
+        $user = $request->user();
+        $nag = NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+
+        if (!$nag) {
+            return response()->json(['message' => 'Bạn không phải là nhiếp ảnh gia'], 403);
+        }
+
+        $items = $request->input('services', []); // List of { Ma_DV, price, is_active }
+
+        $syncData = [];
+        foreach ($items as $item) {
+            if (isset($item['is_active']) && $item['is_active']) {
+                $syncData[$item['Ma_DV']] = ['Gia' => $item['price'] ?? 0];
+            }
+        }
+
+        // Sync (xóa những cái không có trong list Active, thêm/update cái có)
+        // Tuy nhiên, nếu FE gửi full list, thì sync là chuẩn. 
+        // Nhưng nếu FE gửi partial, sync sẽ xóa mất cái cũ.
+        // Giả sử FE gửi toàn bộ danh sách master service với trạng thái active/inactive
+        
+        // Để an toàn, chúng ta loop và update/delete từng cái hoặc dùng sync nếu input là full list.
+        // Cách tốt nhất cho "Quản lý bảng giá" là gửi full list những cái Active.
+        
+        $nag->dichVu()->sync($syncData);
+
+        return response()->json(['message' => 'Cập nhật bảng giá thành công']);
     }
 }

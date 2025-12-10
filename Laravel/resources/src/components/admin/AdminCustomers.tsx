@@ -99,40 +99,40 @@ export function AdminCustomers() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-        const token = localStorage.getItem("admin_token");
-        const res = await fetch("/api/admin/customers", {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-        const data = await res.json();
-        
-        // Transform API data to AdminCustomer shape
-        if (data.data) {
-            const transformed = data.data.map((item: any) => ({
-                id: `CUST${item.Ma_KH}`,
-                name: item.tai_khoan?.Ho_Ten || "N/A",
-                email: item.tai_khoan?.Email_TK || "N/A",
-                phone: item.tai_khoan?.So_Dien_Thoai || "N/A",
-                avatar: item.tai_khoan?.Avatar ? `/storage/avatars/${item.tai_khoan.Avatar}` : "https://github.com/shadcn.png",
-                status: item.tai_khoan?.Trang_Thai === "Active" ? "active" : "active", // Default active if not handled
-                joinDate: item.tai_khoan?.created_at || "2024-01-01",
-                lastActive: "2024-01-01",
-                location: item.Dia_Chi || "Chưa cập nhật",
-                totalBookings: 0,
-                completedBookings: 0,
-                totalSpent: 0,
-                averageRating: 0,
-                flags: [],
-                warningCount: 0,
-                riskLevel: "low",
-            }));
-            setCustomers(transformed);
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch("/api/admin/customers", {
+        headers: {
+          "Authorization": `Bearer ${token}`
         }
+      });
+      const data = await res.json();
+
+      // Transform API data to AdminCustomer shape
+      if (data.data) {
+        const transformed = data.data.map((item: any) => ({
+          id: `CUST${item.Ma_KH}`,
+          name: item.tai_khoan?.Ho_Ten || "N/A",
+          email: item.tai_khoan?.Email_TK || "N/A",
+          phone: item.tai_khoan?.So_ĐT || "N/A",
+          avatar: item.tai_khoan?.avatar_url || "https://github.com/shadcn.png",
+          status: item.tai_khoan?.Trang_Thai === "Active" ? "active" : "active", // Default active if not handled
+          joinDate: item.tai_khoan?.created_at || "2024-01-01",
+          lastActive: "2024-01-01",
+          location: item.Dia_Chi || "Chưa cập nhật",
+          totalBookings: item.total_bookings || 0,
+          completedBookings: item.completed_bookings || 0,
+          totalSpent: parseFloat(item.total_spent) || 0,
+          averageRating: 0, // Customer doesn't have rating yet
+          flags: [],
+          warningCount: 0,
+          riskLevel: "low",
+        }));
+        setCustomers(transformed);
+      }
     } catch (err) {
-        console.error("Failed to fetch customers", err);
+      console.error("Failed to fetch customers", err);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -269,43 +269,43 @@ export function AdminCustomers() {
     if (!selectedCustomer || !actionType) return;
 
     try {
-        const token = localStorage.getItem("admin_token");
-        
-        if (actionType === 'delete') {
-            const res = await fetch(`/api/admin/customers/${selectedCustomer.id.replace('CUST', '')}`, {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-             if (res.ok) {
-                fetchCustomers();
-                setSelectedCustomer(null);
-             } else {
-                 alert("Xóa thất bại");
-             }
-        } else if (actionType === 'suspend' || actionType === 'ban') {
-             // Treat both as Lock for now
-             const res = await fetch(`/api/admin/customers/${selectedCustomer.id.replace('CUST', '')}/status`, {
-                method: "PUT",
-                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ status: 'Locked' })
-             });
-             if (res.ok) {
-                fetchCustomers();
-                // Update local status if keeping selected
-                 setSelectedCustomer({...selectedCustomer, status: 'suspended'});
-             } else {
-                 alert("Cập nhật thất bại");
-             }
+      const token = localStorage.getItem("admin_token");
+
+      if (actionType === 'delete') {
+        const res = await fetch(`/api/admin/customers/${selectedCustomer.id.replace('CUST', '')}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+          fetchCustomers();
+          setSelectedCustomer(null);
         } else {
-            // Warn - just alert for now or implement notification API
-             alert(`Đã gửi cảnh báo: ${actionReason}`);
+          alert("Xóa thất bại");
         }
+      } else if (actionType === 'suspend' || actionType === 'ban') {
+        // Treat both as Lock for now
+        const res = await fetch(`/api/admin/customers/${selectedCustomer.id.replace('CUST', '')}/status`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: 'Locked' })
+        });
+        if (res.ok) {
+          fetchCustomers();
+          // Update local status if keeping selected
+          setSelectedCustomer({ ...selectedCustomer, status: 'suspended' });
+        } else {
+          alert("Cập nhật thất bại");
+        }
+      } else {
+        // Warn - just alert for now or implement notification API
+        alert(`Đã gửi cảnh báo: ${actionReason}`);
+      }
     } catch (e) {
-        console.error(e);
-        alert("Lỗi hệ thống");
+      console.error(e);
+      alert("Lỗi hệ thống");
     }
 
     setShowActionDialog(false);
@@ -345,12 +345,12 @@ export function AdminCustomers() {
 
   if (loading) {
     return (
-        <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-            <Clock className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-            <p className="text-gray-500">Đang tải dữ liệu...</p>
+          <Clock className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+          <p className="text-gray-500">Đang tải dữ liệu...</p>
         </div>
-        </div>
+      </div>
     );
   }
 
@@ -497,7 +497,7 @@ export function AdminCustomers() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Card>
+                {/* <Card>
                   <CardContent className="p-4 text-center">
                     <Clock className="w-8 h-8 mx-auto mb-2 text-purple-600" />
                     <p className="text-2xl font-bold text-purple-600">
@@ -505,9 +505,9 @@ export function AdminCustomers() {
                     </p>
                     <p className="text-sm text-gray-600">Đã hoàn thành</p>
                   </CardContent>
-                </Card>
+                </Card> */}
 
-                <Card>
+                {/* <Card>
                   <CardContent className="p-4 text-center">
                     <Star className="w-8 h-8 mx-auto mb-2 text-yellow-600" />
                     <p className="text-2xl font-bold text-yellow-600">
@@ -517,7 +517,7 @@ export function AdminCustomers() {
                     </p>
                     <p className="text-sm text-gray-600">Đánh giá TB</p>
                   </CardContent>
-                </Card>
+                </Card> */}
               </div>
             </TabsContent>
 
@@ -640,7 +640,7 @@ export function AdminCustomers() {
                       <UserX className="w-4 h-4 mr-2" />
                       Cấm vĩnh viễn (Khóa)
                     </Button>
-                    
+
                     <Button
                       variant="outline"
                       className="w-full text-red-600 border-red-200 hover:bg-red-50"
@@ -1096,13 +1096,12 @@ export function AdminCustomers() {
                 Hủy
               </Button>
               <Button
-                className={`flex-1 ${
-                  actionType === "ban"
-                    ? "bg-red-600 hover:bg-red-700"
-                    : actionType === "suspend"
+                className={`flex-1 ${actionType === "ban"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : actionType === "suspend"
                     ? "bg-orange-600 hover:bg-orange-700"
                     : "bg-yellow-600 hover:bg-yellow-700"
-                }`}
+                  }`}
                 onClick={executeAction}
                 disabled={!actionReason.trim()}
               >

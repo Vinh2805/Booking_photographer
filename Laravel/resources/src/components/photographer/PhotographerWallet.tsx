@@ -17,6 +17,13 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -35,6 +42,7 @@ import {
 } from "lucide-react";
 import apiClient from "../services/apiClient";
 import { toast } from "sonner";
+import { BankAPI, Bank } from "../services/BankAPI";
 
 interface PhotographerWalletProps {
   onBack?: () => void;
@@ -69,11 +77,19 @@ export function PhotographerWallet({ onBack }: PhotographerWalletProps) {
   const [accountHolderName, setAccountHolderName] = useState<string>("");
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
+  const [banks, setBanks] = useState<Bank[]>([]);
+
   // Load wallet balance and transactions
   useEffect(() => {
     loadBalance();
     loadTransactions();
+    fetchBanks();
   }, []);
+
+  const fetchBanks = async () => {
+    const bankList = await BankAPI.getBanks();
+    setBanks(bankList);
+  };
 
   const loadBalance = async () => {
     try {
@@ -245,14 +261,14 @@ export function PhotographerWallet({ onBack }: PhotographerWalletProps) {
               <span>Rút tiền</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="bg-white dark:bg-slate-800 p-3 m-2 max-w-sm">
             <DialogHeader>
               <DialogTitle>Rút tiền từ ví</DialogTitle>
               <DialogDescription>
                 Vui lòng điền thông tin tài khoản ngân hàng để rút tiền
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="withdraw-amount">Số tiền muốn rút (VNĐ)</Label>
                 <Input
@@ -282,15 +298,30 @@ export function PhotographerWallet({ onBack }: PhotographerWalletProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bank-name">Tên ngân hàng</Label>
-                <Input
-                  id="bank-name"
-                  type="text"
-                  placeholder="VD: VIB, Vietcombank, Techcombank..."
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                />
-              </div>
+                 <Label htmlFor="bank-name">Tên ngân hàng</Label>
+                 <Select
+                   value={bankName}
+                   onValueChange={(value) => setBankName(value)}
+                 >
+                   <SelectTrigger id="bank-name">
+                     <SelectValue placeholder="Chọn ngân hàng" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {banks.map((bank) => (
+                       <SelectItem key={bank.id} value={bank.shortName}>
+                         <div className="flex items-center gap-2">
+                           <img 
+                             src={bank.logo} 
+                             alt={bank.shortName} 
+                             className="w-8 h-8 object-contain bg-white rounded-sm p-0.5 border" 
+                           />
+                           <span>{bank.shortName} - {bank.name}</span>
+                         </div>
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="account-holder">Tên chủ tài khoản *</Label>
@@ -423,4 +454,3 @@ export function PhotographerWallet({ onBack }: PhotographerWalletProps) {
     </div>
   );
 }
-

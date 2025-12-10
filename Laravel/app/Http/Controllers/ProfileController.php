@@ -483,9 +483,12 @@ class ProfileController extends Controller
             // Ghi audit log
             $this->logAudit($user->Ma_TK, $user->Loai_TK, ['avatar' => $oldAvatar], ['avatar' => $user->Avatar], 'uploaded');
 
+            // Generate full served URL for immediate display
+            $servedUrl = url('/api/storage/avatars/' . $fileName);
+
             return response()->json([
                 'message' => 'Tải ảnh đại diện thành công',
-                'avatar' => $user->Avatar
+                'avatar' => $servedUrl
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi khi tải ảnh: ' . $e->getMessage()], 500);
@@ -534,9 +537,12 @@ class ProfileController extends Controller
             // Ghi audit log
             $this->logAudit($user->Ma_TK, $user->Loai_TK, ['coverImage' => $oldCover], ['coverImage' => $nag->Anh_Bia], 'uploaded');
 
+            // Generate full served URL for immediate display
+            $servedUrl = url('/api/storage/covers/' . $fileName);
+
             return response()->json([
                 'message' => 'Tải ảnh bìa thành công',
-                'coverImage' => $nag->Anh_Bia
+                'coverImage' => $servedUrl
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi khi tải ảnh: ' . $e->getMessage()], 500);
@@ -574,25 +580,37 @@ class ProfileController extends Controller
             }
 
             $uploadedUrls = [];
+            $servedUrls = [];
             foreach ($request->file('images') as $file) {
                 $fileName = 'portfolio_' . $user->Ma_TK . '_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 // Store in local disk (storage/app/private/public/portfolio/)
-                $path = $file->storeAs('public/portfolio', $fileName, 'local');
+                $file->storeAs('public/portfolio', $fileName);
+                
                 // Save just the filename or relative path, not full URL
                 // We'll generate the serve URL when reading
                 $uploadedUrls[] = '/storage/portfolio/' . $fileName;
+                
+                // Add to processed URLs for response
+                $servedUrls[] = url('/api/storage/portfolio/' . $fileName);
             }
 
             $newPortfolio = array_merge($currentPortfolio, $uploadedUrls);
-            $nag->Portfolio = json_encode($newPortfolio);
+            $nag->Portfolio = json_encode($newPortfolio); // Re-added json_encode for database consistency
             $nag->save();
+            
+            // Need to return the FULL portfolio with served URLs
+            $fullPortfolioServed = [];
+            foreach ($newPortfolio as $url) {
+                $fName = basename($url);
+                $fullPortfolioServed[] = url('/api/storage/portfolio/' . $fName);
+            }
 
             // Ghi audit log
             $this->logAudit($user->Ma_TK, $user->Loai_TK, ['portfolio' => $currentPortfolio], ['portfolio' => $newPortfolio], 'uploaded');
 
             return response()->json([
                 'message' => 'Tải portfolio thành công',
-                'portfolio' => $newPortfolio
+                'portfolio' => $fullPortfolioServed
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi khi tải portfolio: ' . $e->getMessage()], 500);

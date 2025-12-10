@@ -9,6 +9,7 @@ import { PhotographerChangePassword } from "./photographer/PhotographerChangePas
 import { PhotographerWallet } from "./photographer/PhotographerWallet";
 import { BookingDetail } from "./photographer/BookingDetail";
 import { AppLayoutWithSidebar } from "./AppLayoutWithSidebar";
+import PhotographerServiceManagement from "./photographer/PhotographerServiceManagement";
 
 // ✅ Đổi prop từ onBack → onLogout để đồng bộ với App.tsx
 interface PhotographerAppProps {
@@ -23,7 +24,9 @@ type PhotographerView =
     | "profile"
     | "edit-profile"
     | "change-password"
-    | "wallet";
+    | "change-password"
+    | "wallet"
+    | "services";
 
 export function PhotographerApp({ onLogout }: PhotographerAppProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -91,6 +94,10 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                 setCurrentView("wallet");
                 setSelectedBookingId(null);
                 break;
+            case "services":
+                setCurrentView("services");
+                setSelectedBookingId(null);
+                break;
             case "logout":
                 handleLogout();
                 break;
@@ -118,6 +125,8 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                 return "Đổi mật khẩu";
             case "wallet":
                 return "Ví cá nhân";
+            case "services":
+                return "Quản lý Bảng giá";
             default:
                 return "Momentia Pro";
         }
@@ -217,6 +226,8 @@ export function PhotographerApp({ onLogout }: PhotographerAppProps) {
                         onBack={() => setCurrentView("home")}
                     />
                 );
+            case "services":
+                return <PhotographerServiceManagement />;
             default:
                 return (
                     <PhotographerHome user={user} onNavigate={setCurrentView} />

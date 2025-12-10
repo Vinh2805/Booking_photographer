@@ -7,6 +7,7 @@ use App\Models\KhachHang;
 use App\Models\BuoiChup;
 use App\Models\Admin;
 use App\Models\WalletTransaction;
+use App\Models\DichVu;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +26,18 @@ class AdminManagementController extends Controller
     {
         $status = $request->query('status'); // 'Pending', 'Approved', 'Rejected', 'Locked'
 
-        $query = NhiepAnhGia::with('taiKhoan');
+        $query = NhiepAnhGia::with('taiKhoan')
+            ->withCount([
+                'buoiChups', 
+                'danhGias',
+                'buoiChups as completed_bookings_count' => function ($query) {
+                    $query->where('Trang_Thai', 'Hoàn thành');
+                }
+            ])
+            ->withSum(['walletTransactions as total_earnings' => function($query) {
+                $query->where('Loai_Giao_Dich', 'nhan_tien');
+            }], 'So_Tien')
+            ->withAvg('danhGias', 'So_Sao');
 
         if ($status) {
             $query->where('Trang_Thai', $status);
@@ -96,6 +108,13 @@ class AdminManagementController extends Controller
             });
         }
         
+        $query->withCount([
+            'buoiChups as total_bookings',
+            'buoiChups as completed_bookings' => function ($q) {
+                $q->where('Trang_Thai', 'Hoàn thành');
+            }
+        ])->withSum('buoiChups as total_spent', 'Tong_Tien');
+        
         $customers = $query->orderBy('Ma_KH', 'desc')->paginate(20);
 
         return response()->json($customers);
@@ -135,7 +154,7 @@ class AdminManagementController extends Controller
     {
          $status = $request->query('status');
          
-         $query = BuoiChup::with(['khachHang.taiKhoan', 'nhaNhiepAnh.taiKhoan']);
+         $query = BuoiChup::with(['khachHang.taiKhoan', 'nhaNhiepAnh.taiKhoan', 'danhGia']);
          
          if ($status) {
              $query->where('Trang_Thai', $status);
@@ -149,12 +168,28 @@ class AdminManagementController extends Controller
     public function updateBookingStatus(Request $request, $id)
     {
         $validated = $request->validate([
-             'status' => 'required|string'
+             'status' => 'required|string',
+             'reason' => 'nullable|string'
         ]);
         
         $booking = BuoiChup::findOrFail($id);
+        $oldStatus = $booking->Trang_Thai;
         $booking->Trang_Thai = $validated['status'];
+
+        // Save cancellation reason if applicable
+        if (in_array($validated['status'], ['Đã hủy', 'Rejected']) && !empty($validated['reason'])) {
+            $booking->Ly_Do_Huy = $validated['reason'];
+        }
+
         $booking->save();
+
+        // Log transaction/activity
+        $user = $request->user();
+        $adminName = 'Admin'; // Or fetch specific admin name
+        
+        // Log to TransactionLog if it exists (assuming app has logic for activity logging)
+        // Here we just ensure the status update works. 
+        // Ideally: TransactionLog::create(...)
         
         return response()->json(['message' => 'Đã cập nhật trạng thái booking']);
     }
@@ -257,4 +292,87 @@ class AdminManagementController extends Controller
             'balance' => $admin->So_Du
         ]);
     }
+
+    // =============================
+    // 🛠️ SERVICE MANAGEMENT
+    // =============================
+
+    public function getServices(Request $request)
+    {
+        $search = $request->query('search');
+        $query = DichVu::query();
+
+        if ($search) {
+            $query->where('Ten_DV', 'like', "%{$search}%");
+        }
+
+        $services = $query->orderBy('Ma_DV', 'asc')->paginate(20);
+        return response()->json($services);
+    }
+
+    public function storeService(Request $request) 
+    {
+        $validated = $request->validate([
+            'Ten_DV' => 'required|string|max:255',
+            'Mo_Ta' => 'nullable|string',
+            'Loai_DV' => 'required|integer',
+            'Hoat_Dong' => 'boolean'
+        ]);
+
+        // Generate Ma_DV (Assuming string format like 'DV001')
+        // Simple generation logic or rely on UUID if set in model
+        // Model says primaryKey string, incrementing = false.
+        // Let's generate a simple ID if not auto-inc.
+        
+        $count = DichVu::count() + 1;
+        $maDV = "DV" . str_pad($count, 3, '0', STR_PAD_LEFT);
+        
+        // Ensure uniqueness
+        while(DichVu::where('Ma_DV', $maDV)->exists()) {
+            $count++;
+             $maDV = "DV" . str_pad($count, 3, '0', STR_PAD_LEFT);
+        }
+
+        $service = new DichVu();
+        $service->Ma_DV = $maDV;
+        $service->Ten_DV = $validated['Ten_DV'];
+        $service->Mo_Ta = $validated['Mo_Ta'];
+        $service->Loai_DV = $validated['Loai_DV'];
+        $service->Hoat_Dong = $validated['Hoat_Dong'] ?? true;
+        $service->save();
+
+        return response()->json(['message' => 'Đã thêm dịch vụ', 'service' => $service]);
+    }
+
+    public function updateService(Request $request, $id)
+    {
+        $service = DichVu::findOrFail($id);
+        
+        $validated = $request->validate([
+            'Ten_DV' => 'required|string|max:255',
+            'Mo_Ta' => 'nullable|string',
+            'Loai_DV' => 'integer',
+            'Hoat_Dong' => 'boolean'
+        ]);
+
+        $service->update($validated);
+        return response()->json(['message' => 'Đã cập nhật dịch vụ', 'service' => $service]);
+    }
+
+    public function deleteService($id)
+    {
+        $service = DichVu::findOrFail($id);
+        // Check if cached/used by photographers? 
+        // Pivot table `nhiep_anh_gia_dich_vu` will constrain this if Foreign Key exists.
+        // If not, we might leave orphans or should use soft deletes.
+        // For now, try delete.
+        
+        try {
+            $service->delete();
+            return response()->json(['message' => 'Đã xóa dịch vụ']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Không thể xóa dịch vụ này (đang được sử dụng)'], 400);
+        }
+    }
 }
+

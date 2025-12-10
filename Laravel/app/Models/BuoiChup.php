@@ -58,4 +58,9 @@ class BuoiChup extends Model
         // Nếu có bảng pivot buoi_chup_dich_vu
         return $this->belongsToMany(DichVu::class, 'buoi_chup_dich_vu', 'Ma_BC', 'Ma_DV');
     }
+
+    public function danhGia()
+    {
+        return $this->hasOne(DanhGia::class, 'Ma_BC', 'Ma_BC');
+    }
 }

@@ -122,59 +122,68 @@ export function AdminPhotographers() {
   const fetchPhotographers = async () => {
     setLoading(true);
     try {
-        const token = localStorage.getItem("admin_token");
-        const res = await fetch("/api/admin/photographers", {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-        const data = await res.json();
-        
-        // Transform API data to AdminPhotographer shape
-        if (data.data) {
-            const transformed = data.data.map((item: any) => {
-                let status: PhotographerStatus = "pending";
-                if (item.Trang_Thai === 'Approved') status = "active";
-                else if (item.Trang_Thai === 'Locked') status = "banned";
-                else if (item.Trang_Thai === 'Rejected') status = "inactive";
-                else if (item.Trang_Thai === 'Pending') status = "pending";
-
-                let verifyStatus: "verified" | "pending" | "rejected" = "pending";
-                if (item.Trang_Thai === 'Approved') verifyStatus = "verified";
-                else if (item.Trang_Thai === 'Rejected') verifyStatus = "rejected";
-
-                return {
-                    id: item.Ma_NAG,
-                    name: item.tai_khoan?.Ho_Ten || "N/A",
-                    email: item.tai_khoan?.Email_TK || "N/A",
-                    phone: item.tai_khoan?.So_Dien_Thoai || "N/A",
-                    avatar: item.tai_khoan?.Avatar ? `/storage/avatars/${item.tai_khoan.Avatar}` : "https://github.com/shadcn.png",
-                    status: status,
-                    joinDate: item.tai_khoan?.created_at || "2024-01-01",
-                    lastActive: "2024-01-01",
-                    location: item.Dia_Diem_Hoat_Dong || "Chưa cập nhật",
-                    specialties: [], 
-                    totalBookings: 0,
-                    completedBookings: 0,
-                    totalEarnings: item.So_Du || 0,
-                    averageRating: 0,
-                    reviewCount: 0,
-                    flags: [],
-                    warningCount: 0,
-                    verificationStatus: verifyStatus,
-                    riskLevel: "low",
-                    portfolio: {
-                        imageCount: 0,
-                        lastUpdate: "N/A"
-                    }
-                };
-            });
-            setPhotographers(transformed);
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch("/api/admin/photographers", {
+        headers: {
+          "Authorization": `Bearer ${token}`
         }
+      });
+      const data = await res.json();
+
+      // Transform API data to AdminPhotographer shape
+      if (data.data) {
+        const transformed = data.data.map((item: any) => {
+          let status: PhotographerStatus = "pending";
+          if (item.Trang_Thai === 'Approved') status = "active";
+          else if (item.Trang_Thai === 'Locked') status = "banned";
+          else if (item.Trang_Thai === 'Rejected') status = "inactive";
+          else if (item.Trang_Thai === 'Pending') status = "pending";
+
+          let verifyStatus: "verified" | "pending" | "rejected" = "pending";
+          if (item.Trang_Thai === 'Approved') verifyStatus = "verified";
+          else if (item.Trang_Thai === 'Rejected') verifyStatus = "rejected";
+
+          return {
+            id: item.Ma_NAG,
+            name: item.tai_khoan?.Ho_Ten || "N/A",
+            email: item.tai_khoan?.Email_TK || "N/A",
+            phone: item.tai_khoan?.So_ĐT || "N/A",
+            avatar: item.tai_khoan?.avatar_url || "https://github.com/shadcn.png",
+            status: status,
+            joinDate: item.tai_khoan?.created_at || "2024-01-01",
+            lastActive: "2024-01-01",
+            location: item.Dia_Diem_Hoat_Dong || "Chưa cập nhật",
+            specialties: [],
+            totalBookings: item.buoi_chups_count || 0,
+            completedBookings: item.completed_bookings_count || 0,
+            totalEarnings: item.total_earnings || 0,
+            averageRating: parseFloat(item.danh_gias_avg_so_sao || 0).toFixed(1),
+            reviewCount: item.danh_gias_count || 0,
+            flags: [],
+            warningCount: 0,
+            verificationStatus: verifyStatus,
+            riskLevel: "low",
+            portfolio: {
+              imageCount: (() => {
+                try {
+                  if (!item.Portfolio) return 0;
+                  if (item.Portfolio.trim().startsWith('[')) {
+                    const parsed = JSON.parse(item.Portfolio);
+                    return Array.isArray(parsed) ? parsed.length : 0;
+                  }
+                  return 1; // Assume single image path
+                } catch (e) { return 0; }
+              })(),
+              lastUpdate: "N/A"
+            }
+          };
+        });
+        setPhotographers(transformed);
+      }
     } catch (err) {
-        console.error("Failed to fetch photographers", err);
+      console.error("Failed to fetch photographers", err);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -380,43 +389,43 @@ export function AdminPhotographers() {
     if (!selectedPhotographer || !actionType) return;
 
     try {
-        const token = localStorage.getItem("admin_token");
-        
-        if (actionType === 'delete') {
-            const res = await fetch(`/api/admin/photographers/${selectedPhotographer.id}`, {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (res.ok) fetchPhotographers();
-            else alert("Xóa thất bại");
-        } else {
-            let newStatus = "";
-            // Map Admin Action to DB Status
-            if (actionType === 'verify') newStatus = 'Approved';
-            else if (actionType === 'reject') newStatus = 'Rejected';
-            else if (actionType === 'suspend') newStatus = 'Locked';
-            else if (actionType === 'ban') newStatus = 'Locked';
+      const token = localStorage.getItem("admin_token");
 
-            if (newStatus) {
-                 const res = await fetch(`/api/admin/photographers/${selectedPhotographer.id}/status`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ status: newStatus })
-                });
-                
-                if (res.ok) {
-                    fetchPhotographers();
-                } else {
-                    alert("Cập nhật thất bại!");
-                }
-            }
+      if (actionType === 'delete') {
+        const res = await fetch(`/api/admin/photographers/${selectedPhotographer.id}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) fetchPhotographers();
+        else alert("Xóa thất bại");
+      } else {
+        let newStatus = "";
+        // Map Admin Action to DB Status
+        if (actionType === 'verify') newStatus = 'Approved';
+        else if (actionType === 'reject') newStatus = 'Rejected';
+        else if (actionType === 'suspend') newStatus = 'Locked';
+        else if (actionType === 'ban') newStatus = 'Locked';
+
+        if (newStatus) {
+          const res = await fetch(`/api/admin/photographers/${selectedPhotographer.id}/status`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ status: newStatus })
+          });
+
+          if (res.ok) {
+            fetchPhotographers();
+          } else {
+            alert("Cập nhật thất bại!");
+          }
         }
+      }
     } catch (e) {
-        console.error(e);
-        alert("Lỗi hệ thống");
+      console.error(e);
+      alert("Lỗi hệ thống");
     }
 
     setShowActionDialog(false);
@@ -462,19 +471,19 @@ export function AdminPhotographers() {
     );
   };
 
-    if (loading) {
-        return (
-             <div className="flex h-screen items-center justify-center">
-                <div className="text-center">
-                    <Clock className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-                    <p className="text-gray-500">Đang tải dữ liệu...</p>
-                </div>
-            </div>
-        );
-    }
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <Clock className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+          <p className="text-gray-500">Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
 
-    // Photographer detail view
-    if (selectedPhotographer && !showActionDialog) {
+  // Photographer detail view
+  if (selectedPhotographer && !showActionDialog) {
     const statusInfo = getStatusInfo(selectedPhotographer.status);
     const verificationInfo = getVerificationInfo(
       selectedPhotographer.verificationStatus
@@ -533,10 +542,10 @@ export function AdminPhotographers() {
                       />
                       {selectedPhotographer.verificationStatus ===
                         "verified" && (
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                          <CheckCircle className="w-4 h-4 text-white" />
-                        </div>
-                      )}
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          </div>
+                        )}
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">
@@ -902,49 +911,49 @@ export function AdminPhotographers() {
     <div className="p-4 space-y-4 pb-24">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Quản lý nhiếp ảnh gia</h1>
-         <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
-             <TabsList>
-                 <TabsTrigger value="list">Danh sách ({photographers.filter(p => p.verificationStatus !== "pending").length})</TabsTrigger>
-                 <TabsTrigger value="approvals" className="relative">
-                     Xét duyệt 
-                     {photographers.filter(p => p.verificationStatus === "pending").length > 0 && (
-                        <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
-                            {photographers.filter(p => p.verificationStatus === "pending").length}
-                        </span>
-                     )}
-                 </TabsTrigger>
-             </TabsList>
-         </Tabs>
+        <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
+          <TabsList>
+            <TabsTrigger value="list">Danh sách ({photographers.filter(p => p.verificationStatus !== "pending").length})</TabsTrigger>
+            <TabsTrigger value="approvals" className="relative">
+              Xét duyệt
+              {photographers.filter(p => p.verificationStatus === "pending").length > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
+                  {photographers.filter(p => p.verificationStatus === "pending").length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Search and Filters */}
       <div className="space-y-3">
         <div className="flex gap-4">
-            <div className="relative flex-1">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
-                placeholder="Tìm kiếm theo tên, email, chuyên môn, ID..."
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm theo tên, email, chuyên môn, ID..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-            </div>
-             <Button
-                variant="outline"
-                className={hasActiveFilters() ? "bg-blue-50 border-blue-200" : ""}
-                onClick={() => setShowFilterDialog(true)}
-            >
-                <Filter className="w-4 h-4 mr-2" />
-                Bộ lọc
-                {hasActiveFilters() && (
-                <div className="ml-2 w-2 h-2 bg-blue-500 rounded-full" />
-                )}
-            </Button>
+          </div>
+          <Button
+            variant="outline"
+            className={hasActiveFilters() ? "bg-blue-50 border-blue-200" : ""}
+            onClick={() => setShowFilterDialog(true)}
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            Bộ lọc
             {hasActiveFilters() && (
-               <Button variant="ghost" onClick={clearFilters}>
-                   Xóa lọc
-               </Button>
+              <div className="ml-2 w-2 h-2 bg-blue-500 rounded-full" />
             )}
+          </Button>
+          {hasActiveFilters() && (
+            <Button variant="ghost" onClick={clearFilters}>
+              Xóa lọc
+            </Button>
+          )}
         </div>
       </div>
 
@@ -965,38 +974,38 @@ export function AdminPhotographers() {
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <ImageWithFallback
-                            src={photographer.avatar}
-                            alt={photographer.name}
-                            className="w-12 h-12 rounded-full object-cover"
-                            />
-                            {photographer.verificationStatus === "verified" && (
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                                <CheckCircle className="w-3 h-3 text-white" />
-                            </div>
-                            )}
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <ImageWithFallback
+                        src={photographer.avatar}
+                        alt={photographer.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                      {photographer.verificationStatus === "verified" && (
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                          <CheckCircle className="w-3 h-3 text-white" />
                         </div>
-                        <div>
-                             <h3 className="font-semibold text-lg group-hover:text-blue-600 transition-colors">
-                            {photographer.name}
-                            </h3>
-                            <p className="text-xs text-gray-500">ID: {photographer.id}</p>
-                        </div>
+                      )}
                     </div>
+                    <div>
+                      <h3 className="font-semibold text-lg group-hover:text-blue-600 transition-colors">
+                        {photographer.name}
+                      </h3>
+                      <p className="text-xs text-gray-500">ID: {photographer.id}</p>
+                    </div>
+                  </div>
                   <Badge className={statusInfo?.color}>
                     {statusInfo?.label}
                   </Badge>
                 </div>
 
                 <div className="space-y-2 mb-4 text-sm">
-                   <p className="flex items-center gap-2 text-gray-600">
+                  <p className="flex items-center gap-2 text-gray-600">
                     <MapPin className="w-4 h-4" /> {photographer.location}
-                   </p>
-                   <p className="flex items-center gap-2 text-gray-600">
+                  </p>
+                  <p className="flex items-center gap-2 text-gray-600">
                     <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" /> {photographer.averageRating > 0 ? photographer.averageRating : "New"} • {photographer.totalBookings} bookings
-                   </p>
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-4">
@@ -1018,26 +1027,26 @@ export function AdminPhotographers() {
                   )}
                 </div>
 
-                 {/* Quick Actions (Prevent bubbling) */}
-                 <div className="flex justify-end gap-2 mt-4 pt-4 border-t" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedPhotographer(photographer)}>
-                        <Eye className="w-4 h-4 mr-1" /> Chi tiết
-                    </Button>
+                {/* Quick Actions (Prevent bubbling) */}
+                <div className="flex justify-end gap-2 mt-4 pt-4 border-t" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedPhotographer(photographer)}>
+                    <Eye className="w-4 h-4 mr-1" /> Chi tiết
+                  </Button>
 
-                        {activeTab === 'approvals' ? (
-                            <>
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700 h-8" onClick={(e) => { e.stopPropagation(); handleAction('verify', photographer); }}>
-                                    <CheckCircle className="w-4 h-4 mr-1" /> Duyệt
-                                </Button>
-                                <Button size="sm" variant="destructive" className="h-8" onClick={(e) => { e.stopPropagation(); handleAction('reject', photographer); }}>
-                                    <XCircle className="w-4 h-4 mr-1" /> Từ chối
-                                </Button>
-                            </>
-                        ) : (
-                            <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 h-8 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleAction('delete', photographer); }}>
-                                <UserX className="w-4 h-4 mr-1" /> Xóa
-                            </Button>
-                        )}
+                  {activeTab === 'approvals' ? (
+                    <>
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700 h-8" onClick={(e) => { e.stopPropagation(); handleAction('verify', photographer); }}>
+                        <CheckCircle className="w-4 h-4 mr-1" /> Duyệt
+                      </Button>
+                      <Button size="sm" variant="destructive" className="h-8" onClick={(e) => { e.stopPropagation(); handleAction('reject', photographer); }}>
+                        <XCircle className="w-4 h-4 mr-1" /> Từ chối
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 h-8 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleAction('delete', photographer); }}>
+                      <UserX className="w-4 h-4 mr-1" /> Xóa
+                    </Button>
+                  )}
                 </div>
 
               </CardContent>
@@ -1361,7 +1370,7 @@ export function AdminPhotographers() {
 
       {/* Action Dialog */}
       <Dialog open={showActionDialog} onOpenChange={setShowActionDialog}>
-        <DialogContent className="max-w-sm mx-4">
+        <DialogContent className="max-w-sm mx-4 p-2">
           <DialogHeader>
             <DialogTitle>
               {actionType === "warn" && "Gửi cảnh báo"}
@@ -1414,17 +1423,16 @@ export function AdminPhotographers() {
                 Hủy
               </Button>
               <Button
-                className={`flex-1 ${
-                  actionType === "ban"
-                    ? "bg-red-600 hover:bg-red-700"
-                    : actionType === "suspend"
-                    ? "bg-orange-600 hover:bg-orange-700"
+                className={`flex-1 text-white ${actionType === "ban"
+                  ? "!bg-red-600 hover:!bg-red-700"
+                  : actionType === "suspend"
+                    ? "!bg-orange-600 hover:!bg-orange-700"
                     : actionType === "verify"
-                    ? "bg-green-600 hover:bg-green-700"
-                    : actionType === "reject"
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-yellow-600 hover:bg-yellow-700"
-                }`}
+                      ? "!bg-green-600 hover:!bg-green-700"
+                      : actionType === "reject"
+                        ? "!bg-red-600 hover:!bg-red-700"
+                        : "!bg-yellow-600 hover:!bg-yellow-700"
+                  }`}
                 onClick={executeAction}
                 disabled={!actionReason}
               >

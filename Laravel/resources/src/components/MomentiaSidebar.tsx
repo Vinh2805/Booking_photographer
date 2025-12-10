@@ -19,6 +19,7 @@ import {
     LogOut,
     Camera,
     Wallet,
+    Tag,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { TooltipProvider } from "./ui/tooltip";
@@ -63,18 +64,18 @@ function SidebarUserInfo({
         try {
             const infoKey = userRole === "photographer" ? "photographer_info" : "customer_info";
             const storedInfo = localStorage.getItem(infoKey);
-            
+
             if (storedInfo) {
                 const info = JSON.parse(storedInfo);
                 const name = info.Ho_Ten || info.name || (userRole === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng");
                 const role = userRole === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng";
-                
+
                 // Tạo fallback từ tên
                 const nameParts = name.split(" ");
-                const fallback = nameParts.length >= 2 
+                const fallback = nameParts.length >= 2
                     ? (nameParts[nameParts.length - 2][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
                     : name.substring(0, 2).toUpperCase();
-                
+
                 setUserData({
                     name,
                     role,
@@ -106,22 +107,19 @@ function SidebarUserInfo({
     }
 
     return (
-        <div className="px-2 py-3 border-b">
+        <div className="p-4 border-b">
             <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarImage src={userData.avatar} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-                        {userData.fallback}
-                    </AvatarFallback>
+                <Avatar className="h-10 w-10 border">
+                    <AvatarImage src={userData?.avatar} alt={userData?.name} />
+                    <AvatarFallback>{userData?.fallback}</AvatarFallback>
                 </Avatar>
-
                 {state === "expanded" && (
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-medium truncate">
-                            {userData.name}
+                    <div className="flex flex-col overflow-hidden">
+                        <span className="text-sm font-semibold truncate">
+                            {userData?.name}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                            {userData.role}
+                        <span className="text-xs text-muted-foreground truncate">
+                            {userData?.role}
                         </span>
                     </div>
                 )}
@@ -194,7 +192,7 @@ export function MomentiaSidebar({
         };
 
         fetchData();
-        
+
         // Refresh mỗi 30 giây
         const interval = setInterval(fetchData, 30000);
         return () => clearInterval(interval);
@@ -203,11 +201,11 @@ export function MomentiaSidebar({
     // Tạo menu items động với badges
     const menuItems = [
         { id: "home", title: "Trang chủ", icon: Home },
-        { 
-            id: "bookings", 
-            title: "Buổi chụp", 
-            icon: Calendar, 
-            badge: bookingsCount > 0 ? bookingsCount.toString() : undefined 
+        {
+            id: "bookings",
+            title: "Buổi chụp",
+            icon: Calendar,
+            badge: bookingsCount > 0 ? bookingsCount.toString() : undefined
         },
         {
             id: "messages",
@@ -217,8 +215,11 @@ export function MomentiaSidebar({
             badgeColor: "bg-red-500",
         },
         { id: "profile", title: "Hồ sơ", icon: User },
-        ...(userRole === "customer" || userRole === "photographer" 
-            ? [{ id: "wallet", title: "Ví cá nhân", icon: Wallet }] 
+        ...(userRole === "customer" || userRole === "photographer"
+            ? [{ id: "wallet", title: "Ví cá nhân", icon: Wallet }]
+            : []),
+        ...(userRole === "photographer"
+            ? [{ id: "services", title: "Quản lý Bảng giá", icon: Tag }]
             : []),
     ];
 
@@ -240,9 +241,8 @@ export function MomentiaSidebar({
                                     return (
                                         <SidebarMenuItem
                                             key={item.id}
-                                            className={`sidebar-menu-item ${
-                                                isActive ? "active" : ""
-                                            }`}
+                                            className={`sidebar-menu-item ${isActive ? "active" : ""
+                                                }`}
                                         >
                                             <div
                                                 onClick={() =>
@@ -256,11 +256,10 @@ export function MomentiaSidebar({
                                                     className="relative w-full group"
                                                 >
                                                     <item.icon
-                                                        className={`transition-transform duration-200 ${
-                                                            state === "expanded"
+                                                        className={`transition-transform duration-200 ${state === "expanded"
                                                                 ? "h-5 w-5"
                                                                 : "h-6 w-6 group-hover:scale-125"
-                                                        }`}
+                                                            }`}
                                                     />
                                                     {state === "expanded" && (
                                                         <span className="sidebar-menu-text">
@@ -269,10 +268,9 @@ export function MomentiaSidebar({
                                                     )}
                                                     {item.badge && (
                                                         <SidebarMenuBadge
-                                                            className={`sidebar-menu-badge ${
-                                                                item.badgeColor ||
+                                                            className={`sidebar-menu-badge ${item.badgeColor ||
                                                                 "bg-primary text-primary-foreground"
-                                                            } text-xs`}
+                                                                } text-xs`}
                                                         >
                                                             {item.badge}
                                                         </SidebarMenuBadge>
@@ -316,19 +314,17 @@ export function MomentiaSidebar({
                                         >
                                             <SidebarMenuButton
                                                 tooltip={item.title}
-                                                className={`group ${
-                                                    item.variant ===
-                                                    "destructive"
+                                                className={`group ${item.variant ===
+                                                        "destructive"
                                                         ? "text-destructive hover:text-destructive hover:bg-destructive/10"
                                                         : ""
-                                                }`}
+                                                    }`}
                                             >
                                                 <item.icon
-                                                    className={`transition-transform duration-200 ${
-                                                        state === "expanded"
+                                                    className={`transition-transform duration-200 ${state === "expanded"
                                                             ? "h-5 w-5"
                                                             : "h-6 w-6 group-hover:scale-125"
-                                                    }`}
+                                                        }`}
                                                 />
                                                 {state === "expanded" && (
                                                     <span>{item.title}</span>

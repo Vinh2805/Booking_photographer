@@ -35,6 +35,12 @@ Broadcast::channel('chat.booking.{Ma_BC}', function ($user, $Ma_BC) {
     if ($nag && $booking->Ma_NAG === $nag->Ma_NAG) {
         return true;
     }
+
+    // Cho phép Admin truy cập mọi cuộc trò chuyện booking
+    $admin = \App\Models\Admin::where('Ma_TK', $user->Ma_TK)->first();
+    if ($admin) {
+        return true;
+    }
     
     return false;
 });

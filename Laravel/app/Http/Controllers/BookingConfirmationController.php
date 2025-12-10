@@ -37,10 +37,34 @@ class BookingConfirmationController extends Controller
         if ($booking->Trang_Thai !== 'Chờ xác nhận')
             return response()->json(['message' => 'Buổi chụp không thể xác nhận ở trạng thái hiện tại.'], 400);
 
-        DB::transaction(function () use ($booking) {
+        DB::transaction(function () use ($booking, $nag) {
+            // 1. Cập nhật trạng thái booking được chọn
             $booking->Trang_Thai = 'Chờ đặt cọc';
             $booking->save();
             Log::info("Buổi chụp {$booking->Ma_BC} đã được xác nhận bởi nhiếp ảnh gia {$booking->Ma_NAG}");
+
+            // 2. Tìm và hủy các booking trùng giờ đang "Chờ xác nhận"
+            $startTime = $booking->Bat_Dau_Chup;
+            $endTime = $booking->Ket_Thuc_Chup;
+
+            $conflictingBookings = BuoiChup::where('Ma_NAG', $nag->Ma_NAG)
+                ->where('Ma_BC', '!=', $booking->Ma_BC) // Trừ booking hiện tại
+                ->where('Trang_Thai', 'Chờ xác nhận')   // Chỉ hủy các yêu cầu đang chờ
+                ->where(function ($query) use ($startTime, $endTime) {
+                    // Logic trùng lặp: (StartA < EndB) && (EndA > StartB)
+                    $query->where('Bat_Dau_Chup', '<', $endTime)
+                          ->where('Ket_Thuc_Chup', '>', $startTime);
+                })
+                ->get();
+
+            if ($conflictingBookings->count() > 0) {
+                foreach ($conflictingBookings as $conflict) {
+                    $conflict->Trang_Thai = 'Đã hủy';
+                    $conflict->Ly_Do_Huy = 'Nhiếp ảnh gia đã nhận lịch khác trùng khung giờ này (' . $booking->Ma_BC . ')';
+                    $conflict->save();
+                    Log::info("Tự động hủy booking {$conflict->Ma_BC} do trùng lịch với {$booking->Ma_BC}");
+                }
+            }
         });
 
         return response()->json([

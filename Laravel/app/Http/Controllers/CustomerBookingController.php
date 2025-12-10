@@ -116,7 +116,7 @@ class CustomerBookingController extends Controller
             'title' => $bc->Loai_Chup . ' - ' . $bc->Dia_Diem,
             'photographer' => [
                 'name' => $bc->nhaNhiepAnh?->taiKhoan?->Ho_Ten ?? 'Chưa chỉ định',
-                'avatar' => '', // Chưa có trong database
+                'avatar' => $bc->nhaNhiepAnh?->taiKhoan?->avatar_url ?? '',
                 'rating' => $rating,
                 'completedSessions' => $completedSessions,
             ],
@@ -182,7 +182,7 @@ class CustomerBookingController extends Controller
             'title' => $bc->Loai_Chup . ' - ' . $bc->Dia_Diem,
             'photographer' => [
                 'name' => $bc->nhaNhiepAnh?->taiKhoan?->Ho_Ten ?? 'Chưa chỉ định',
-                'avatar' => '', // Chưa có trong database
+                'avatar' => $bc->nhaNhiepAnh?->taiKhoan?->avatar_url ?? '',
                 'rating' => $bc->nhaNhiepAnh ? (float)DB::table('danh_gia')
                     ->where('Ma_NAG', $bc->nhaNhiepAnh->Ma_NAG)
                     ->avg('So_Sao') ?? 0 : 0,

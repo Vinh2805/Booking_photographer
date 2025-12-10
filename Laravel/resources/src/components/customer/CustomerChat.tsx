@@ -82,12 +82,14 @@ export function CustomerChat(_onBack: { onBack: () => void; initialBookingId?: s
 
     // Fetch tin nhắn khi chọn chat
     useEffect(() => {
-        if (selectedChat && selectedChat.bookingId && selectedChat.type !== "support") {
-            fetchMessages(selectedChat.bookingId);
-            // Subscribe WebSocket
-            subscribeToChat(selectedChat.bookingId);
-            // Đánh dấu đã đọc
-            markAsRead(selectedChat.bookingId);
+        if (selectedChat) {
+            if (selectedChat.type === "support") {
+                fetchSupportMessages();
+            } else if (selectedChat.bookingId) {
+                fetchMessages(selectedChat.bookingId);
+                subscribeToChat(selectedChat.bookingId);
+                markAsRead(selectedChat.bookingId);
+            }
         }
         
         return () => {
@@ -107,180 +109,95 @@ export function CustomerChat(_onBack: { onBack: () => void; initialBookingId?: s
     const fetchChatRooms = async () => {
         try {
             setLoading(true);
-            // Lấy danh sách bookings
-            const response = await apiClient.get("/customer/bookings");
-
-            console.log("📥 Customer bookings response:", response.data);
-
-            if (response.data && Array.isArray(response.data)) {
-                const bookings = response.data;
-                
-                // Nếu không có bookings, chỉ hiển thị support chat
-                if (bookings.length === 0) {
-                    const supportRoom: ChatRoom = {
-                        id: "support",
-                        type: "support" as const,
-                        participants: [
-                            {
-                                name: "Hỗ trợ Momentia",
-                                avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
-                                role: "Hỗ trợ khách hàng",
-                            },
-                        ],
-                        title: "Hỗ trợ khách hàng",
-                        lastMessage: "Cảm ơn bạn đã liên hệ! Tôi có thể giúp gì cho bạn?",
-                        lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                        }),
-                        unreadCount: 0,
-                        isOnline: true,
-                    };
-                    setChatRooms([supportRoom]);
-                    return;
-                }
-                
-                // Lấy tin nhắn chưa đọc để tính unread count
-                let unreadMap = new Map<string, number>();
-                try {
-                    const unreadMessages = await chatApi.getUnreadMessages();
-                    unreadMessages.forEach((msg) => {
-                        if (msg.Ma_BC) {
-                            unreadMap.set(msg.Ma_BC, (unreadMap.get(msg.Ma_BC) || 0) + 1);
-                        }
-                    });
-                } catch (error) {
-                    console.error("⚠️ Lỗi khi lấy tin nhắn chưa đọc:", error);
-                    // Tiếp tục với unreadMap rỗng
-                }
-
-                // Tạo chat rooms từ bookings và lấy tin nhắn cuối cùng cho mỗi booking
-                const roomsPromises = bookings.map(async (booking: any) => {
-                    try {
-                        // Lấy tin nhắn của booking này
-                        const bookingMessages = await chatApi.getMessagesByBooking(booking.id);
-                        const lastMsg = bookingMessages[bookingMessages.length - 1];
-                        
-                        return {
-                            id: booking.id,
-                            bookingId: booking.id,
-                            type: "direct" as const,
-                            participants: [
-                                {
-                                    name: booking.photographer?.name || "Nhiếp ảnh gia",
-                                    avatar: booking.photographer?.avatar || "",
-                                    role: "Nhiếp ảnh gia",
-                                },
-                            ],
-                            title: booking.photographer?.name || "Nhiếp ảnh gia",
-                            lastMessage: lastMsg?.Noi_Dung || "Chưa có tin nhắn",
-                            lastMessageTime: lastMsg?.Gui_Luc
-                                ? new Date(lastMsg.Gui_Luc).toLocaleTimeString("vi-VN", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                })
-                                : "",
-                            unreadCount: unreadMap.get(booking.id) || 0,
-                            isOnline: false,
-                        };
-                    } catch (error) {
-                        return {
-                            id: booking.id,
-                            bookingId: booking.id,
-                            type: "direct" as const,
-                            participants: [
-                                {
-                                    name: booking.photographer?.name || "Nhiếp ảnh gia",
-                                    avatar: booking.photographer?.avatar || "",
-                                    role: "Nhiếp ảnh gia",
-                                },
-                            ],
-                            title: booking.photographer?.name || "Nhiếp ảnh gia",
-                            lastMessage: "Chưa có tin nhắn",
-                            lastMessageTime: "",
-                            unreadCount: unreadMap.get(booking.id) || 0,
-                            isOnline: false,
-                        };
-                    }
-                });
-
-                const rooms: ChatRoom[] = await Promise.all(roomsPromises);
-
-                // Thêm support chat ở đầu
-                rooms.unshift({
-                    id: "support",
-                    type: "support" as const,
-                    participants: [
-                        {
-                            name: "Hỗ trợ Momentia",
-                            avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
-                            role: "Hỗ trợ khách hàng",
-                        },
-                    ],
-                    title: "Hỗ trợ khách hàng",
-                    lastMessage: "Cảm ơn bạn đã liên hệ! Tôi có thể giúp gì cho bạn?",
-                    lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                    }),
-                    unreadCount: 0,
-                    isOnline: true,
-                });
-
-                setChatRooms(rooms);
-            } else {
-                console.error("❌ Response không phải là array:", response.data);
-                // Vẫn hiển thị support chat nếu có lỗi
-                const supportRoom: ChatRoom = {
-                    id: "support",
-                    type: "support" as const,
-                    participants: [
-                        {
-                            name: "Hỗ trợ Momentia",
-                            avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
-                            role: "Hỗ trợ khách hàng",
-                        },
-                    ],
-                    title: "Hỗ trợ khách hàng",
-                    lastMessage: "Cảm ơn bạn đã liên hệ! Tôi có thể giúp gì cho bạn?",
-                    lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                    }),
-                    unreadCount: 0,
-                    isOnline: true,
-                };
-                setChatRooms([supportRoom]);
-                toast.error("Không thể tải danh sách buổi chụp. Vui lòng thử lại sau.");
-            }
-        } catch (error: any) {
-            console.error("❌ Lỗi khi tải chat rooms:", error);
-            console.error("❌ Error details:", error.response?.data || error.message);
             
-            // Hiển thị support chat ngay cả khi có lỗi
-            const supportRoom: ChatRoom = {
-                id: "support",
-                type: "support" as const,
-                participants: [
-                    {
+            // 1. Fetch support messages
+            let supportRoom: ChatRoom;
+            try {
+                const supportMsgs = await chatApi.getSupportMessages();
+                const lastMsg = supportMsgs.length > 0 ? supportMsgs[supportMsgs.length - 1] : null;
+                
+                supportRoom = {
+                    id: "support",
+                    type: "support" as const,
+                    participants: [{
                         name: "Hỗ trợ Momentia",
                         avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
                         role: "Hỗ trợ khách hàng",
-                    },
-                ],
-                title: "Hỗ trợ khách hàng",
-                lastMessage: "Cảm ơn bạn đã liên hệ! Tôi có thể giúp gì cho bạn?",
-                lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                }),
-                unreadCount: 0,
-                isOnline: true,
-            };
-            setChatRooms([supportRoom]);
-            
-            const errorMessage = error.response?.data?.message || error.message || "Không thể tải danh sách cuộc trò chuyện";
-            toast.error(errorMessage);
+                    }],
+                    title: "Hỗ trợ khách hàng",
+                    lastMessage: lastMsg?.Noi_Dung || "Cảm ơn bạn đã liên hệ! Tôi có thể giúp gì cho bạn?",
+                    lastMessageTime: lastMsg?.Gui_Luc 
+                        ? new Date(lastMsg.Gui_Luc).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+                        : new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+                    unreadCount: 0, 
+                    isOnline: true,
+                };
+            } catch (err) {
+                console.error("Failed to fetch support messages", err);
+                supportRoom = {
+                     id: "support",
+                     type: "support" as const,
+                     participants: [{
+                         name: "Hỗ trợ Momentia",
+                         avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
+                         role: "Hỗ trợ khách hàng",
+                     }],
+                     title: "Hỗ trợ khách hàng",
+                     lastMessage: "Cảm ơn bạn đã liên hệ! Tôi có thể giúp gì cho bạn?",
+                     lastMessageTime: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+                     unreadCount: 0,
+                     isOnline: true,
+                };
+            }
+
+            // 2. Fetch bookings
+            const response = await apiClient.get("/customer/bookings");
+            const bookings = (response.data && Array.isArray(response.data)) ? response.data : [];
+
+            // Lấy tin nhắn chưa đọc để tính unread count (support messages included?)
+            // Currently unread API might not separate support messages easily, assuming booking-based.
+            // Support logic for unread needs update in backend "unread" API if needed.
+
+           const roomsPromises = bookings.map(async (booking: any) => {
+                 try {
+                     const bookingMessages = await chatApi.getMessagesByBooking(booking.id);
+                     const lastMsg = bookingMessages[bookingMessages.length - 1];
+                     return {
+                         id: booking.id,
+                         bookingId: booking.id,
+                         type: "direct" as const,
+                         participants: [{
+                             name: booking.photographer?.name || "Nhiếp ảnh gia",
+                             avatar: booking.photographer?.avatar || "",
+                             role: "Nhiếp ảnh gia",
+                         }],
+                         title: booking.photographer?.name || "Nhiếp ảnh gia",
+                         lastMessage: lastMsg?.Noi_Dung || "Chưa có tin nhắn",
+                         lastMessageTime: lastMsg?.Gui_Luc ? new Date(lastMsg.Gui_Luc).toLocaleTimeString("vi-VN", {hour: "2-digit", minute: "2-digit"}) : "",
+                         unreadCount: 0, // Simplified for now
+                         isOnline: false,
+                     };
+                 } catch (e) {
+                     return {
+                         id: booking.id,
+                         bookingId: booking.id,
+                         type: "direct" as const,
+                         participants: [{ name: "Nhiếp ảnh gia", avatar: "", role: "Nhiếp ảnh gia" }],
+                         title: "Nhiếp ảnh gia",
+                         lastMessage: "Chưa có tin nhắn",
+                         lastMessageTime: "",
+                         unreadCount: 0,
+                         isOnline: false,
+                     };
+                 }
+           });
+
+           const bookingRooms = await Promise.all(roomsPromises);
+           setChatRooms([supportRoom, ...bookingRooms]);
+
+        } catch (error: any) {
+            console.error("❌ Lỗi khi tải chat rooms:", error);
+            toast.error("Không thể tải danh sách hội thoại");
         } finally {
             setLoading(false);
         }
@@ -316,6 +233,36 @@ export function CustomerChat(_onBack: { onBack: () => void; initialBookingId?: s
         } catch (error: any) {
             console.error("Lỗi khi tải tin nhắn:", error);
             toast.error("Không thể tải tin nhắn");
+        }
+    };
+
+    const fetchSupportMessages = async () => {
+        try {
+            const supportMsgs = await chatApi.getSupportMessages();
+            const formatted: Message[] = supportMsgs.map(msg => {
+                let sender: "customer" | "photographer" | "coordinator" | "support" = "customer";
+                
+                if (msg.Ma_Admin) {
+                    sender = "support";
+                } else if (msg.Ma_KH) {
+                    sender = "customer";
+                }
+    
+                return {
+                    id: msg.Ma_TN,
+                    Ma_TN: msg.Ma_TN,
+                    Ma_BC: msg.Ma_BC,
+                    sender,
+                    content: msg.Noi_Dung,
+                    timestamp: msg.Gui_Luc ? new Date(msg.Gui_Luc).toLocaleTimeString("vi-VN", {hour: '2-digit', minute:'2-digit'}) : "",
+                    type: "text",
+                    Trang_Thai: msg.Trang_Thai
+                };
+            });
+            setMessages(formatted);
+        } catch (e) {
+            console.error(e);
+            toast.error("Lỗi tin nhắn hỗ trợ");
         }
     };
 
@@ -425,14 +372,14 @@ export function CustomerChat(_onBack: { onBack: () => void; initialBookingId?: s
     );
 
     const sendMessage = async () => {
-        if (!messageInput.trim() || !selectedChat?.bookingId || sending) return;
+        if (!messageInput.trim() || !selectedChat || sending) return;
 
         try {
             setSending(true);
             
             // Gửi tin nhắn qua API
             const newMessage = await chatApi.sendMessage({
-                Ma_BC: selectedChat.bookingId,
+                Ma_BC: selectedChat.bookingId || null,
                 Noi_Dung: messageInput.trim(),
             });
 

@@ -14,10 +14,16 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Lấy token từ localStorage
-    // Ưu tiên customer_token, sau đó photographer_token
+    // Ưu tiên customer_token, sau đó photographer_token, rồi admin_token
     const customerToken = localStorage.getItem("customer_token");
     const photographerToken = localStorage.getItem("photographer_token");
-    const token = customerToken || photographerToken;
+    const adminToken = localStorage.getItem("admin_token");
+    const token = customerToken || photographerToken || adminToken;
+
+    // Nếu header Authoriztion đã được set thủ công (ví dụ từ chatApi), thì giữ nguyên và không warn
+    if (config.headers.Authorization) {
+      return config;
+    }
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -44,8 +50,10 @@ apiClient.interceptors.response.use(
       // Xóa token và redirect về trang đăng nhập
       localStorage.removeItem("customer_token");
       localStorage.removeItem("photographer_token");
+      localStorage.removeItem("admin_token");
       localStorage.removeItem("customer_info");
       localStorage.removeItem("photographer_info");
+      localStorage.removeItem("admin_info");
       // Có thể redirect về trang đăng nhập ở đây nếu cần
     }
     return Promise.reject(error);

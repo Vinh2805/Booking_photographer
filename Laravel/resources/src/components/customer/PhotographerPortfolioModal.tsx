@@ -61,8 +61,7 @@ export function PhotographerPortfolioModal({
     Dich_Vu: [] as string[],
     Anh_Minh_Hoa: null as File | null,
   });
-  const [services, setServices] = useState<any[]>([]);
-  const [basePrice, setBasePrice] = useState(0);
+  const [allServices, setAllServices] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -90,12 +89,13 @@ export function PhotographerPortfolioModal({
   }, [open, photographerId]);
 
   const loadServices = async () => {
+    if (!photographerId) return;
     try {
-      const response = await apiClient.get("/dich-vu");
-      setServices(response.data || []);
+      const response = await apiClient.get(`/nhiep-anh-gia/${photographerId}/dich-vu`);
+      setAllServices(response.data || []);
     } catch (error) {
       console.error("Lỗi khi tải danh sách dịch vụ:", error);
-      setServices([]);
+      setAllServices([]);
     }
   };
 
@@ -113,8 +113,6 @@ export function PhotographerPortfolioModal({
       console.log("Portfolio length:", response.data.portfolio?.length);
       console.log("Portfolio is array:", Array.isArray(response.data.portfolio));
       setPhotographer(response.data);
-      // Set base price from photographer
-      setBasePrice(response.data.priceMin || response.data.priceValue || 0);
     } catch (error: any) {
       console.error("Lỗi khi tải thông tin nhiếp ảnh gia:", error);
       toast.error("Không thể tải thông tin nhiếp ảnh gia");
@@ -123,27 +121,48 @@ export function PhotographerPortfolioModal({
     }
   };
 
-  // Genre options
-  const genres = [
-    "Chân dung",
-    "Cưới hỏi",
-    "Gia đình",
-    "Sự kiện",
-    "Sản phẩm",
-    "Thời trang",
-    "Phong cảnh",
-    "Đường phố",
-  ];
+  // Separate services and genres
+  const genresList = React.useMemo(() => {
+    return allServices.filter(s => s.Loai_DV === 1);
+  }, [allServices]);
+
+  const extraServices = React.useMemo(() => {
+    return allServices.filter(s => s.Loai_DV === 0 || s.Loai_DV === undefined); // Default to service if Loai_DV missing
+  }, [allServices]);
+
+  const contextsList = React.useMemo(() => {
+    return allServices.filter(s => s.Loai_DV === 3);
+  }, [allServices]);
 
   // Calculate total price
+  // Calculate total price
   const calculateTotalPrice = () => {
-    let total = basePrice;
+    let total = 0;
+
+    // Sum Extra Services (by ID)
     bookingData.Dich_Vu.forEach((serviceId) => {
-      const service = services.find((s) => s.Ma_DV === serviceId);
+      const service = allServices.find((s) => s.Ma_DV === serviceId);
       if (service) {
         total += parseFloat(service.Gia || 0);
       }
     });
+
+    // Sum Genres (by Name)
+    bookingData.The_Loai_Chup.forEach((genreName) => {
+      const genre = allServices.find((s) => s.Ten_DV === genreName && s.Loai_DV === 1);
+      if (genre) {
+        total += parseFloat(genre.Gia || 0);
+      }
+    });
+
+    // Sum Context (by Name)
+    if (bookingData.Boi_Canh_Chup) {
+      const context = allServices.find((s) => s.Ten_DV === bookingData.Boi_Canh_Chup && s.Loai_DV === 3);
+      if (context) {
+        total += parseFloat(context.Gia || 0);
+      }
+    }
+
     return total;
   };
 
@@ -207,7 +226,7 @@ export function PhotographerPortfolioModal({
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!photographerId) return;
 
     // Validate required fields
@@ -241,7 +260,7 @@ export function PhotographerPortfolioModal({
 
     const startDateTimeStr = formatDateTimeForServer(bookingData.Bat_Dau_Chup);
     const endDateTimeStr = formatDateTimeForServer(bookingData.Ket_Thuc_Chup);
-    
+
     // Validate: Parse để kiểm tra nhưng không dùng để gửi
     const startDate = new Date(bookingData.Bat_Dau_Chup);
     const endDate = new Date(bookingData.Ket_Thuc_Chup);
@@ -259,7 +278,7 @@ export function PhotographerPortfolioModal({
 
     try {
       setSubmitting(true);
-      
+
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("Ma_NAG", photographerId);
@@ -272,7 +291,7 @@ export function PhotographerPortfolioModal({
       formData.append("Ghi_Chu", bookingData.Ghi_Chu || "");
       formData.append("Dich_Vu", JSON.stringify(bookingData.Dich_Vu));
       formData.append("Tong_Tien", calculateTotalPrice().toString());
-      
+
       if (bookingData.Anh_Minh_Hoa) {
         formData.append("Anh_Minh_Hoa", bookingData.Anh_Minh_Hoa);
       }
@@ -332,357 +351,343 @@ export function PhotographerPortfolioModal({
             <div className="text-center py-8">Đang tải...</div>
           ) : photographer ? (
             <div className="space-y-6">
-            {/* Photographer Info */}
-            <div className="flex items-center gap-4">
-              <ImageWithFallback
-                src={photographer.avatar}
-                alt={photographer.name}
-                className="w-16 h-16 rounded-full object-cover"
-              />
-              <div>
-                <h3 className="font-semibold text-lg">{photographer.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {photographer.location} • {photographer.experience} năm kinh nghiệm
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm font-medium">
-                    ⭐ {photographer.rating}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    ({photographer.reviewCount} đánh giá)
-                  </span>
+              {/* Photographer Info */}
+              <div className="flex items-center gap-4">
+                <ImageWithFallback
+                  src={photographer.avatar}
+                  alt={photographer.name}
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+                <div>
+                  <h3 className="font-semibold text-lg">{photographer.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {photographer.location} • {photographer.experience} năm kinh nghiệm
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-sm font-medium">
+                      ⭐ {photographer.rating}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      ({photographer.reviewCount} đánh giá)
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Portfolio Grid */}
-            {(() => {
-              console.log("Rendering portfolio section");
-              console.log("photographer.portfolio:", photographer.portfolio);
-              console.log("Is array:", Array.isArray(photographer.portfolio));
-              console.log("Length:", photographer.portfolio?.length);
-              
-              const portfolio = photographer.portfolio || [];
-              const hasPortfolio = Array.isArray(portfolio) && portfolio.length > 0;
-              
-              if (hasPortfolio) {
-                return (
-                  <div>
-                    <h4 className="font-semibold mb-4">Portfolio ({portfolio.length} ảnh)</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {portfolio.map((img: string, index: number) => {
-                        console.log(`Portfolio image ${index}:`, img);
-                        return (
-                          <div key={index} className="relative aspect-square">
-                            <ImageWithFallback
-                              src={img}
-                              alt={`Portfolio ${index + 1}`}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              } else {
-                return (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>Chưa có portfolio</p>
-                  </div>
-                );
-              }
-            })()}
+              {/* Portfolio Grid */}
+              {(() => {
+                console.log("Rendering portfolio section");
+                console.log("photographer.portfolio:", photographer.portfolio);
+                console.log("Is array:", Array.isArray(photographer.portfolio));
+                console.log("Length:", photographer.portfolio?.length);
 
-            {/* Booking Form */}
-            {!showBookingForm ? (
-              <div className="flex justify-center pt-4">
-                <Button
-                  onClick={() => setShowBookingForm(true)}
-                  className="w-full"
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Đặt lịch hẹn
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleBookingSubmit} className="space-y-6 pt-4 border-t">
-                <h4 className="font-semibold text-lg">Thông tin đặt lịch</h4>
-                
-                {/* Tiêu đề */}
-                <div>
-                  <Label htmlFor="tieu_de">Tiêu đề (tùy chọn)</Label>
-                  <Input
-                    id="tieu_de"
-                    value={bookingData.Tieu_De}
-                    onChange={(e) =>
-                      setBookingData({ ...bookingData, Tieu_De: e.target.value })
-                    }
-                    placeholder="Nhập tiêu đề cho buổi chụp..."
-                  />
-                </div>
+                const portfolio = photographer.portfolio || [];
+                const hasPortfolio = Array.isArray(portfolio) && portfolio.length > 0;
 
-                {/* Thể loại chụp ảnh - Bắt buộc */}
-                <div>
-                  <Label>
-                    Thể loại chụp ảnh <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {genres.map((genre) => (
-                      <div
-                        key={genre}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`genre-${genre}`}
-                          checked={bookingData.The_Loai_Chup.includes(genre)}
-                          onCheckedChange={() => handleGenreToggle(genre)}
-                        />
-                        <Label
-                          htmlFor={`genre-${genre}`}
-                          className="font-normal cursor-pointer"
-                        >
-                          {genre}
-                        </Label>
+                if (hasPortfolio) {
+                  return (
+                    <div>
+                      <h4 className="font-semibold mb-4">Portfolio ({portfolio.length} ảnh)</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {portfolio.map((img: string, index: number) => {
+                          console.log(`Portfolio image ${index}:`, img);
+                          return (
+                            <div key={index} className="relative aspect-square">
+                              <ImageWithFallback
+                                src={img}
+                                alt={`Portfolio ${index + 1}`}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
-                  {bookingData.The_Loai_Chup.length === 0 && (
-                    <p className="text-sm text-red-500 mt-1">
-                      Vui lòng chọn ít nhất một thể loại
-                    </p>
-                  )}
-                </div>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>Chưa có portfolio</p>
+                    </div>
+                  );
+                }
+              })()}
 
-                {/* Bối cảnh chụp ảnh - Bắt buộc */}
-                <div>
-                  <Label>
-                    Bối cảnh chụp ảnh <span className="text-red-500">*</span>
-                  </Label>
-                  <RadioGroup
-                    value={bookingData.Boi_Canh_Chup}
-                    onValueChange={(value) =>
-                      setBookingData({
-                        ...bookingData,
-                        Boi_Canh_Chup: value as "Ngoài trời" | "Trong nhà" | "Kết hợp",
-                      })
-                    }
-                    className="mt-2"
+              {/* Booking Form */}
+              {!showBookingForm ? (
+                <div className="flex justify-center pt-4">
+                  <Button
+                    onClick={() => setShowBookingForm(true)}
+                    className="w-full"
                   >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Ngoài trời" id="boi_canh_ngoai_troi" />
-                      <Label htmlFor="boi_canh_ngoai_troi" className="font-normal cursor-pointer">
-                        Ngoài trời
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Trong nhà" id="boi_canh_trong_nha" />
-                      <Label htmlFor="boi_canh_trong_nha" className="font-normal cursor-pointer">
-                        Trong nhà
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Kết hợp" id="boi_canh_ket_hop" />
-                      <Label htmlFor="boi_canh_ket_hop" className="font-normal cursor-pointer">
-                        Kết hợp
-                      </Label>
-                    </div>
-                  </RadioGroup>
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Đặt lịch hẹn
+                  </Button>
                 </div>
+              ) : (
+                <form onSubmit={handleBookingSubmit} className="space-y-6 pt-4 border-t">
+                  <h4 className="font-semibold text-lg">Thông tin đặt lịch</h4>
 
-                {/* Địa điểm - Bắt buộc */}
-                <div>
-                  <Label htmlFor="dia_diem">
-                    Địa điểm <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="dia_diem"
-                    value={bookingData.Dia_Diem}
-                    onChange={(e) =>
-                      setBookingData({ ...bookingData, Dia_Diem: e.target.value })
-                    }
-                    placeholder="Nhập địa điểm chụp"
-                    required
-                  />
-                </div>
-
-                {/* Thời gian - Bắt buộc */}
-                <div className="grid grid-cols-2 gap-4">
+                  {/* Tiêu đề */}
                   <div>
-                    <Label htmlFor="bat_dau">
-                      Thời gian bắt đầu <span className="text-red-500">*</span>
-                    </Label>
+                    <Label htmlFor="tieu_de">Tiêu đề (tùy chọn)</Label>
                     <Input
-                      id="bat_dau"
-                      type="datetime-local"
-                      value={bookingData.Bat_Dau_Chup}
+                      id="tieu_de"
+                      value={bookingData.Tieu_De}
                       onChange={(e) =>
-                        setBookingData({
-                          ...bookingData,
-                          Bat_Dau_Chup: e.target.value,
-                        })
+                        setBookingData({ ...bookingData, Tieu_De: e.target.value })
                       }
-                      min={new Date().toISOString().slice(0, 16)}
-                      required
+                      placeholder="Nhập tiêu đề cho buổi chụp..."
                     />
                   </div>
+
+                  {/* Thể loại chụp ảnh - Bắt buộc */}
                   <div>
-                    <Label htmlFor="ket_thuc">
-                      Thời gian kết thúc <span className="text-red-500">*</span>
+                    <Label>
+                      Thể loại chụp ảnh <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id="ket_thuc"
-                      type="datetime-local"
-                      value={bookingData.Ket_Thuc_Chup}
-                      onChange={(e) =>
-                        setBookingData({
-                          ...bookingData,
-                          Ket_Thuc_Chup: e.target.value,
-                        })
-                      }
-                      min={bookingData.Bat_Dau_Chup || new Date().toISOString().slice(0, 16)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Mô tả chi tiết */}
-                <div>
-                  <Label htmlFor="ghi_chu">Mô tả chi tiết (tùy chọn)</Label>
-                  <Textarea
-                    id="ghi_chu"
-                    value={bookingData.Ghi_Chu}
-                    onChange={(e) =>
-                      setBookingData({ ...bookingData, Ghi_Chu: e.target.value })
-                    }
-                    placeholder="Mô tả chi tiết về buổi chụp, concept, yêu cầu đặc biệt..."
-                    rows={4}
-                  />
-                </div>
-
-                {/* Dịch vụ đi kèm */}
-                {services.length > 0 && (
-                  <div>
-                    <Label>Dịch vụ đi kèm (tùy chọn)</Label>
-                    <div className="space-y-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-3">
-                      {services.map((service) => (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {genresList.map((genre) => (
                         <div
-                          key={service.Ma_DV}
-                          className="flex items-center justify-between p-2 hover:bg-accent rounded"
+                          key={genre.Ma_DV}
+                          className="flex items-center space-x-2"
                         >
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`service-${service.Ma_DV}`}
-                              checked={bookingData.Dich_Vu.includes(service.Ma_DV)}
-                              onCheckedChange={() => handleServiceToggle(service.Ma_DV)}
-                            />
-                            <Label
-                              htmlFor={`service-${service.Ma_DV}`}
-                              className="font-normal cursor-pointer"
-                            >
-                              {service.Ten_DV}
-                            </Label>
-                          </div>
-                          <span className="text-sm font-medium">
-                            {formatPrice(parseFloat(service.Gia || 0))}
-                          </span>
+                          <Checkbox
+                            id={`genre-${genre.Ma_DV}`}
+                            checked={bookingData.The_Loai_Chup.includes(genre.Ten_DV)}
+                            onCheckedChange={() => handleGenreToggle(genre.Ten_DV)}
+                          />
+                          <Label
+                            htmlFor={`genre-${genre.Ma_DV}`}
+                            className="font-normal cursor-pointer"
+                          >
+                            {genre.Ten_DV} ({formatPrice(genre.Gia || 0)})
+                          </Label>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {/* Ảnh minh họa */}
-                <div>
-                  <Label>Ảnh minh họa (tùy chọn)</Label>
-                  <div className="mt-2">
-                    {previewImage ? (
-                      <div className="relative">
-                        <img
-                          src={previewImage}
-                          alt="Preview"
-                          className="w-full h-48 object-cover rounded-lg border"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2"
-                          onClick={removeImage}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                          <p className="mb-2 text-sm text-muted-foreground">
-                            <span className="font-semibold">Click để upload</span> hoặc kéo thả
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            PNG, JPG (MAX. 5MB)
-                          </p>
-                        </div>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/png,image/jpeg,image/jpg"
-                          aria-label="Tải lên ảnh minh họa"
-                          onChange={handleImageUpload}
-                        />
-                      </label>
+                    {bookingData.The_Loai_Chup.length === 0 && (
+                      <p className="text-sm text-red-500 mt-1">
+                        Vui lòng chọn ít nhất một thể loại
+                      </p>
                     )}
                   </div>
-                </div>
 
-                {/* Tổng chi phí */}
-                <div className="bg-muted p-4 rounded-lg space-y-2">
-                  <div className="flex justify-between">
-                    <span>Giá cơ bản:</span>
-                    <span className="font-semibold">{formatPrice(basePrice)}</span>
+                  {/* Bối cảnh chụp ảnh - Bắt buộc */}
+                  <div>
+                    <Label>
+                      Bối cảnh chụp ảnh <span className="text-red-500">*</span>
+                    </Label>
+                    <RadioGroup
+                      value={bookingData.Boi_Canh_Chup}
+                      onValueChange={(value) =>
+                        setBookingData({
+                          ...bookingData,
+                          Boi_Canh_Chup: value as any,
+                        })
+                      }
+                      className="mt-2"
+                    >
+                      {contextsList.map((context) => (
+                        <div key={context.Ma_DV} className="flex items-center space-x-2">
+                          <RadioGroupItem value={context.Ten_DV} id={`context-${context.Ma_DV}`} />
+                          <Label htmlFor={`context-${context.Ma_DV}`} className="font-normal cursor-pointer">
+                            {context.Ten_DV} ({formatPrice(context.Gia || 0)})
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
                   </div>
-                  {bookingData.Dich_Vu.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="text-sm text-muted-foreground">Dịch vụ đã chọn:</div>
-                      {bookingData.Dich_Vu.map((serviceId) => {
-                        const service = services.find((s) => s.Ma_DV === serviceId);
-                        if (!service) return null;
-                        return (
-                          <div key={serviceId} className="flex justify-between text-sm">
-                            <span>• {service.Ten_DV}</span>
-                            <span>{formatPrice(parseFloat(service.Gia || 0))}</span>
+
+                  {/* Địa điểm - Bắt buộc */}
+                  <div>
+                    <Label htmlFor="dia_diem">
+                      Địa điểm <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="dia_diem"
+                      value={bookingData.Dia_Diem}
+                      onChange={(e) =>
+                        setBookingData({ ...bookingData, Dia_Diem: e.target.value })
+                      }
+                      placeholder="Nhập địa điểm chụp"
+                      required
+                    />
+                  </div>
+
+                  {/* Thời gian - Bắt buộc */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="bat_dau">
+                        Thời gian bắt đầu <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="bat_dau"
+                        type="datetime-local"
+                        value={bookingData.Bat_Dau_Chup}
+                        onChange={(e) =>
+                          setBookingData({
+                            ...bookingData,
+                            Bat_Dau_Chup: e.target.value,
+                          })
+                        }
+                        min={new Date().toISOString().slice(0, 16)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ket_thuc">
+                        Thời gian kết thúc <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="ket_thuc"
+                        type="datetime-local"
+                        value={bookingData.Ket_Thuc_Chup}
+                        onChange={(e) =>
+                          setBookingData({
+                            ...bookingData,
+                            Ket_Thuc_Chup: e.target.value,
+                          })
+                        }
+                        min={bookingData.Bat_Dau_Chup || new Date().toISOString().slice(0, 16)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mô tả chi tiết */}
+                  <div>
+                    <Label htmlFor="ghi_chu">Mô tả chi tiết (tùy chọn)</Label>
+                    <Textarea
+                      id="ghi_chu"
+                      value={bookingData.Ghi_Chu}
+                      onChange={(e) =>
+                        setBookingData({ ...bookingData, Ghi_Chu: e.target.value })
+                      }
+                      placeholder="Mô tả chi tiết về buổi chụp, concept, yêu cầu đặc biệt..."
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* Dịch vụ đi kèm */}
+                  {extraServices.length > 0 && (
+                    <div>
+                      <Label>Dịch vụ đi kèm (tùy chọn)</Label>
+                      <div className="space-y-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                        {extraServices.map((service) => (
+                          <div
+                            key={service.Ma_DV}
+                            className="flex items-center justify-between p-2 hover:bg-accent rounded"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`service-${service.Ma_DV}`}
+                                checked={bookingData.Dich_Vu.includes(service.Ma_DV)}
+                                onCheckedChange={() => handleServiceToggle(service.Ma_DV)}
+                              />
+                              <Label
+                                htmlFor={`service-${service.Ma_DV}`}
+                                className="font-normal cursor-pointer"
+                              >
+                                {service.Ten_DV}
+                              </Label>
+                            </div>
+                            <span className="text-sm font-medium">
+                              {formatPrice(parseFloat(service.Gia || 0))}
+                            </span>
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
                   )}
-                  <div className="border-t pt-2 flex justify-between font-bold text-lg">
-                    <span>Tổng chi phí:</span>
-                    <span className="text-primary">{formatPrice(calculateTotalPrice())}</span>
-                  </div>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowBookingForm(false)}
-                    className="flex-1"
-                  >
-                    Hủy
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={submitting || !isFormValid()}
-                    className="flex-1"
-                  >
-                    {submitting ? "Đang gửi..." : "Xác nhận đặt lịch"}
-                  </Button>
-                </div>
-              </form>
-            )}
+                  {/* Ảnh minh họa */}
+                  <div>
+                    <Label>Ảnh minh họa (tùy chọn)</Label>
+                    <div className="mt-2">
+                      {previewImage ? (
+                        <div className="relative">
+                          <img
+                            src={previewImage}
+                            alt="Preview"
+                            className="w-full h-48 object-cover rounded-lg border"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 right-2"
+                            onClick={removeImage}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent">
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                            <p className="mb-2 text-sm text-muted-foreground">
+                              <span className="font-semibold">Click để upload</span> hoặc kéo thả
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              PNG, JPG (MAX. 5MB)
+                            </p>
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/png,image/jpeg,image/jpg"
+                            aria-label="Tải lên ảnh minh họa"
+                            onChange={handleImageUpload}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tổng chi phí */}
+                  <div className="bg-muted p-4 rounded-lg space-y-2">
+                    {bookingData.Dich_Vu.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-sm text-muted-foreground">Dịch vụ đã chọn:</div>
+                        {bookingData.Dich_Vu.map((serviceId) => {
+                          const service = extraServices.find((s) => s.Ma_DV === serviceId);
+                          if (!service) return null;
+                          return (
+                            <div key={serviceId} className="flex justify-between text-sm">
+                              <span>• {service.Ten_DV}</span>
+                              <span>{formatPrice(parseFloat(service.Gia || 0))}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                      <span>Tổng chi phí:</span>
+                      <span className="text-primary">{formatPrice(calculateTotalPrice())}</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowBookingForm(false)}
+                      className="flex-1"
+                    >
+                      Hủy
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={submitting || !isFormValid()}
+                      className="flex-1"
+                    >
+                      {submitting ? "Đang gửi..." : "Xác nhận đặt lịch"}
+                    </Button>
+                  </div>
+                </form>
+              )}
             </div>
           ) : null}
         </div>

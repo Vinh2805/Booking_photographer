@@ -115,7 +115,7 @@ class BuoiChupController extends Controller
             // Tự động cập nhật trạng thái trước khi lấy chi tiết
             $this->autoUpdateBookingStatus();
             
-            $booking = BuoiChup::with(['khachHang.taiKhoan', 'nhaNhiepAnh'])
+            $booking = BuoiChup::with(['khachHang.taiKhoan', 'nhaNhiepAnh', 'dichVu'])
                 ->where('Ma_BC', $id)
                 ->firstOrFail();
 
@@ -434,6 +434,7 @@ class BuoiChupController extends Controller
             'title' => trim(($booking->Loai_Chup ?: '') . ' - ' . ($booking->Dia_Diem ?: '')),
             'customer' => [
                 'name' => $taiKhoan->Ho_Ten ?? 'Khách hàng',
+                'avatar' => $taiKhoan->avatar_url ?? null,
             ],
             'date' => $start->toDateString(),
             'time' => $start->format('H:i'),
@@ -498,9 +499,10 @@ class BuoiChupController extends Controller
             'id' => $booking->Ma_BC,
             'status' => $this->mapStatusToFe($booking->Trang_Thai),
             'title' => $booking->Loai_Chup,
+            'context_text' => $booking->Boi_Canh_Chup,
             'customer' => [
                 'name' => $taiKhoan->Ho_Ten ?? 'Khách hàng',
-                'avatar' => null, // Avatar field doesn't exist in tai_khoan table
+                'avatar' => $taiKhoan->avatar_url ?? null,
                 'email' => $taiKhoan->Email_TK ?? null,
                 'phone' => $taiKhoan->So_ĐT ?? null,
             ],
@@ -529,6 +531,11 @@ class BuoiChupController extends Controller
             'totalPaid' => $totalPaid,
             'scheduledDateTime' => $start->toDateTimeString(), // Thêm thời gian hẹn để frontend kiểm tra
             'sessionEnded' => $sessionEnded, // Đánh dấu buổi chụp đã từng được kết thúc
+            'services' => [
+                'genre' => $booking->dichVu->where('Loai_DV', 1)->values(),
+                'context' => $booking->dichVu->where('Loai_DV', 3)->values(),
+                'extras' => $booking->dichVu->where('Loai_DV', 0)->values(),
+            ]
         ];
     }
 

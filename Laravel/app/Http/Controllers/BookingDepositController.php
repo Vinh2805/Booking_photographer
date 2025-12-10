@@ -191,6 +191,36 @@ if ($validated['payment_method'] === 'vnpay') {
                 }
             }
 
+            // ➕ Cộng tiền hoa hồng cho Admin (20%)
+            $adminShareRate = 0.20;
+            $adminAmount = round($depositAmt * $adminShareRate, 2);
+            
+            // Tìm tài khoản Admin (lấy admin đầu tiên)
+            $admin = \App\Models\Admin::first();
+            if ($admin) {
+                $soDuTruocAdmin = (float) ($admin->So_Du ?? 0);
+                $admin->So_Du = $soDuTruocAdmin + $adminAmount;
+                $admin->save();
+
+                WalletTransaction::createTransaction(
+                    'admin',
+                    $admin->Ma_Admin,
+                    'nhan_tien',
+                    $adminAmount,
+                    $soDuTruocAdmin,
+                    (float) $admin->So_Du,
+                    $ma_bc,
+                    $maTT,
+                    "Hoa hồng 20% từ đặt cọc buổi chụp {$ma_bc}",
+                    null,
+                    null,
+                    null,
+                    $charge['transaction_id'] ?? null
+                );
+            } else {
+                Log::warning("Không tìm thấy Admin để cộng tiền hoa hồng đặt cọc!", ['ma_bc' => $ma_bc]);
+            }
+
             $booking->Trang_Thai = 'Chờ thanh toán';
             $booking->save();
 

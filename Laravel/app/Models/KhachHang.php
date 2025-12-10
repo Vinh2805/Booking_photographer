@@ -29,4 +29,9 @@ class KhachHang extends Model
     {
         return $this->belongsTo(User::class, 'Ma_TK', 'Ma_TK');
     }
+
+    public function buoiChups()
+    {
+        return $this->hasMany(BuoiChup::class, 'Ma_KH', 'Ma_KH');
+    }
 }

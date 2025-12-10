@@ -5,18 +5,13 @@ import { AdminCustomers } from "./admin/AdminCustomers";
 import { AdminPhotographers } from "./admin/AdminPhotographers";
 import { AdminBookings } from "./admin/AdminBookings";
 import { AdminSettings } from "./admin/AdminSettings";
+import { AdminWallet } from "./admin/AdminWallet";
+import { AdminChat } from "./admin/AdminChat";
 import { ThemeToggle } from "./ui/theme-toggle";
-import { NotificationDropdown } from "./NotificationDropdown";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
-import {
-  ArrowLeft,
-  BarChart3,
-  Users,
-  Camera,
-  Calendar,
-  Settings,
-  LogOut,
-} from "lucide-react";
+import { AdminLayout } from "./admin/AdminLayout";
+import { AdminServices } from "./admin/AdminServices";
 
 interface AdminAppProps {
   onBack: () => void;
@@ -27,7 +22,10 @@ type AdminTab =
   | "customers"
   | "photographers"
   | "bookings"
-  | "settings";
+  | "chat"
+  | "services"
+  | "settings"
+  | "wallet";
 
 export function AdminApp({ onBack }: AdminAppProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -38,16 +36,16 @@ export function AdminApp({ onBack }: AdminAppProps) {
 
   const handleLogout = async () => {
     try {
-        const token = localStorage.getItem("admin_token");
-        await fetch('/api/logout', { // Or /api/admin/logout if you separate them
-            method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            }
-        });
-    } catch(e) { console.error("Logout failed", e); }
-    
+      const token = localStorage.getItem("admin_token");
+      await fetch('/api/logout', { // Or /api/admin/logout if you separate them
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+    } catch (e) { console.error("Logout failed", e); }
+
     localStorage.removeItem("admin_token");
     setIsAuthenticated(false);
     setActiveTab("dashboard");
@@ -99,6 +97,12 @@ export function AdminApp({ onBack }: AdminAppProps) {
             onClearSelection={() => setSelectedBookingId(undefined)}
           />
         );
+      case "wallet":
+        return <AdminWallet />;
+      case "chat":
+        return <AdminChat />;
+      case "services":
+        return <AdminServices />;
       case "settings":
         return <AdminSettings onLogout={handleLogout} />;
       default:
@@ -108,70 +112,32 @@ export function AdminApp({ onBack }: AdminAppProps) {
     }
   };
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-    { id: "customers", label: "Khách hàng", icon: Users },
-    { id: "photographers", label: "Nhiếp ảnh gia", icon: Camera },
-    { id: "bookings", label: "Buổi chụp", icon: Calendar },
-    { id: "settings", label: "Cài đặt", icon: Settings },
-  ];
+  const getPageTitle = (tab: AdminTab) => {
+    switch (tab) {
+      case "dashboard": return "Tổng quan hệ thống";
+      case "customers": return "Quản lý khách hàng";
+      case "photographers": return "Quản lý nhiếp ảnh gia";
+      case "bookings": return "Quản lý buổi chụp";
+      case "settings": return "Cài đặt hệ thống";
+      case "wallet": return "Ví cá nhân";
+      case "chat": return "Hỗ trợ trực tuyến";
+      default: return "Admin Panel";
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
-      {/* Fixed Header */}
-      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/50 dark:border-slate-700/50 p-4 flex items-center justify-between shadow-sm">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          Admin Dashboard
-        </h1>
-        <div className="flex items-center gap-4">
-            <NotificationDropdown />
-            <ThemeToggle />
-            <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleLogout} 
-                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                title="Đăng xuất"
-            >
-                <LogOut className="w-5 h-5" />
-            </Button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-auto pb-20">{renderContent()}</div>
-
-      {/* Fixed Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-t border-slate-200/50 dark:border-slate-700/50 shadow-lg">
-        <div className="grid grid-cols-5 text-xs max-w-md mx-auto">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => {
-                setActiveTab(id as AdminTab);
-                if (id !== "bookings") {
-                  setSelectedBookingId(undefined);
-                }
-              }}
-              className={`relative py-3 px-2 text-center transition-all duration-200 ${
-                activeTab === id
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-              }`}
-            >
-              <Icon
-                className={`w-4 h-4 mx-auto mb-1 transition-transform duration-200 ${
-                  activeTab === id ? "scale-110" : ""
-                }`}
-              />
-              <div className="font-medium">{label}</div>
-              {activeTab === id && (
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-full"></div>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <AdminLayout
+        activeTab={activeTab}
+        onNavigate={(tab) => {
+          setActiveTab(tab as AdminTab);
+          if (tab !== "bookings") setSelectedBookingId(undefined);
+        }}
+        onLogout={handleLogout}
+        title={getPageTitle(activeTab)}
+      >
+        {renderContent()}
+      </AdminLayout>
     </div>
   );
 }

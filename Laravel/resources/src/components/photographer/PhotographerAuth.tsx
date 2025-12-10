@@ -67,50 +67,50 @@ export function PhotographerAuth({ onLogin, onBack }: PhotographerAuthProps) {
     });
 
     // 🟢 ĐĂNG NHẬP
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    const res = await apiClient.post("/nhiep-anh-gia/dang-nhap", {
-      Email_TK: loginForm.email,
-      Mat_Khau: loginForm.password,
-    });
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const res = await apiClient.post("/nhiep-anh-gia/dang-nhap", {
+                Email_TK: loginForm.email,
+                Mat_Khau: loginForm.password,
+            });
 
-    const data = res.data;
-    localStorage.setItem("photographer_token", data.token);
-    localStorage.setItem("photographer_info", JSON.stringify(data.user));
+            const data = res.data;
+            localStorage.setItem("photographer_token", data.token);
+            localStorage.setItem("photographer_info", JSON.stringify(data.user));
 
-    alert("✅ Đăng nhập thành công!");
-    onLogin();
-  } catch (err: any) {
-    alert(err.response?.data?.message || "❌ Sai email hoặc mật khẩu!");
-  }
-};
+            alert("✅ Đăng nhập thành công!");
+            onLogin();
+        } catch (err: any) {
+            alert(err.response?.data?.message || "❌ Sai email hoặc mật khẩu!");
+        }
+    };
 
-// 🟡 ĐĂNG KÝ
-const handleRegister = async (e: React.FormEvent) => {
-  e.preventDefault();
+    // 🟡 ĐĂNG KÝ
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-  if (registerForm.password !== registerForm.confirmPassword) {
-    alert("⚠️ Mật khẩu xác nhận không khớp!");
-    return;
-  }
+        if (registerForm.password !== registerForm.confirmPassword) {
+            alert("⚠️ Mật khẩu xác nhận không khớp!");
+            return;
+        }
 
-  try {
-    const res = await apiClient.post("/nhiep-anh-gia/dang-ky", {
-      Ho_Ten: registerForm.fullName,
-      Email_TK: registerForm.email,
-      Mat_Khau: registerForm.password,
-      Mat_Khau_confirmation: registerForm.confirmPassword,
-    });
+        try {
+            const res = await apiClient.post("/nhiep-anh-gia/dang-ky", {
+                Ho_Ten: registerForm.fullName,
+                Email_TK: registerForm.email,
+                Mat_Khau: registerForm.password,
+                Mat_Khau_confirmation: registerForm.confirmPassword,
+            });
 
-    alert("✅ Đăng ký thành công!");
-    navigate("/photographer-auth-login");
-  } catch (err: any) {
-    alert(err.response?.data?.message || "❌ Đăng ký thất bại!");
-  }
-};
+            alert("✅ Đăng ký thành công!");
+            navigate("/photographer-auth-login");
+        } catch (err: any) {
+            alert(err.response?.data?.message || "❌ Đăng ký thất bại!");
+        }
+    };
 
-    
+
 
     const handleSocialLogin = (provider: string) => {
         alert(`Đăng nhập với ${provider} (tính năng đang phát triển)`);

@@ -14,25 +14,64 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(AdminSeeder::class);
+        $this->seedAdmins();
         $this->seedUsers();
         $this->seedCustomers();
         $this->seedPhotographers();
+        
+        // Seed Dịch vụ (Gói chụp, Bối cảnh, Dịch vụ thêm)
+        $this->seedServices();
+
+        // Seed Pivot
+        $this->seedPhotographerServices();
+        
         $this->seedBookings();
         $this->seedPayments();
         $this->seedMessages();
         $this->seedReviews();
         
-        // 💼 Bảng dịch vụ
-        $this->call(DichVuSeeder::class);
     }
 
     /**
-     * Seed tài khoản
+     * Seed Admin
+     */
+    private function seedAdmins(): void 
+    {
+        // 1. Tạo tài khoản admin
+        $existingUser = DB::table('tai_khoan')->where('Ma_TK', 'TKADM')->first();
+        
+        if (!$existingUser) {
+            DB::table('tai_khoan')->insert([
+                'Ma_TK' => 'TKADM',
+                'Ho_Ten' => 'Admin User',
+                'So_ĐT' => '0900000000',
+                'Email_TK' => 'admin@gmail.com',
+                'Mat_Khau' => Hash::make('12345678'),
+                'Loai_TK' => 'Admin',
+                'Hinh_Thuc_Dang_Nhap' => 'User-registered',
+                'Gioi_Thieu' => 'Quản trị viên hệ thống',
+                'created_at' => now(),
+            ]);
+        }
+
+        // 2. Tạo thông tin admin detail
+        $existingAdmin = DB::table('admins')->where('Ma_Admin', 'ADM001')->first();
+
+        if (!$existingAdmin) {
+            DB::table('admins')->insert([
+                'Ma_Admin' => 'ADM001',
+                'Ma_TK' => 'TKADM',
+                'So_Du' => 0,
+            ]);
+        }
+    }
+
+    /**
+     * Seed tài khoản Users
      */
     private function seedUsers(): void
     {
-        if (DB::table('tai_khoan')->count() > 0) {
+        if (DB::table('tai_khoan')->where('Ma_TK', '!=', 'TKADM')->count() > 0) {
             return;
         }
 
@@ -49,30 +88,30 @@ class DatabaseSeeder extends Seeder
                 'Gioi_Thieu' => 'Tôi yêu thích chụp ảnh kỷ niệm và du lịch',
                 'created_at' => now()->subMonths(6),
             ],
-                [
-                    'Ma_TK' => 'TK002',
+            [
+                'Ma_TK' => 'TK002',
                 'Ho_Ten' => 'Trần Thị Bình',
                 'So_ĐT' => '0902222222',
                 'Email_TK' => 'customer2@test.com',
-                    'Mat_Khau' => Hash::make('12345678'),
-                    'Loai_TK' => 'Khách hàng',
-                    'Hinh_Thuc_Dang_Nhap' => 'User-registered',
+                'Mat_Khau' => Hash::make('12345678'),
+                'Loai_TK' => 'Khách hàng',
+                'Hinh_Thuc_Dang_Nhap' => 'User-registered',
                 'Gioi_Thieu' => 'Đam mê chụp ảnh cưới và sự kiện',
                 'created_at' => now()->subMonths(4),
-                ],
-                [
-                    'Ma_TK' => 'TK003',
+            ],
+            [
+                'Ma_TK' => 'TK003',
                 'Ho_Ten' => 'Lê Minh Cường',
                 'So_ĐT' => '0903333333',
                 'Email_TK' => 'customer3@test.com',
-                    'Mat_Khau' => Hash::make('12345678'),
-                    'Loai_TK' => 'Khách hàng',
-                    'Hinh_Thuc_Dang_Nhap' => 'User-registered',
+                'Mat_Khau' => Hash::make('12345678'),
+                'Loai_TK' => 'Khách hàng',
+                'Hinh_Thuc_Dang_Nhap' => 'User-registered',
                 'Gioi_Thieu' => 'Thích chụp ảnh chân dung và fashion',
                 'created_at' => now()->subMonths(2),
-                ],
-                [
-                    'Ma_TK' => 'TK004',
+            ],
+            [
+                'Ma_TK' => 'TK004',
                 'Ho_Ten' => 'Phạm Thị Dung',
                 'So_ĐT' => '0904444444',
                 'Email_TK' => 'customer4@test.com',
@@ -133,9 +172,9 @@ class DatabaseSeeder extends Seeder
                 'Ho_Ten' => 'Phạm Văn Khoa',
                 'So_ĐT' => '0909999999',
                 'Email_TK' => 'photographer4@test.com',
-                    'Mat_Khau' => Hash::make('12345678'),
-                    'Loai_TK' => 'Nhiếp ảnh gia',
-                    'Hinh_Thuc_Dang_Nhap' => 'User-registered',
+                'Mat_Khau' => Hash::make('12345678'),
+                'Loai_TK' => 'Nhiếp ảnh gia',
+                'Hinh_Thuc_Dang_Nhap' => 'User-registered',
                 'Gioi_Thieu' => 'Chuyên chụp ảnh phong cảnh, du lịch và thiên nhiên. Đã đi qua nhiều quốc gia để chụp ảnh.',
                 'created_at' => now()->subMonths(8),
             ],
@@ -144,9 +183,9 @@ class DatabaseSeeder extends Seeder
                 'Ho_Ten' => 'Võ Thị Lan',
                 'So_ĐT' => '0901010101',
                 'Email_TK' => 'photographer5@test.com',
-                    'Mat_Khau' => Hash::make('12345678'),
-                    'Loai_TK' => 'Nhiếp ảnh gia',
-                    'Hinh_Thuc_Dang_Nhap' => 'User-registered',
+                'Mat_Khau' => Hash::make('12345678'),
+                'Loai_TK' => 'Nhiếp ảnh gia',
+                'Hinh_Thuc_Dang_Nhap' => 'User-registered',
                 'Gioi_Thieu' => 'Nhiếp ảnh gia trẻ với phong cách hiện đại, chuyên về chụp ảnh kỷ yếu, couple và pre-wedding.',
                 'created_at' => now()->subMonths(6),
             ],
@@ -285,6 +324,7 @@ class DatabaseSeeder extends Seeder
                 'Portfolio' => json_encode([
                     'https://example.com/portfolio9.jpg',
                     'https://example.com/portfolio10.jpg',
+                    'https://example.com/portfolio11.jpg',
                 ]),
             ],
             [
@@ -307,9 +347,236 @@ class DatabaseSeeder extends Seeder
 
         DB::table('nhiep_anh_gia')->insert($photographers);
     }
+    
+    /**
+     * Seed dịch vụ (Gói chụp + Dịch vụ thêm + Bối cảnh)
+     */
+    private function seedServices(): void
+    {
+        // 1. Dịch vụ thêm (Loai_DV = 0)
+        if (DB::table('dich_vu')->where('Loai_DV', 0)->count() == 0) {
+             $extras = [
+                [
+                    'Ma_DV' => 'DV001',
+                    'Ten_DV' => 'Chỉnh sửa ảnh cơ bản',
+                    'Mo_Ta' => 'Chỉnh sửa màu sắc, độ sáng, độ tương phản cơ bản cho ảnh',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV002',
+                    'Ten_DV' => 'Chỉnh sửa ảnh nâng cao',
+                    'Mo_Ta' => 'Chỉnh sửa chuyên sâu, retouch, xóa phông, chỉnh màu nâng cao',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV003',
+                    'Ten_DV' => 'Album ảnh kỹ thuật số',
+                    'Mo_Ta' => 'Tạo album ảnh kỹ thuật số với thiết kế chuyên nghiệp',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV004',
+                    'Ten_DV' => 'In ảnh chất lượng cao',
+                    'Mo_Ta' => 'In ảnh trên giấy ảnh chất lượng cao, kích thước tùy chọn',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV005',
+                    'Ten_DV' => 'Video highlight',
+                    'Mo_Ta' => 'Tạo video highlight ngắn từ các khoảnh khắc đẹp nhất của buổi chụp',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV006',
+                    'Ten_DV' => 'Trang điểm chuyên nghiệp',
+                    'Mo_Ta' => 'Dịch vụ trang điểm chuyên nghiệp cho buổi chụp',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV007',
+                    'Ten_DV' => 'Cho thuê trang phục',
+                    'Mo_Ta' => 'Cho thuê trang phục chụp ảnh (áo dài, vest, váy cưới...)',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV008',
+                    'Ten_DV' => 'Phụ kiện chụp ảnh',
+                    'Mo_Ta' => 'Cung cấp phụ kiện chụp ảnh (hoa, đạo cụ, backdrop...)',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV009',
+                    'Ten_DV' => 'Chụp thêm giờ',
+                    'Mo_Ta' => 'Chụp thêm giờ ngoài thời gian đã đặt (mỗi giờ)',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+                [
+                    'Ma_DV' => 'DV010',
+                    'Ten_DV' => 'Giao ảnh gấp (24h)',
+                    'Mo_Ta' => 'Giao ảnh trong vòng 24 giờ sau buổi chụp',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 0,
+                ],
+            ];
+            DB::table('dich_vu')->insert($extras);
+        }
+
+        // 2. Gói chụp (Loai_DV = 1)
+        if (DB::table('dich_vu')->where('Loai_DV', 1)->count() == 0) {
+            $genres = [
+                [
+                    'Ma_DV' => 'G001',
+                    'Ten_DV' => 'Chụp chân dung',
+                    'Mo_Ta' => 'Chụp ảnh chân dung cá nhân, profile, doanh nhân',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 1
+                ],
+                [
+                    'Ma_DV' => 'G002',
+                    'Ten_DV' => 'Chụp cưới hỏi',
+                    'Mo_Ta' => 'Chụp ảnh pre-wedding, phóng sự cưới, tiệc cưới',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 1
+                ],
+                [
+                    'Ma_DV' => 'G003',
+                    'Ten_DV' => 'Chụp gia đình',
+                    'Mo_Ta' => 'Chụp ảnh gia đình, bé yêu, kỷ niệm',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 1
+                ],
+                [
+                    'Ma_DV' => 'G004',
+                    'Ten_DV' => 'Chụp sự kiện',
+                    'Mo_Ta' => 'Chụp ảnh sự kiện, hội nghị, khai trương, tiệc',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 1
+                ],
+                [
+                    'Ma_DV' => 'G005',
+                    'Ten_DV' => 'Chụp sản phẩm',
+                    'Mo_Ta' => 'Chụp ảnh sản phẩm, food, quảng cáo',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 1
+                ],
+                [
+                    'Ma_DV' => 'G006',
+                    'Ten_DV' => 'Chụp thời trang',
+                    'Mo_Ta' => 'Chụp lookbook, street style, editorial',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 1
+                ],
+                [
+                    'Ma_DV' => 'G007',
+                    'Ten_DV' => 'Chụp phong cảnh',
+                    'Mo_Ta' => 'Chụp ảnh phong cảnh, kiến trúc, nội thất',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 1
+                ],
+                [
+                    'Ma_DV' => 'G008',
+                    'Ten_DV' => 'Chụp đường phố',
+                    'Mo_Ta' => 'Chụp ảnh đường phố, đời sống, du lịch',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 1
+                ],
+            ];
+            DB::table('dich_vu')->insert($genres);
+        }
+
+        // 3. Bối cảnh (Loai_DV = 3)
+        if (DB::table('dich_vu')->where('Loai_DV', 3)->count() == 0) {
+            $contexts = [
+                [
+                    'Ma_DV' => 'BC001',
+                    'Ten_DV' => 'Ngoài trời',
+                    'Mo_Ta' => 'Chụp ảnh không gian ngoài trời, thiên nhiên, đường phố',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 3
+                ],
+                [
+                    'Ma_DV' => 'BC002',
+                    'Ten_DV' => 'Trong nhà',
+                    'Mo_Ta' => 'Chụp ảnh trong nhà, studio, tại gia',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 3
+                ],
+                [
+                    'Ma_DV' => 'BC003',
+                    'Ten_DV' => 'Kết hợp',
+                    'Mo_Ta' => 'Kết hợp cả trong nhà và ngoài trời',
+                    'Hoat_Dong' => true,
+                    'Loai_DV' => 3
+                ],
+            ];
+            DB::table('dich_vu')->insert($contexts);
+        }
+    }
 
     /**
-     * Seed buổi chụp với đầy đủ các trạng thái để test
+     * Seed nhiếp ảnh gia - dịch vụ
+     */
+    private function seedPhotographerServices(): void
+    {
+        if (DB::table('nhiep_anh_gia_dich_vu')->count() > 0) {
+            return;
+        }
+
+        $nags = DB::table('nhiep_anh_gia')->get();
+        $services = DB::table('dich_vu')->get();
+
+        if ($nags->isEmpty() || $services->isEmpty()) {
+            return;
+        }
+
+        $pivotData = [];
+
+        foreach ($nags as $nag) {
+            foreach ($services as $service) {
+                // Xác định giá dựa trên loại dịch vụ (chỉ để demo)
+                $price = 0;
+                
+                if ($service->Loai_DV == 1) { 
+                    // Gói chụp (Genre) - Giá cao hơn
+                    $price = rand(500000, 2000000); 
+                } elseif ($service->Loai_DV == 0) {
+                    // Dịch vụ thêm - Giá thấp hơn
+                    $price = rand(50000, 500000);
+                } else {
+                    // Context (Loai_DV = 3) thường free hoặc phụ thu ít
+                    $price = rand(0, 200000);
+                }
+
+                // Làm tròn giá về hàng nghìn
+                $price = round($price / 1000) * 1000;
+
+                $pivotData[] = [
+                    'Ma_NAG' => $nag->Ma_NAG,
+                    'Ma_DV' => $service->Ma_DV,
+                    'Gia' => $price,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+        }
+
+        // Insert in chunks to avoid query size limits if many services/NAGs
+        foreach (array_chunk($pivotData, 100) as $chunk) {
+            DB::table('nhiep_anh_gia_dich_vu')->insert($chunk);
+        }
+    }
+
+    /**
+     * Seed buổi chụp
      */
     private function seedBookings(): void
     {

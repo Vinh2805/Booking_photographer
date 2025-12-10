@@ -31,7 +31,7 @@ class BookingController extends Controller
             'Ma_NAG' => 'required|string',
             'Tieu_De' => 'nullable|string|max:255',
             'The_Loai_Chup' => 'required|string', // JSON string
-            'Boi_Canh_Chup' => 'required|in:Ngoài trời,Trong nhà,Kết hợp',
+            'Boi_Canh_Chup' => 'required|exists:dich_vu,Ten_DV',
             'Dia_Diem' => 'required|string|max:255',
             'Bat_Dau_Chup' => 'required|date|after:now',
             'Ket_Thuc_Chup' => 'required|date|after:Bat_Dau_Chup',
@@ -170,7 +170,7 @@ class BookingController extends Controller
     {
         $services = DichVu::where('Hoat_Dong', true)
             ->orderBy('Ten_DV')
-            ->get(['Ma_DV', 'Ten_DV', 'Mo_Ta', 'Gia']);
+            ->get(['Ma_DV', 'Ten_DV', 'Mo_Ta', 'Gia', 'Loai_DV']);
 
         return response()->json($services);
     }

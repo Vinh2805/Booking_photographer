@@ -82,12 +82,14 @@ export function PhotographerChat(_onBack: { onBack: () => void; initialBookingId
 
   // Fetch tin nhắn khi chọn chat
   useEffect(() => {
-    if (selectedChat && selectedChat.bookingId && selectedChat.type !== "support") {
-      fetchMessages(selectedChat.bookingId);
-      // Subscribe WebSocket
-      subscribeToChat(selectedChat.bookingId);
-      // Đánh dấu đã đọc
-      markAsRead(selectedChat.bookingId);
+    if (selectedChat) {
+        if (selectedChat.type === "support") {
+            fetchSupportMessages();
+        } else if (selectedChat.bookingId) {
+            fetchMessages(selectedChat.bookingId);
+            subscribeToChat(selectedChat.bookingId);
+            markAsRead(selectedChat.bookingId);
+        }
     }
     
     return () => {
@@ -207,28 +209,56 @@ export function PhotographerChat(_onBack: { onBack: () => void; initialBookingId
           }
         });
 
-        const rooms: ChatRoom[] = await Promise.all(roomsPromises);
+        // Lấy support messages
+        let supportRoom: ChatRoom;
+        try {
+            const supportMsgs = await chatApi.getSupportMessages();
+            const lastMsg = supportMsgs.length > 0 ? supportMsgs[supportMsgs.length - 1] : null;
 
-        // Thêm support chat ở đầu
-        rooms.unshift({
-          id: "support",
-          type: "support" as const,
-          participants: [
-            {
-              name: "Hỗ trợ Momentia",
-              avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
-              role: "Hỗ trợ nhiếp ảnh gia",
-            },
-          ],
-          title: "Hỗ trợ nhiếp ảnh gia",
-          lastMessage: "Chào anh! Tôi có thể giúp gì cho anh không?",
-          lastMessageTime: new Date().toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          unreadCount: 0,
-          isOnline: true,
-        });
+            supportRoom = {
+                id: "support",
+                type: "support" as const,
+                participants: [
+                    {
+                    name: "Hỗ trợ Momentia",
+                    avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
+                    role: "Hỗ trợ nhiếp ảnh gia",
+                    },
+                ],
+                title: "Hỗ trợ nhiếp ảnh gia",
+                lastMessage: lastMsg?.Noi_Dung || "Chào anh! Tôi có thể giúp gì cho anh không?",
+                lastMessageTime: lastMsg?.Gui_Luc
+                    ? new Date(lastMsg.Gui_Luc).toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    })
+                    : new Date().toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    }),
+                unreadCount: 0,
+                isOnline: true,
+            };
+        } catch (error) {
+             console.error("Failed to fetch support messages", error);
+             supportRoom = {
+                id: "support",
+                type: "support" as const,
+                participants: [{
+                    name: "Hỗ trợ Momentia",
+                    avatar: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=50&h=50&fit=crop&crop=face",
+                    role: "Hỗ trợ nhiếp ảnh gia",
+                }],
+                title: "Hỗ trợ nhiếp ảnh gia",
+                lastMessage: "Chào anh! Tôi có thể giúp gì cho anh không?",
+                lastMessageTime: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+                unreadCount: 0,
+                isOnline: true,
+             };
+        }
+
+        const rooms: ChatRoom[] = await Promise.all(roomsPromises);
+        rooms.unshift(supportRoom);
 
         setChatRooms(rooms);
       } else {
@@ -322,6 +352,38 @@ export function PhotographerChat(_onBack: { onBack: () => void; initialBookingId
     }
   };
 
+  const fetchSupportMessages = async () => {
+    try {
+        const supportMsgs = await chatApi.getSupportMessages();
+        const formatted: Message[] = supportMsgs.map(msg => {
+            // Admin sent -> sender = 'support'
+            // Self sent (photographer) -> sender = 'photographer'
+            let sender: "customer" | "photographer" | "coordinator" | "support" = "photographer";
+            
+            if (msg.Ma_Admin) {
+                sender = "support";
+            } else if (msg.Ma_NAG) {
+                sender = "photographer";
+            }
+
+            return {
+                id: msg.Ma_TN,
+                Ma_TN: msg.Ma_TN,
+                Ma_BC: msg.Ma_BC,
+                sender,
+                content: msg.Noi_Dung,
+                timestamp: msg.Gui_Luc ? new Date(msg.Gui_Luc).toLocaleTimeString("vi-VN", {hour: '2-digit', minute:'2-digit'}) : "",
+                type: "text",
+                Trang_Thai: msg.Trang_Thai
+            };
+        });
+        setMessages(formatted);
+    } catch (e) {
+        console.error(e);
+        toast.error("Lỗi tin nhắn hỗ trợ");
+    }
+  };
+
   const subscribeToChat = (Ma_BC: string) => {
     // Unsubscribe channel cũ nếu có
     if (echoChannelRef.current) {
@@ -395,14 +457,14 @@ export function PhotographerChat(_onBack: { onBack: () => void; initialBookingId
   );
 
   const sendMessage = async () => {
-    if (!messageInput.trim() || !selectedChat?.bookingId || sending) return;
+    if (!messageInput.trim() || !selectedChat || sending) return;
 
     try {
       setSending(true);
       
       // Gửi tin nhắn qua API
       const newMessage = await chatApi.sendMessage({
-        Ma_BC: selectedChat.bookingId,
+        Ma_BC: selectedChat.bookingId || null,
         Noi_Dung: messageInput.trim(),
       });
 

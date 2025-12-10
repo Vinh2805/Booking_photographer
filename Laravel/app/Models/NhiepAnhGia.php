@@ -30,4 +30,27 @@ class NhiepAnhGia extends Model
     {
         return $this->belongsTo(User::class, 'Ma_TK', 'Ma_TK');
     }
+
+    public function buoiChups()
+    {
+        return $this->hasMany(BuoiChup::class, 'Ma_NAG', 'Ma_NAG');
+    }
+
+    public function danhGias()
+    {
+        return $this->hasMany(DanhGia::class, 'Ma_NAG', 'Ma_NAG');
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(WalletTransaction::class, 'Ma_Nguoi_Dung', 'Ma_NAG')
+                    ->where('Loai_Nguoi_Dung', 'nhiep_anh_gia');
+    }
+
+    public function dichVu()
+    {
+        return $this->belongsToMany(DichVu::class, 'nhiep_anh_gia_dich_vu', 'Ma_NAG', 'Ma_DV')
+                    ->withPivot('Gia')
+                    ->withTimestamps();
+    }
 }

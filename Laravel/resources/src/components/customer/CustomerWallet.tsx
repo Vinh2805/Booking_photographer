@@ -9,6 +9,13 @@ import {
   CardTitle,
 } from "../ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -38,6 +45,7 @@ import {
 } from "../ui/table";
 import apiClient from "../services/apiClient";
 import { toast } from "sonner";
+import { BankAPI, Bank } from "../services/BankAPI";
 
 interface CustomerWalletProps {
   onBack?: () => void;
@@ -64,11 +72,19 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
 
+  const [banks, setBanks] = useState<Bank[]>([]);
+
   // Load wallet balance and transactions
   useEffect(() => {
     loadBalance();
     loadTransactions();
+    fetchBanks();
   }, []);
+
+  const fetchBanks = async () => {
+    const bankList = await BankAPI.getBanks();
+    setBanks(bankList);
+  };
 
   const loadBalance = async () => {
     try {
@@ -331,14 +347,14 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
               <span>Nạp tiền</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="bg-white dark:bg-slate-800 p-3 m-2 max-w-sm">
             <DialogHeader>
               <DialogTitle>Nạp tiền vào ví</DialogTitle>
               <DialogDescription>
                 Nhập số tiền bạn muốn nạp vào ví cá nhân
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               {!qrUrl ? (
                 <>
                   <div className="space-y-2">
@@ -370,7 +386,7 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
                       <img
                         src={qrUrl}
                         alt="QR Code"
-                        className="w-64 h-64 object-contain"
+                        className="w-48 h-48 object-contain"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
@@ -471,14 +487,14 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
               <span>Rút tiền</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="bg-white dark:bg-slate-800 p-3 m-2 max-w-sm">
             <DialogHeader>
               <DialogTitle>Rút tiền từ ví</DialogTitle>
               <DialogDescription>
                 Vui lòng điền thông tin tài khoản ngân hàng để rút tiền
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="withdraw-amount">Số tiền muốn rút (VNĐ)</Label>
                 <Input
@@ -509,13 +525,28 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="bank-name">Tên ngân hàng</Label>
-                <Input
-                  id="bank-name"
-                  type="text"
-                  placeholder="VD: VIB, Vietcombank, Techcombank..."
+                <Select
                   value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                />
+                  onValueChange={(value) => setBankName(value)}
+                >
+                  <SelectTrigger id="bank-name">
+                    <SelectValue placeholder="Chọn ngân hàng" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {banks.map((bank) => (
+                      <SelectItem key={bank.id} value={bank.shortName}>
+                        <div className="flex items-center gap-2">
+                          <img 
+                            src={bank.logo} 
+                            alt={bank.shortName} 
+                            className="w-8 h-8 object-contain bg-white rounded-sm p-0.5 border" 
+                          />
+                          <span>{bank.shortName} - {bank.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -653,4 +684,3 @@ export function CustomerWallet({ onBack }: CustomerWalletProps) {
     </div>
   );
 }
-

@@ -10,9 +10,89 @@ use Illuminate\Support\Facades\Auth;
 class ChatController extends Controller
 {
     // Lấy lịch sử tin nhắn
+    // Lấy danh sách hội thoại cho Admin (theo User)
+    // Lấy danh sách hội thoại cho Admin (theo User)
+    public function getConversations(Request $request) {
+        $user = $request->user();
+        
+        // Debug permission
+        if (!$this->isAdmin($user)) {
+             // Log this if possible, or return diverse error
+             return response()->json([
+                 'message' => 'Unauthorized: User is not an Admin',
+                 'user_type' => $user->Loai_TK ?? 'null',
+                 'id' => $user->Ma_TK
+             ], 403);
+        }
+
+        // Lấy toàn bộ danh sách khách hàng và nhiếp ảnh gia
+        $customers = \App\Models\KhachHang::with('taiKhoan')->get()->map(function($c) {
+            return [
+                'id' => $c->Ma_KH,
+                'name' => $c->taiKhoan->Ho_Ten ?? 'No Name',
+                'avatar' => $c->taiKhoan->avatar_url ?? '',
+                'type' => 'customer'
+            ];
+        });
+
+        $photographers = \App\Models\NhiepAnhGia::with('taiKhoan')->get()->map(function($p) {
+             return [
+                'id' => $p->Ma_NAG,
+                'name' => $p->taiKhoan->Ho_Ten ?? 'No Name',
+                'avatar' => $p->taiKhoan->avatar_url ?? '',
+                'type' => 'photographer'
+            ];
+        });
+
+        return response()->json([
+            'customers' => $customers,
+            'photographers' => $photographers
+        ]);
+    }
+
+    // ... (rest of file) ...
+
+    // Lấy chi tiết tin nhắn với một user cụ thể (Support Chat cho Admin)
+    public function getMessagesByUser(Request $request, $userId) {
+        $user = $request->user();
+        if (!$this->isAdmin($user)) {
+             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $query = TinNhan::whereNull('Ma_BC')->orderBy('Gui_Luc', 'asc');
+
+        if (str_starts_with($userId, 'KH')) {
+            $query->where('Ma_KH', $userId);
+        } elseif (str_starts_with($userId, 'NAG')) {
+            $query->where('Ma_NAG', $userId);
+        } else {
+            return response()->json(['message' => 'Invalid User ID'], 400);
+        }
+
+        $messages = $query->get();
+        return response()->json($messages);
+    }
+
+    private function isAdmin($user) {
+        // Check capability first (Sanctum)
+        if ($user->tokenCan('admin')) {
+            return true;
+        }
+        // Fallback: Check Role
+        if ($user->Loai_TK === 'Admin') {
+            return true;
+        }
+        // Legacy: Check DB
+        return \App\Models\Admin::where('Ma_TK', $user->Ma_TK)->exists();
+    }
+
     public function index(Request $request, $Ma_BC)
     {
+        // ... (Old logic for booking chat, keep for backward compatibility or modify if needed)
+        // For now, keep it valid.
+        
         $user = $request->user();
+        // ... rest of index code
         if (!$user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
@@ -25,12 +105,20 @@ class ChatController extends Controller
 
         $khachHang = \App\Models\KhachHang::where('Ma_TK', $user->Ma_TK)->first();
         $nag = \App\Models\NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+        $admin = \App\Models\Admin::where('Ma_TK', $user->Ma_TK)->first();
 
         $hasAccess = false;
+        $allowedScopes = ['general'];
+
         if ($khachHang && $booking->Ma_KH === $khachHang->Ma_KH) {
             $hasAccess = true;
+            $allowedScopes[] = 'admin_customer';
         } elseif ($nag && $booking->Ma_NAG === $nag->Ma_NAG) {
             $hasAccess = true;
+            $allowedScopes[] = 'admin_photographer';
+        } elseif ($admin) {
+            $hasAccess = true;
+            $allowedScopes = ['general', 'admin_customer', 'admin_photographer'];
         }
 
         if (!$hasAccess) {
@@ -38,10 +126,35 @@ class ChatController extends Controller
         }
 
         $messages = TinNhan::where('Ma_BC', $Ma_BC)
+            ->whereIn('Pham_Vi', $allowedScopes)
             ->orderBy('Gui_Luc', 'asc')
             ->get();
 
         return response()->json($messages);
+    }
+
+    // Lấy lịch sử chat hỗ trợ (Chat với Admin - không có Ma_BC)
+    public function getSupportHistory(Request $request) {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $khachHang = \App\Models\KhachHang::where('Ma_TK', $user->Ma_TK)->first();
+        $nag = \App\Models\NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+
+        $query = TinNhan::whereNull('Ma_BC')->orderBy('Gui_Luc', 'asc');
+
+        if ($khachHang) {
+            $query->where('Ma_KH', $khachHang->Ma_KH);
+        } elseif ($nag) {
+            $query->where('Ma_NAG', $nag->Ma_NAG);
+        } else {
+             // Admin shouldn't call this, but if they do... logic is different
+             return response()->json(['message' => 'Only for users'], 403);
+        }
+
+        return response()->json($query->get());
     }
 
     // Gửi tin nhắn
@@ -53,39 +166,82 @@ class ChatController extends Controller
         }
 
         $data = $request->validate([
-            'Ma_BC' => 'required|string',
+            'Ma_BC' => 'nullable|string',
             'Noi_Dung' => 'required|string',
             'Loai_Tin' => 'nullable|string',
+            'Pham_Vi' => 'nullable|string|in:general,admin_customer,admin_photographer',
+            'ReceiverId' => 'nullable|string', // ID người nhận (nếu chat direct without booking)
         ]);
 
-        // Kiểm tra quyền truy cập: user phải là khách hàng hoặc nhiếp ảnh gia của buổi chụp này
-        $booking = \App\Models\BuoiChup::find($data['Ma_BC']);
-        if (!$booking) {
-            return response()->json(['message' => 'Không tìm thấy buổi chụp'], 404);
+        if (!isset($data['Pham_Vi'])) {
+            $data['Pham_Vi'] = 'general';
         }
 
+        $booking = null;
+        if (!empty($data['Ma_BC'])) {
+            $booking = \App\Models\BuoiChup::find($data['Ma_BC']);
+        }
         $khachHang = \App\Models\KhachHang::where('Ma_TK', $user->Ma_TK)->first();
         $nag = \App\Models\NhiepAnhGia::where('Ma_TK', $user->Ma_TK)->first();
+        $admin = \App\Models\Admin::where('Ma_TK', $user->Ma_TK)->first();
 
         $senderType = null;
-        $senderId = null;
-
-        if ($khachHang && $booking->Ma_KH === $khachHang->Ma_KH) {
+        
+        if ($admin) {
+            $senderType = 'admin';
+            $data['Ma_Admin'] = $admin->Ma_Admin;
+            
+            // Nếu không có Ma_BC, phải có ReceiverId để biết gửi cho ai
+            if (empty($data['Ma_BC']) && !empty($data['ReceiverId'])) {
+                if (str_starts_with($data['ReceiverId'], 'KH')) {
+                    $data['Ma_KH'] = $data['ReceiverId'];
+                    $data['Ma_BC'] = null; // Ensure null
+                    $data['Pham_Vi'] = 'admin_customer';
+                } elseif (str_starts_with($data['ReceiverId'], 'NAG')) {
+                    $data['Ma_NAG'] = $data['ReceiverId'];
+                    $data['Ma_BC'] = null; 
+                    $data['Pham_Vi'] = 'admin_photographer';
+                }
+            } elseif ($booking) {
+                // Logic cũ: Admin gửi vào booking
+                // ...
+            }
+        } elseif ($khachHang) {
             $senderType = 'customer';
-            $senderId = $khachHang->Ma_KH;
             $data['Ma_KH'] = $khachHang->Ma_KH;
-        } elseif ($nag && $booking->Ma_NAG === $nag->Ma_NAG) {
+            // Nếu gửi support (không có Ma_BC), set phạm vi
+            if (empty($data['Ma_BC'])) {
+                $data['Pham_Vi'] = 'admin_customer';
+                // Ma_Admin null -> Tin nhắn chờ Admin đọc
+            }
+        } elseif ($nag) {
             $senderType = 'photographer';
-            $senderId = $nag->Ma_NAG;
             $data['Ma_NAG'] = $nag->Ma_NAG;
+            // Nếu gửi support (không có Ma_BC), set phạm vi
+            if (empty($data['Ma_BC'])) {
+                $data['Pham_Vi'] = 'admin_photographer';
+                // Ma_Admin null -> Tin nhắn chờ Admin đọc
+            }
         } else {
-            return response()->json(['message' => 'Bạn không có quyền gửi tin nhắn cho buổi chụp này'], 403);
+             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        
+        // Validation logic for booking access if Ma_BC is present
+        if ($booking) {
+             if ($senderType === 'customer' && $booking->Ma_KH !== $khachHang->Ma_KH) {
+                 return response()->json(['message' => 'Unauthorized'], 403);
+             }
+             if ($senderType === 'photographer' && $booking->Ma_NAG !== $nag->Ma_NAG) {
+                 return response()->json(['message' => 'Unauthorized'], 403);
+             }
         }
 
         // Tạo bản ghi tin nhắn
         $data['Ma_TN'] = 'TN' . now()->format('YmdHis') . rand(100, 999);
-        $data['Trang_Thai'] = 'Đã gửi'; // Enum chỉ có 'Đã gửi' và 'Đã đọc'
+        $data['Trang_Thai'] = 'Đã gửi'; 
         $data['Gui_Luc'] = now();
+        
+        unset($data['ReceiverId']); // Remove temp field
 
         $message = \App\Models\TinNhan::create($data);
 

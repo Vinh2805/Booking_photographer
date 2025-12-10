@@ -16,9 +16,11 @@ class TinNhan extends Model
         'Ma_BC',
         'Ma_KH',
         'Ma_NAG',
+        'Ma_Admin',
         'Noi_Dung',
         'Trang_Thai',
         'Loai_Tin',
+        'Pham_Vi',
     ];
 
     public $timestamps = false;
@@ -29,5 +31,9 @@ class TinNhan extends Model
 
     public function nhiepAnhGia() {
         return $this->belongsTo(NhiepAnhGia::class, 'Ma_NAG', 'Ma_NAG');
+    }
+
+    public function admin() {
+        return $this->belongsTo(Admin::class, 'Ma_Admin', 'Ma_Admin');
     }
 }
