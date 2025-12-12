@@ -101,6 +101,7 @@ class PhotographerController extends Controller
                 'nhiep_anh_gia.Kinh_Nghiem as experience'
             )
             ->whereNotNull('nhiep_anh_gia.Ma_TK')
+            ->where('nhiep_anh_gia.Trang_Thai', 'Approved')
             ->take(12)
             ->get()
             ->map(function ($p) {
@@ -187,6 +188,7 @@ class PhotographerController extends Controller
     {
         $nag = NhiepAnhGia::join('tai_khoan', 'nhiep_anh_gia.Ma_TK', '=', 'tai_khoan.Ma_TK')
             ->where('nhiep_anh_gia.Ma_NAG', $id)
+            ->where('nhiep_anh_gia.Trang_Thai', 'Approved')
             ->select(
                 'nhiep_anh_gia.Ma_NAG as id',
                 'tai_khoan.Ho_Ten as name',
@@ -304,7 +306,7 @@ class PhotographerController extends Controller
     {
         try {
             // Validate Ma_NAG
-            $nag = NhiepAnhGia::where('Ma_NAG', $Ma_NAG)->first();
+            $nag = NhiepAnhGia::where('Ma_NAG', $Ma_NAG)->where('Trang_Thai', 'Approved')->first();
             if (!$nag) {
                 return response()->json([
                     'success' => false,
@@ -373,7 +375,7 @@ class PhotographerController extends Controller
             ]);
 
             // Validate Ma_NAG
-            $nag = NhiepAnhGia::where('Ma_NAG', $Ma_NAG)->first();
+            $nag = NhiepAnhGia::where('Ma_NAG', $Ma_NAG)->where('Trang_Thai', 'Approved')->first();
             if (!$nag) {
                 return response()->json([
                     'success' => false,
@@ -425,7 +427,7 @@ class PhotographerController extends Controller
      */
     public function getServices($id)
     {
-        $nag = NhiepAnhGia::find($id);
+        $nag = NhiepAnhGia::where('Ma_NAG', $id)->where('Trang_Thai', 'Approved')->first();
 
         if (!$nag) {
             return response()->json(['message' => 'Không tìm thấy nhiếp ảnh gia'], 404);

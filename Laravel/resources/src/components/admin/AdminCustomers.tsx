@@ -140,53 +140,7 @@ export function AdminCustomers() {
     fetchCustomers();
   }, []);
 
-  const getStatusInfo = (status: CustomerStatus) => {
-    const statusMap = {
-      active: {
-        label: "Hoạt động",
-        color: "bg-green-100 text-green-800",
-      },
-      suspended: {
-        label: "Tạm khóa",
-        color: "bg-orange-100 text-orange-800",
-      },
-      banned: {
-        label: "Cấm vĩnh viễn",
-        color: "bg-red-100 text-red-800",
-      },
-      new: { label: "Mới", color: "bg-blue-100 text-blue-800" },
-      inactive: {
-        label: "Không hoạt động",
-        color: "bg-gray-100 text-gray-800",
-      },
-    };
-    return statusMap[status];
-  };
 
-  const getRiskInfo = (risk: string) => {
-    switch (risk) {
-      case "high":
-        return {
-          label: "Cao",
-          color: "bg-red-100 text-red-800",
-        };
-      case "medium":
-        return {
-          label: "Trung bình",
-          color: "bg-yellow-100 text-yellow-800",
-        };
-      case "low":
-        return {
-          label: "Thấp",
-          color: "bg-green-100 text-green-800",
-        };
-      default:
-        return {
-          label: "Không xác định",
-          color: "bg-gray-100 text-gray-800",
-        };
-    }
-  };
 
   const applyFilters = (customer: AdminCustomer) => {
     // Status filter
@@ -356,8 +310,7 @@ export function AdminCustomers() {
 
   // Customer detail view
   if (selectedCustomer && !showActionDialog) {
-    const statusInfo = getStatusInfo(selectedCustomer.status);
-    const riskInfo = getRiskInfo(selectedCustomer.riskLevel);
+
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -376,10 +329,7 @@ export function AdminCustomers() {
               <h1 className="font-semibold">Quản lý khách hàng</h1>
               <p className="text-sm text-gray-600">ID: {selectedCustomer.id}</p>
             </div>
-            <div className="flex gap-2">
-              <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
-              <Badge className={riskInfo.color}>Rủi ro: {riskInfo.label}</Badge>
-            </div>
+            {/* Status and Risk badges removed */}
           </div>
         </div>
 
@@ -719,8 +669,7 @@ export function AdminCustomers() {
       {/* Customers List */}
       <div className="space-y-3">
         {filteredCustomers.map((customer) => {
-          const statusInfo = getStatusInfo(customer.status);
-          const riskInfo = getRiskInfo(customer.riskLevel);
+
 
           return (
             <Card
@@ -744,14 +693,7 @@ export function AdminCustomers() {
                           {customer.email}
                         </p>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <Badge className={statusInfo.color}>
-                          {statusInfo.label}
-                        </Badge>
-                        <Badge className={riskInfo.color}>
-                          {riskInfo.label}
-                        </Badge>
-                      </div>
+                      {/* Status and Risk badges removed */}
                     </div>
 
                     <div className="flex items-center justify-between text-sm">
